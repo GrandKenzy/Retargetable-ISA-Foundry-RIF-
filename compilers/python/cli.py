@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import sys
 import re
+import sys
 from pathlib import Path
 
 from .compiler import compile_file
@@ -10,25 +10,24 @@ from .errors import CompileError
 
 def main(argv: list[str]) -> int:
     if len(argv) not in (2, 3):
-        print("usage: python pack_compiler.py input.pack [output.txt]", file=sys.stderr)
+        print("usage: pack-compiler input.pack [output.txt]", file=sys.stderr)
         return 2
     input_path = argv[1]
-    
-    # Detect if we need to pack first (unpacked.<arch>.pack)
+
     path = Path(input_path)
     filename = path.name
     is_unpacked = re.match(r"^unpacked[._-]([^.]+)\.pack$", filename, re.IGNORECASE)
-    
+
     if is_unpacked:
         try:
-            from packer import pack_architecture
+            from .packer import pack_architecture
+
             packed_path = pack_architecture(input_path)
-            # Now compile the packed path instead!
             input_path = str(packed_path)
         except Exception as exc:
             print(f"error during packing: {exc}", file=sys.stderr)
             return 1
-            
+
     output_path = argv[2] if len(argv) == 3 else str(Path(input_path).with_suffix(".txt"))
     try:
         compile_file(input_path, output_path)

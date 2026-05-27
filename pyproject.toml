@@ -17,7 +17,7 @@ classifiers = [
 ]
 
 [project.scripts]
-pack-compiler = "pack_compiler.cli:run"
+pack-compiler = "compilers.python.cli:run"
 
 [tool.setuptools.packages.find]
-include = ["pack_compiler*"]
+include = ["compilers*"]

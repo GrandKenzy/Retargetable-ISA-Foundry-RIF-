@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass
 class TypeInfo:
     name: str
     bits: int
@@ -15,7 +14,6 @@ class TypeInfo:
         return getattr(self, name)
 
 
-@dataclass
 class SubRegisterInfo:
     name: str
     alias: str
@@ -33,7 +31,6 @@ class SubRegisterInfo:
         return getattr(self, name)
 
 
-@dataclass
 class RegisterInfo:
     name: str
     code: str
@@ -47,7 +44,6 @@ class RegisterInfo:
         return getattr(self, name)
 
 
-@dataclass
 class SymbolInfo:
     name: str
     bits: int
@@ -58,7 +54,6 @@ class SymbolInfo:
         return getattr(self, name)
 
 
-@dataclass
 class WordInfo:
     name: str
     data: bytes
@@ -71,7 +66,6 @@ class WordInfo:
         return getattr(self, name)
 
 
-@dataclass
 class StackInfo:
     name: str
     bottom: int = 0

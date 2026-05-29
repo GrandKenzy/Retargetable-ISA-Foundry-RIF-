@@ -3,21 +3,54 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rif-pack-compiler"
+name = "rif-foundry"
 version = "0.1.0"
-description = "Retargetable ISA Foundry pack compiler"
-readme = "README.md"
+description = "Retargetable ISA Foundry"
 requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
 authors = [
-  { name = "GrandKenzy" }
+  {name = "RIF Contributors"}
 ]
+keywords = ["assembler", "compiler", "isa", "linker", "plugins"]
 classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Assemblers",
+  "Topic :: Software Development :: Compilers",
 ]
 
 [project.scripts]
-pack-compiler = "pack_compiler.cli:run"
+rif = "rif.cli:run"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["pack_compiler*"]
+include = ["rif*"]
+
+[tool.setuptools.data-files]
+"share/rif/help" = ["help/index.html"]
+"share/rif/help/resources/system" = ["help/resources/system/*.md"]
+"share/rif/help/resources/use" = ["help/resources/use/*.md"]
+"share/rif/help/resources/system/home" = ["help/resources/system/home/*.md"]
+"share/rif/help/resources/system/futuros" = ["help/resources/system/futuros/*.md"]
+"share/rif/help/resources/use/instrucciones" = ["help/resources/use/instrucciones/*.md"]
+"share/rif/help/resources/use/plugins" = ["help/resources/use/plugins/*.md"]
+"share/rif/help/resources/use/empaquetadores" = ["help/resources/use/empaquetadores/*.md"]
+"share/rif/help/resources/use/cli" = ["help/resources/use/cli/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+  ".git",
+  "__pycache__",
+  "plugins/atari2600",
+]
+python_files = ["test_*.py"]

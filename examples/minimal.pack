@@ -1,0 +1,100 @@
+comment ;
+separator |
+blocks :
+encoding utf-8
+
+.pack
+plugext ".py"
+plugin "basics"
+
+packer:
+    fsystem 0
+    ext ".bin"
+
+types:
+    from ".regs" as REG
+
+.world
+arch "example8"
+os 0
+endianness little
+
+.sections
+| NAME | type   | perms | align | fill | emit | order |
+| text | code   | rx    | 1     | 00   | yes  | 0     |
+| data | data   | rw    | 1     | 00   | yes  | 1     |
+| bss  | nobits | rw    | 1     | 00   | no   | 2     |
+
+.regs
+| NAME | binary | bits | FAMILY |
+| a    | 000    | 8    | a      |
+| b    | 001    | 8    | b      |
+
+.vars
+HI=1111
+LO=0000
+ZERO=00000000
+
+.types
+| NAME | SIZE | strictsize | string   |
+| b8   | 8    | true       |          |
+| char | 8    | true       | optional |
+
+.DATA_DEFINITION
+\
+IDENT
+TYPE
+LITERAL "="
+VALUE
+\
+supportstring char
+index true
+
+.stacks
+| NAME      | TYPE | COUNT | SECTION | ALIGN | FILL |
+| callstack | b8   | 16    | bss     | 1     | 0    |
+
+.heaps
+| NAME  | TYPE | COUNT | SECTION | ALIGN | FILL |
+| arena | b8   | 32    | bss     | 1     | 0    |
+
+.rules
+byte:
+    need VALUE, imm
+    ON imm.size == 8:
+        emit imm.binary
+    OFF:
+        zext OUT, imm.binary, 8
+        emit OUT
+
+regbyte:
+    need REG, r
+    emit 00000 r.binary
+
+pair:
+    bitcat OUT, HI, LO
+    bitsize OUT, 8
+    emit OUT
+
+branchfalse:
+    ON impossible:
+        emit 11111111
+    OFF:
+        emit 00000000
+
+call:
+    emit 11001100
+
+callsite:
+    call call
+
+stop:
+    emit ZERO
+    end_instruction
+    emit 11111111
+
+rel8:
+    reldis ., target, 8
+
+relocabs:
+    reloc abs, external_symbol, 8

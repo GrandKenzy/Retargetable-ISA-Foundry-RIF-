@@ -1,0 +1,210 @@
+comment   ; define que ";" se usará para comentarios
+separator | ; define que los objetos se separan con | en tablas
+blocks    : ; define que las secciones requieren ":" para iniciar
+encoding utf-8
+
+.pack ; comportamiento del linker, packer.
+
+plugext ".py"
+plugin "basics" ; librería estandar
+plugin "amd64"  ; librería de definición amd64
+
+packer:
+    fsystem 1
+    ext ".pack"
+    subpre *
+    definesec ".pack"
+    definesec ".world"
+    definesec ".vars"
+    setpre world ".world"
+    needsect world
+
+types:
+    from .regs as REG
+    from .words as WORD
+
+.world
+
+arch "x86_64"
+endianess 0 ; 0 litte, 1 big
+
+; headers
+| NAME                  | SIZE | HEX         | FILL     |
+| IMAGE_DOS_HEADER      | 64   |             | 00000000 |
+| DOS_STUB              | 64   |             | 00000000 |
+| PE_SIGNATURE          | 4    | 50 45 00 00 |          |
+| IMAGE_FILE_HEADER     | 20   |             | 00000000 |
+| IMAGE_OPTIONAL_HEAD64 | 240  |             | 00000000 |
+| SECTION_HEADERS       | *    |             | 00000000 |
+| HEADERS_PADDING       | *    |             | 00000000 |
+
+IMAGE_DOS_HEADER:
+    setalign 0x200
+    | NAME     | OFFSET | SIZE | ENDIAN | VALUE                    |
+    | e_magic  | 0      | 2    | raw    | 4d5a                     |
+    | e_lfanew | 60     | 4    | le     | link:offset PE_SIGNATURE |
+    setalign 0
+
+IMAGE_FILE_HEADER:
+    | NAME                 | OFFSET | SIZE | ENDIAN | VALUE                |
+    | Machine              | 0      | 2    | le     | 0x8664               |
+    | NumberOfSections     | 2      | 2    | le     | link:count .sections |
+    | TimeDateStamp        | 4      | 4    | le     | 0                    |
+    | PointerToSymbolTable | 8      | 4    | le     | 0                    |
+    | NumberOfSymbols      | 12     | 4    | le     | 0                    |
+    | SizeOfOptionalHeader | 16     | 2    | le     | 240                  |
+    | Characteristics      | 18     | 2    | le     | 0x0022               |
+
+link:set ; le dice al linker que debe poner el valor exacto de un header o placeholder
+link:count ; cuenta cuantas elementos, por ejemplo:
+: sections ; cuenta cuantas secciones hay registradas para el archivo final
+; headers  ; cuenta cuantos headers hay para el archivo final
+; *.placeholder ; cuenta cuantos placeholders tiene un header especifico
+
+link:rawsize * ; inserta cuanto mide una sección especifica en raw
+link:virtsize * ; inserta el tamaño medido de una sección 
+link:psize X     tamaño físico de X
+link:vsize X     tamaño virtual de X
+link:raw X       bytes crudos de X
+link:offset X    offset físico de X dentro del archivo final
+link:name X      convierte nombre a raw
+link:align N     rellena hasta alineación N
+
+
+.sections
+
+
+| NAME   | type   | perms | align | fill     | emit | order |
+| text   | code   | rx    | 16    | 00000000 | yes  | 0     |
+| data   | data   | rw    | 8     | 00000000 | yes  | 1     |
+| rodata | data   | r     | 8     | 00000000 | yes  | 2     |
+| bss    | nobits | rw    | 8     | 00000000 | no   | 3     |
+
+.regs
+
+hiddesubs
+order FAMILY
+
+| NAME | binary | bits | FAMILY | rex | gpr | high |
+| rax  | 000    | 64   | rax    | 0   | 1   | 0    |
+| eax  | 000    | 32   | rax    | 0   | 1   | 0    |
+| ax   | 000    | 16   | rax    | 0   | 1   | 0    |
+| al   | 000    | 8    | rax    | 0   | 1   | 0    |
+| ah   | 100    | 8    | rax    | 0   | 1   | 1    |
+
+| rcx  | 001    | 64   | rcx    | 0   | 1   | 0    |
+| ecx  | 001    | 32   | rcx    | 0   | 1   | 0    |
+| cx   | 001    | 16   | rcx    | 0   | 1   | 0    |
+| cl   | 001    | 8    | rcx    | 0   | 1   | 0    |
+| ch   | 101    | 8    | rcx    | 0   | 1   | 1    |
+
+| rdx  | 010    | 64   | rdx    | 0   | 1   | 0    |
+| edx  | 010    | 32   | rdx    | 0   | 1   | 0    |
+| dx   | 010    | 16   | rdx    | 0   | 1   | 0    |
+| dl   | 010    | 8    | rdx    | 0   | 1   | 0    |
+| dh   | 110    | 8    | rdx    | 0   | 1   | 1    |
+
+| rbx  | 011    | 64   | rbx    | 0   | 1   | 0    |
+| ebx  | 011    | 32   | rbx    | 0   | 1   | 0    |
+| bx   | 011    | 16   | rbx    | 0   | 1   | 0    |
+| bl   | 011    | 8    | rbx    | 0   | 1   | 0    |
+| bh   | 111    | 8    | rbx    | 0   | 1   | 1    |
+
+.words
+
+| NAME | hex  |
+| copy |      |
+| mov  |      |
+| move |      |
+| ud2  | 0f0b |
+| hlt  | f4   |
+| cli  | fa   |
+
+.vars
+
+REXW=01001000
+MOV_RM_R=10001001
+MOV_R_RM=10001011
+MOV_RM_R8=10001000
+MOV_R_RM8=10001010
+OPSIZE=01100110
+ZERO=00000000
+
+XOR_RM_R=00110001
+XOR_RM_R8=00110000
+.rules
+
+
+copy:
+    need REG, SREG, op1
+    need ","
+    need REG, SREG, SYMBOL, op2
+
+    exists op1
+    exists op2
+    fits op1, op2
+
+    switch op2.PRIVTYPE:
+        case "symbol":
+            switch op1.bits:
+                case 64:
+                    emit REXW
+                    emit MOV_R_RM
+                    emitadress op2
+                case 32:
+                    emit MOV_R_RM
+                    emitadress op2
+                case 16:
+                    emit OPSIZE
+                    emit MOV_R_RM
+                    emitadress op2
+                case 8:
+                    emit MOV_R_RM8
+                    emitadress op2
+
+            end_instruction
+
+    switch op1.bits:
+        case 64:
+            emit REXW
+            emit MOV_RM_R
+            emit cbits 11 op2.binary op1.binary
+        case 32:
+            emit MOV_RM_R
+            emit cbits 11 op2.binary op1.binary
+        case 16:
+            emit OPSIZE
+            emit MOV_RM_R
+            emit cbits 11 op2.binary op1.binary
+        case 8:
+            emit MOV_RM_R8
+            emit cbits 11 op2.binary op1.binary
+
+move:
+    need REG, SREG, op1
+    need ","
+    need REG, SREG, SYMBOL, op2
+
+    call copy
+
+    switch op2.TYPE:
+        case SYMBOL:
+            end_instruction
+
+    switch op2.bits:
+        case 64:
+            emit XOR_RM_R
+            emit cbits 11 op2.binary op2.binary
+
+        case 32:
+            emit XOR_RM_R
+            emit cbits 11 op2.binary op2.binary
+
+        case 16:
+            emit OPSIZE
+            emit XOR_RM_R
+            emit cbits 11 op2.binary op2.binary
+
+        case 8:
+            emit XOR_RM_R8
+            emit cbits 11 op2.binary op2.binary

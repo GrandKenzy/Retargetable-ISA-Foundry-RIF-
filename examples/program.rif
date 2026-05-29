@@ -1,0 +1,13 @@
+start:
+byte 0x2a
+regbyte a
+pair
+branchfalse
+callsite
+stop
+target:
+rel8
+relocabs
+msg char[2] = Hi
+stack temp b8 4 bss 1 0
+heap bag b8 8 bss 1 0

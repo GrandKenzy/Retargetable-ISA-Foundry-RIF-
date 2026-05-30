@@ -117,7 +117,7 @@ def make_entry_thumb_code() -> bytes:
         0xE12FFF10, # BX R0
         0x04000000,
         0x00000403,
-        base + 32 + 1, # address de la instruccion siguiente + 1 para modo Thumb
+        base + 32 + (240 * 160 * 2) + 1, # address de la instruccion siguiente al frame + 1 para modo Thumb
     ]
     return b"".join(u32(word) for word in words)
 

@@ -89,6 +89,12 @@ def main(argv: list[str] | None = None) -> int:
     p_packs = sub.add_parser("packs", help="list available packs inside a plugin")
     p_packs.add_argument("--plugin", required=True, help="name of the plugin to query")
 
+    p_clear = sub.add_parser("clear", help="clear items")
+    p_clear.add_argument("item", choices=["cache"], help="what to clear")
+
+    p_zip = sub.add_parser("zip", help="compress rif into a zip file ignoring __pycache__")
+    p_zip.add_argument("-o", "--output", default="rif.zip", help="output zip file name")
+
     args = parser.parse_args(raw_args)
 
     try:
@@ -151,6 +157,38 @@ def main(argv: list[str] | None = None) -> int:
                         count += 1
             if count == 0:
                 print("  (no hay packs configurados en este plugin)")
+            return 0
+
+        if args.cmd == "clear":
+            if args.item == "cache":
+                import shutil
+                import rif as _rif
+                rif_dir = Path(_rif.__file__).parent
+                count = 0
+                for p in rif_dir.rglob("__pycache__"):
+                    if p.is_dir():
+                        shutil.rmtree(p)
+                        count += 1
+                print(f"Borrados {count} directorios __pycache__ de {rif_dir}")
+            return 0
+
+        if args.cmd == "zip":
+            import zipfile
+            import rif as _rif
+            rif_dir = Path(_rif.__file__).parent
+            output_zip = Path(args.output).resolve()
+            
+            count = 0
+            with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for file_path in rif_dir.rglob("*"):
+                    if "__pycache__" in file_path.parts:
+                        continue
+                    if file_path.is_file():
+                        # Preserve relative path inside the zip, starting with 'rif/'
+                        arcname = file_path.relative_to(rif_dir.parent)
+                        zf.write(file_path, arcname)
+                        count += 1
+            print(f"Empaquetados {count} archivos en {output_zip}")
             return 0
 
         if args.cmd == "lex":

@@ -38,6 +38,11 @@ other target probes.
 The obsolete `RIF-Core-Demo` example was removed; frontend and runtime
 coverage remains in the essential, aggressive and dedicated suites.
 
+The QEMU-independent Friendly AMD64 example now carries the complete raw
+AMD64 profile from `AMD64_Baremetal` and validates it with the same encoding,
+relocation, integer/prefix and external-oracle checks, while retaining its
+readable aliases.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

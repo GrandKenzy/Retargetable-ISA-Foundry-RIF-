@@ -118,8 +118,3 @@
 . IDENT
 . bits 235 8
 . bits 254 8
-
-; The configured entry is a real native symbol, not only metadata.
-@rule _start:
-. mark
-. IDENT

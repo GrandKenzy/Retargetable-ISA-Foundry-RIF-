@@ -1,0 +1,192 @@
+; Branch forms. Displacements are signed values relative to the end of the
+; encoded instruction; symbol forms are provided separately by relocations.rif.
+
+@rule jmp8:
+. IDENT
+. bits 235 8
+. fit_signed_exact 8
+
+@rule jcc8:
+. IDENT
+. $conditions.name, IDENT
+. COMMA
+. bits $conditions.sjopcode 8
+. fit_signed_exact 8
+
+; Indirect register branches use FF /4 (JMP) and FF /2 (CALL). REX.B is
+; emitted even for low registers, which is legal and keeps one Rule shape.
+@rule encode_rex_indirect_reg:
+. bits 4 4
+. bits 0 3
+. bits $movsrc.hi 1
+
+@rule encode_modrm_jmpreg:
+. bits 3 2
+. bits 4 3
+. bits $movsrc.lo 3
+
+@rule encode_modrm_callreg:
+. bits 3 2
+. bits 2 3
+. bits $movsrc.lo 3
+
+@rule jmpreg64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_indirect_reg
+. bits 255 8
+. JUMP encode_modrm_jmpreg
+
+@rule callreg64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_indirect_reg
+. bits 255 8
+. JUMP encode_modrm_callreg
+
+; Indirect memory branches use the same base/SIB forms as data memory. The
+; displacement width is part of the MIR mnemonic, keeping matching explicit.
+@rule encode_rex_indirect_mem0:
+. bits 4 4
+. bits 0 3
+. bits $membase_nodisp.hi 1
+
+@rule encode_modrm_indirect_mem0:
+. bits 0 2
+. bits 4 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_nodisp.lo 3
+
+@rule encode_modrm_call_indirect_mem0:
+. bits 0 2
+. bits 2 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_nodisp.lo 3
+
+@rule encode_rex_indirect_mem0bp:
+. bits 4 4
+. bits 0 3
+. bits $membase_zero.hi 1
+
+@rule encode_modrm_indirect_mem0bp:
+. bits 1 2
+. bits 4 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_zero.lo 3
+. bits 0 8
+
+@rule encode_modrm_call_indirect_mem0bp:
+. bits 1 2
+. bits 2 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_zero.lo 3
+. bits 0 8
+
+@rule encode_rex_indirect_mem:
+. bits 4 4
+. bits 0 3
+. bits $membase.hi 1
+
+@rule encode_modrm_indirect_mem8:
+. bits 1 2
+. bits 4 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+@rule encode_modrm_call_indirect_mem8:
+. bits 1 2
+. bits 2 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+@rule encode_modrm_indirect_mem32:
+. bits 2 2
+. bits 4 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+@rule encode_modrm_call_indirect_mem32:
+. bits 2 2
+. bits 2 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+@rule jmpmem64_0:
+. IDENT
+. $membase_nodisp.name, IDENT
+. JUMP encode_rex_indirect_mem0
+. bits 255 8
+. JUMP encode_modrm_indirect_mem0
+
+@rule callmem64_0:
+. IDENT
+. $membase_nodisp.name, IDENT
+. JUMP encode_rex_indirect_mem0
+. bits 255 8
+. JUMP encode_modrm_call_indirect_mem0
+
+@rule jmpmem64_0bp:
+. IDENT
+. $membase_zero.name, IDENT
+. JUMP encode_rex_indirect_mem0bp
+. bits 255 8
+. JUMP encode_modrm_indirect_mem0bp
+
+@rule callmem64_0bp:
+. IDENT
+. $membase_zero.name, IDENT
+. JUMP encode_rex_indirect_mem0bp
+. bits 255 8
+. JUMP encode_modrm_call_indirect_mem0bp
+
+@rule jmpmem64_8:
+. IDENT
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_indirect_mem
+. bits 255 8
+. JUMP encode_modrm_indirect_mem8
+. fit_signed_exact 8
+
+@rule callmem64_8:
+. IDENT
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_indirect_mem
+. bits 255 8
+. JUMP encode_modrm_call_indirect_mem8
+. fit_signed_exact 8
+
+@rule jmpmem64:
+. IDENT
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_indirect_mem
+. bits 255 8
+. JUMP encode_modrm_indirect_mem32
+. fit_signed_exact 32
+
+@rule callmem64:
+. IDENT
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_indirect_mem
+. bits 255 8
+. JUMP encode_modrm_call_indirect_mem32
+. fit_signed_exact 32

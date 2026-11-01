@@ -108,7 +108,8 @@ __
 @end
 
 ; Reserved friendly namespace for future width-specific sub-register Rules.
-; The current package deliberately encodes only full-width R0..R15 operands.
+; The Friendly alias layer currently exposes full-width R0..R15 operands;
+; the amd64_*.rif profile below it also provides every architectural width.
 @table subregs
 | name | parent | width |
 __

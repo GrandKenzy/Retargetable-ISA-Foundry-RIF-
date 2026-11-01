@@ -1,0 +1,67 @@
+; Full AMD64 bare-metal raw image with separate text/data sections.
+; Register encodings use the x86-64 GPR index (0..15).
+; Produces a flat image with aligned sections; no OS or object format is
+; assumed by this target. The amd64_*.rif modules carry the raw profile and
+; friendly_*.rif adds the readable aliases.
+@block config:
+    format section ".section"
+    section text "rx"
+    section data "rw"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    align data 4096
+    word_size 64
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+    bit_order "msb"
+@end
+
+@block linker:
+    extension ".mir"
+    search_path ""
+@end
+
+@LOAD "friendly_registers.rif"
+@LOAD "amd64_registers.rif"
+@LOAD "friendly_rules.rif"
+@LOAD "amd64_instructions.rif"
+@LOAD "amd64_encoding.rif"
+@LOAD "amd64_arithmetic.rif"
+@LOAD "amd64_memory.rif"
+@LOAD "amd64_control.rif"
+@LOAD "amd64_conditions.rif"
+@LOAD "amd64_width32.rif"
+@LOAD "amd64_width16.rif"
+@LOAD "amd64_width8.rif"
+@LOAD "amd64_addressing.rif"
+@LOAD "amd64_branches.rif"
+@LOAD "amd64_integer.rif"
+@LOAD "amd64_prefixes.rif"
+@LOAD "amd64_relocations.rif"
+
+@block isa_scope:
+    profile "amd64-friendly-base-integer"
+    address_size "64-bit-default"
+    mmx "excluded"
+    sse "excluded"
+    avx "excluded"
+    avx512 "excluded"
+    x87 "excluded"
+    system "excluded"
+    os_abi "none"
+@end
+
+; GPR64 table: code is architectural register number.
+; rex = REX.W with B extension; modrm = 11 000 r/m (C7 /0).
+; opcode = B8+rd for MOV r64, imm64.

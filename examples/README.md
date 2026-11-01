@@ -52,7 +52,7 @@ are ignored unless an example explicitly documents otherwise. Source `.rif`,
 | Example | Input vocabulary | Output | Main purpose |
 | --- | --- | --- | --- |
 | [AMD64 Baremetal](./AMD64_Baremetal/README.md) | Explicit AMD64 encoding Rules | Raw AMD64 images | Full raw AMD64 profile, memory, branches, relocations and external verification |
-| [AMD64 Friendly Syntax](./amd64-friendlysyntaxs/README.md) | `set`, `copy`, `add`, `load`, `store`, `return` | Raw AMD64 bytes | QEMU-independent alternative syntax, `R0..R15` register tables and normal/friendly byte equivalence |
+| [AMD64 Friendly Syntax](./amd64-friendlysyntaxs/README.md) | Friendly aliases plus full AMD64 Rules | Raw AMD64 bytes | QEMU-independent full AMD64 profile with readable aliases and normal/friendly byte equivalence |
 | [AMD64 Friendly Syntax QEMU](./probe/probe_friendlysyntax_qemu/README.md) | Friendly Syntax plus QEMU boot Rules | RIF-emitted El Torito boot image | VBE 0x118 banked framebuffer and centered cursor checkpoint |
 | [MiniOS Probe](./probe/probe_minios/README.md) | PCP-I, external storage and ISO assembly | Bootable ISO-9660/El Torito image | Complete QEMU BIOS image build with RIF-emitted boot code and cursor data |
 | [ELF64 Probe](./probe/probe_elf64/README.md) | AMD64-like assembly plus image directives | Linux ELF64 executable | Header templates, inserts and final patches; intentionally host-specific |
@@ -89,10 +89,11 @@ Its validation is intentionally layered:
 
 ### AMD64 Friendly Syntax
 
-`amd64-friendlysyntaxs` proves that RIF does not prescribe the input language.
-It declares its own register tables and Rules, using full-width `R0..R15`
-names instead of architectural names. `SR0..SR15` are reserved for future
-width-specific sub-register Rules.
+`amd64-friendlysyntaxs` proves that RIF does not prescribe the input language
+while retaining the complete bare-metal profile. It declares Friendly aliases
+with full-width `R0..R15` names and carries the copied AMD64 rule/table modules
+under `amd64_*.rif`; the target remains independent from QEMU and the RIF core.
+`SR0..SR15` remain reserved for future width-specific Friendly aliases.
 
 The friendly program can use forms such as:
 
@@ -117,8 +118,9 @@ noop
 ```
 
 `test_syntax_equivalence.py` compiles both versions from source and from
-`.pack`; all four outputs must be identical. This is a syntax demonstration,
-not a second AMD64 backend in the RIF core.
+`.pack`; all four outputs must be identical. The full-profile tests also run
+the same encoding, relocation, integer/prefix and LLVM-oracle coverage as
+`AMD64_Baremetal`.
 
 ### ELF64 Probe
 
@@ -148,8 +150,8 @@ vnma run examples/GBA-Bouncing-Ball/verify_cpu.py
 
 - Use `AMD64_Baremetal` for encoding, layout, relocations and raw-image
   validation.
-- Use `amd64-friendlysyntaxs` when testing alternative input vocabulary or
-  syntax equivalence.
+- Use `amd64-friendlysyntaxs` when testing the full raw AMD64 profile through
+  readable aliases or syntax equivalence.
 - Use `probe_elf64` only when testing object/container construction and Linux-specific
   final patches.
 - Use `probe_minios` for the PCP-I, cursor-storage, ISO and QEMU BIOS probe.

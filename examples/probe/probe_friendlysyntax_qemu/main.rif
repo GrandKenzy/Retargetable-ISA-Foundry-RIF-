@@ -1,5 +1,6 @@
-; AMD64 bare-metal target with a deliberately friendly input vocabulary.
-; The syntax is defined by Rules; RIF core does not know these words.
+; QEMU probe using the full AMD64 target plus a friendly input vocabulary.
+; The base profile is imported as a reusable .riflib; QEMU adds only its boot
+; and framebuffer-specific metadata and Rules.
 
 @block config:
     format section ".section"

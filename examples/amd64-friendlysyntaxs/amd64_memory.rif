@@ -1,0 +1,81 @@
+; mov load64 dest, base, disp32 = MOV r64, [base + disp32]
+; mov store64 src, base, disp32 = MOV [base + disp32], r64
+; disp32 is emitted little-endian by RIF word order.
+@rule load64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_w_mem
+. bits 139 8
+. JUMP encode_modrm_mem
+. fit_signed_exact 32
+
+@rule store64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_w_mem
+. bits 137 8
+. JUMP encode_modrm_mem
+. fit_signed_exact 32
+
+; MOV r64, [base + index*scale + disp32]. index cannot be rsp.
+@rule loadx64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_w_index
+. bits 139 8
+. JUMP encode_modrm_index
+. fit_signed_exact 32
+
+@rule storex64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_w_index
+. bits 137 8
+. JUMP encode_modrm_index
+. fit_signed_exact 32
+
+@rule lea64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_w_mem
+. bits 141 8
+. JUMP encode_modrm_mem
+. fit_signed_exact 32
+
+@rule leax64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_w_index
+. bits 141 8
+. JUMP encode_modrm_index
+. fit_signed_exact 32

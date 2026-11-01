@@ -1,5 +1,5 @@
-; AMD64 bare-metal target with a deliberately friendly input vocabulary.
-; The syntax is defined by Rules; RIF core does not know these words.
+; Full AMD64 bare-metal target with a friendly input vocabulary.
+; amd64_*.rif carries the raw profile; the friendly files add readable aliases.
 
 @block config:
     format section ".section"
@@ -29,8 +29,23 @@
     search_path ""
 @end
 
-@LOAD "registers.rif"
-@LOAD "rules.rif"
+@LOAD "friendly_registers.rif"
+@LOAD "amd64_registers.rif"
+@LOAD "friendly_rules.rif"
+@LOAD "amd64_instructions.rif"
+@LOAD "amd64_encoding.rif"
+@LOAD "amd64_arithmetic.rif"
+@LOAD "amd64_memory.rif"
+@LOAD "amd64_control.rif"
+@LOAD "amd64_conditions.rif"
+@LOAD "amd64_width32.rif"
+@LOAD "amd64_width16.rif"
+@LOAD "amd64_width8.rif"
+@LOAD "amd64_addressing.rif"
+@LOAD "amd64_branches.rif"
+@LOAD "amd64_integer.rif"
+@LOAD "amd64_prefixes.rif"
+@LOAD "amd64_relocations.rif"
 
 @block isa_scope:
     profile "amd64-friendly-base-integer"

@@ -413,6 +413,10 @@ cursor dentro de 640x480 sobre fondo negro; no requiere construir un kernel.
 
 `examples/amd64-friendlysyntaxs/` es deliberadamente independiente de QEMU:
 no declara framebuffer, registros Bochs VBE ni un contrato de dispositivo. La
+variante conserva ahora el perfil completo de `AMD64_Baremetal` mediante los
+módulos `amd64_*.rif` y añade la capa de aliases Friendly en
+`friendly_registers.rif`/`friendly_rules.rif`; sus pruebas raw completas
+reutilizan los probes de `probe_amd64`. La
 variante `examples/probe/probe_friendlysyntax_qemu/` consume la capa Friendly desde
 `friendly.riflib` y añade `@LOAD "qemu/framebuffer.rif"` y sus Rules de boot,
 además del bloque raíz `framebuffer`. La tabla `framebuffer_registers` y el bloque describen metadata

@@ -29,7 +29,7 @@ target is raw and OS-neutral: it does not contain Linux, ELF, QEMU, VGA,
 framebuffer, or host-ABI dependencies.
 
 QEMU-specific video metadata and the MiniOS boot entry live in the separate
-[AMD64 Friendly Syntax QEMU](../amd64-friendlysyntaxs-qemu/README.md) target.
+[AMD64 Friendly Syntax QEMU](../probe/probe_friendlysyntax_qemu/README.md) probe.
 
 ## Compile from source and from `.pack`
 

@@ -188,9 +188,9 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio. Sus programas MIR externos y fixtures están en
   `examples/probe/probe_amd64/`; el target conserva la definición `.rif`, las
-pruebas y los paquetes compilados. Los programas MIR del target base Friendly
-Syntax están en `examples/probe/probe_friendlysyntax/`; los del target QEMU
-siguen junto a su target específico.
+  pruebas y los paquetes compilados. Los programas MIR del target base Friendly
+  Syntax están en `examples/probe/probe_friendlysyntax/`; el target QEMU
+  completo y sus probes están en `examples/probe/probe_friendlysyntax_qemu/`.
 
 El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
 `integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras
@@ -407,7 +407,7 @@ cursor dentro de 640x480 sobre fondo negro; no requiere construir un kernel.
 
 `examples/amd64-friendlysyntaxs/` es deliberadamente independiente de QEMU:
 no declara framebuffer, registros Bochs VBE ni un contrato de dispositivo. La
-variante `examples/amd64-friendlysyntaxs-qemu/` consume la capa Friendly desde
+variante `examples/probe/probe_friendlysyntax_qemu/` consume la capa Friendly desde
 `friendly.riflib` y añade `@LOAD "qemu/framebuffer.rif"` y sus Rules de boot,
 además del bloque raíz `framebuffer`. La tabla `framebuffer_registers` y el bloque describen metadata
 extensible para las Rules de boot de QEMU std VGA/Bochs VBE a 640×480×32,

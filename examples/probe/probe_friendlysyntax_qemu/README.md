@@ -1,7 +1,7 @@
 # AMD64 Friendly Syntax — QEMU
 
 This target is a QEMU-specific wrapper around
-[AMD64 Friendly Syntax](../amd64-friendlysyntaxs/README.md). It keeps the
+[AMD64 Friendly Syntax](../../amd64-friendlysyntaxs/README.md). It keeps the
 same readable Rules and register tables through a declaration-only `.riflib`,
 then adds the QEMU std VGA/Bochs VBE contract through its own loaded sources.
 
@@ -44,7 +44,7 @@ target:
 vnma run rif.py --pack examples/amd64-friendlysyntaxs/main.rif `
   -o examples/amd64-friendlysyntaxs/amd64-friendly.pack
 vnma run rif.py --library examples/amd64-friendlysyntaxs/amd64-friendly.pack `
-  -o examples/amd64-friendlysyntaxs-qemu/friendly.riflib
+  -o examples/probe/probe_friendlysyntax_qemu/friendly.riflib
 ```
 
 This explicit export is the supported composition boundary: a `.pack` is a
@@ -82,11 +82,11 @@ black for this first framebuffer checkpoint.
 ## Build
 
 ```powershell
-vnma run rif.py --pack examples/amd64-friendlysyntaxs-qemu/main.rif `
-  -o examples/amd64-friendlysyntaxs-qemu/friendly-qemu.pack
-vnma run rif.py examples/amd64-friendlysyntaxs-qemu/friendly-qemu.pack `
-  examples/amd64-friendlysyntaxs-qemu/main.mir `
-  -o examples/amd64-friendlysyntaxs-qemu/main.bin
+vnma run rif.py --pack examples/probe/probe_friendlysyntax_qemu/main.rif `
+  -o examples/probe/probe_friendlysyntax_qemu/friendly-qemu.pack
+vnma run rif.py examples/probe/probe_friendlysyntax_qemu/friendly-qemu.pack `
+  examples/probe/probe_friendlysyntax_qemu/main.mir `
+  -o examples/probe/probe_friendlysyntax_qemu/main.bin
 ```
 
 That command emits the RIF raw layout (20 descriptor blocks plus the one-block
@@ -106,7 +106,7 @@ changes:
 
 ```powershell
 vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
-  -o examples/amd64-friendlysyntaxs-qemu/assets/mini_os_iso_header.pcic
+  -o examples/probe/probe_friendlysyntax_qemu/assets/mini_os_iso_header.pcic
 ```
 
 The current boot image remains a real-mode VBE/mouse checkpoint: it selects

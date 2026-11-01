@@ -35,7 +35,7 @@
   the QEMU Friendly variant now owns the boot image and cursor insertion;
   the generic Friendly target remains free of both.
 
-- Added a separate `examples/amd64-friendlysyntaxs-qemu/` target that consumes
+- Added a separate `examples/probe/probe_friendlysyntax_qemu/` target that consumes
   Friendly Syntax through a declaration-only `friendly.riflib` exported from
   the base `.pack`, then loads its QEMU-only framebuffer dependency with
   `@LOAD "qemu/framebuffer.rif"`. The base

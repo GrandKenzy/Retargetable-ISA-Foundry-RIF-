@@ -8,7 +8,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[3]
-NORMAL_TARGET = ROOT / "examples" / "AMD64" / "main.rif"
+NORMAL_TARGET = ROOT / "examples" / "AMD64_Baremetal" / "main.rif"
 NORMAL_MIR = ROOT / "examples" / "probe" / "probe_amd64" / "main.mir"
 FRIENDLY_TARGET = ROOT / "examples" / "amd64-friendlysyntaxs" / "main.rif"
 FRIENDLY_MIR = ROOT / "examples" / "probe" / "probe_friendlysyntax" / "equivalent.mir"

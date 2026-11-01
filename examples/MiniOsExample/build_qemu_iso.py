@@ -16,7 +16,7 @@ import vendor.__bootstrap__  # From VNMA.
 
 ROOT = Path(__file__).resolve().parents[2]
 MINI = ROOT / "examples" / "MiniOsExample"
-QEMU = ROOT / "examples" / "amd64-friendlysyntaxs-qemu"
+QEMU = ROOT / "examples" / "probe" / "probe_friendlysyntax_qemu"
 BUILD = MINI / "build"
 
 

@@ -8,4 +8,5 @@ packages.
 used by `AMD64_Baremetal` and by the Friendly Syntax equivalence checks.
 
 `probe_friendlysyntax/` contains the external Friendly Syntax programs used by
-the base target. QEMU-specific MIR remains alongside its QEMU target.
+the base target. `probe_friendlysyntax_qemu/` contains the QEMU target,
+boot-specific MIR and its target-local assets.

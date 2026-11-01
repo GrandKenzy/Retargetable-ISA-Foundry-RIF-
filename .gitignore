@@ -32,13 +32,12 @@ __pycache__/
 /examples/probe/probe_amd64/*.bin
 /examples/probe/probe_amd64/all_encodings.mir
 /examples/probe/probe_amd64/negative.mir
-/examples/AMD64/*.bin
 
-# Salidas generadas por el paquete AMD64 de sintaxis amigable.
+# Salidas generadas por el probe AMD64 de sintaxis amigable.
 /examples/amd64-friendlysyntaxs/*.bin
-/examples/amd64-friendlysyntaxs-qemu/*.bin
-!examples/amd64-friendlysyntaxs-qemu/assets/mini_os_iso_header.pcic
-!examples/amd64-friendlysyntaxs-qemu/assets/cursor_assets.storage.bin
+/examples/probe/probe_friendlysyntax_qemu/*.bin
+!examples/probe/probe_friendlysyntax_qemu/assets/mini_os_iso_header.pcic
+!examples/probe/probe_friendlysyntax_qemu/assets/cursor_assets.storage.bin
 
 # MiniOS keeps these two binary checkpoints as intentional example artifacts.
 !examples/MiniOsExample/build/mini_os_iso_header.pcic

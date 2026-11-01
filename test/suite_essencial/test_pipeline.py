@@ -9,12 +9,67 @@ from MIR import DiagnosticBag, compile_project, compile_source
 from pack import create_pack, read_pack
 
 
-DEMO_TARGET = (
-    Path(__file__).resolve().parents[2]
-    / "examples"
-    / "RIF-Core-Demo"
-    / "main.rif"
-)
+COMPLETE_TARGET_SOURCE = """@block config:
+    format section ".section"
+    section data "rw"
+    section text "rx"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    default text
+    align text 4
+    align data 4
+    align bss 4
+    word_size 32
+    address_size 32
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+@end
+
+@block linker:
+    extension ".asm"
+    search_path ""
+@end
+
+@table registers
+| name | opcode | bits | value |
+________________________________________
+| mov | 1 | "00000000" | 42 |
+________________________________________
+| add | 2 | "00000001" | 7 |
+________________________________________
+| ret | 3 | "00000010" | 0 |
+@end
+
+@rule mov:
+. $registers.opcode, IDENT
+. KW "mov"
+. IDENT
+. [NUMBER, STRING]
+. nibbles 0000 $registers.bits
+. eword $registers.value
+
+@rule add:
+. $registers.opcode, NUMBER
+. KW "add"
+. nibbles 0000 0000
+
+@rule ret:
+. KW "ret"
+. eword 83847483
+"""
+
+
+def write_complete_target(root: Path) -> Path:
+    path = root / "main.rif"
+    path.write_text(COMPLETE_TARGET_SOURCE, encoding="utf-8")
+    return path
 
 
 def reset_globals() -> None:
@@ -41,14 +96,16 @@ class PipelineTests(unittest.TestCase):
         reset_globals()
 
     def test_compile_source_runs_the_full_frontend_pipeline(self) -> None:
-        program = compile_source(DEMO_TARGET)
+        with tempfile.TemporaryDirectory() as directory:
+            program = compile_source(write_complete_target(Path(directory)))
 
         self.assertEqual(set(program.rules), {"mov", "add", "ret"})
         self.assertIsNotNone(rif_globals.CONFIG)
         self.assertEqual(rif_globals.CONFIG.sections, ("data", "text", "bss"))
 
     def test_assembly_image_renders_configured_sections_and_bytes(self) -> None:
-        compilation = compile_project(DEMO_TARGET)
+        with tempfile.TemporaryDirectory() as directory:
+            compilation = compile_project(write_complete_target(Path(directory)))
         emitter = compilation.image.emitter("text")
         emitter.nibbles("1010", "0101")
 

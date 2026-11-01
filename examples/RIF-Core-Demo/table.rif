@@ -1,9 +1,0 @@
-@table example
-| id | name | message | active |
-_______________
-| 42 | name | "hello" | true |
-_______________
-| 1001 | customer_id | "Kentucky" | false |
-_______________
-| 27 | status | "active" | true |
-@end

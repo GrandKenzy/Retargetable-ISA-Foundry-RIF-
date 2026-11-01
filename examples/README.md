@@ -51,7 +51,6 @@ are ignored unless an example explicitly documents otherwise. Source `.rif`,
 
 | Example | Input vocabulary | Output | Main purpose |
 | --- | --- | --- | --- |
-| [RIF Core Demo](./RIF-Core-Demo/README.md) | Generic RIF Rule input | Configured assembly image | Tables, matching, reservations, frames and declarative emission without an ISA |
 | [AMD64 Baremetal](./AMD64_Baremetal/README.md) | Explicit AMD64 encoding Rules | Raw AMD64 images | Full raw AMD64 profile, memory, branches, relocations and external verification |
 | [AMD64 Friendly Syntax](./amd64-friendlysyntaxs/README.md) | `set`, `copy`, `add`, `load`, `store`, `return` | Raw AMD64 bytes | QEMU-independent alternative syntax, `R0..R15` register tables and normal/friendly byte equivalence |
 | [AMD64 Friendly Syntax QEMU](./probe/probe_friendlysyntax_qemu/README.md) | Friendly Syntax plus QEMU boot Rules | RIF-emitted El Torito boot image | VBE 0x118 banked framebuffer and centered cursor checkpoint |
@@ -60,31 +59,6 @@ are ignored unless an example explicitly documents otherwise. Source `.rif`,
 | [GBA Bouncing Ball](./GBA-Bouncing-Ball/README.md) | ARM/Thumb-oriented target vocabulary | GBA ROM | ARM7TDMI tables, Thumb variants, ROM assets and a complete generated cartridge demo |
 
 ## What each example proves
-
-### RIF Core Demo
-
-`RIF-Core-Demo` is the architecture-neutral starting point. Its `main.rif`
-configures a 32-bit image and demonstrates an extensible table plus Rules that
-exercise matching, emitted fields, reservations, frames, jumps and diagnostics.
-`table.rif` is a standalone generic table example. It does not claim support
-for any processor.
-
-Use it when changing the frontend, Rule runtime, table matching or image
-emission. The essential suite uses this target as a complete-program fixture.
-
-### AMD64
-
-`AMD64` is the smallest conventional AMD64 example. It accepts:
-
-```text
-mov rax, 42
-mov rdi, 7
-nop
-```
-
-and emits 15 raw bytes. It has no ELF header, system call, operating-system
-ABI, linker or host execution step. It is useful as a first target when
-explaining the two-phase `.rif`/`.pack` workflow.
 
 ### AMD64 Baremetal
 
@@ -172,7 +146,6 @@ vnma run examples/GBA-Bouncing-Ball/verify_cpu.py
 
 ## Choosing an example
 
-- Start with `RIF-Core-Demo` for frontend and runtime changes.
 - Use `AMD64_Baremetal` for encoding, layout, relocations and raw-image
   validation.
 - Use `amd64-friendlysyntaxs` when testing alternative input vocabulary or

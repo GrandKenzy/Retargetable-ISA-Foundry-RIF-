@@ -38,7 +38,7 @@ def _reset_frontend() -> None:
 class FrontendBenchmarkTests(unittest.TestCase):
     def test_complete_rif_frontend_baseline(self) -> None:
         root = Path(__file__).resolve().parents[2]
-        source_path = root / "examples" / "RIF-Core-Demo" / "main.rif"
+        source_path = root / "examples" / "amd64-friendlysyntaxs" / "main.rif"
         source = source_path.read_text(encoding="utf-8")
 
         measurements: list[tuple[float, float, float, int]] = []
@@ -72,7 +72,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
 
         self.assertIsNotNone(ast)
         self.assertGreater(token_count, 0)
-        self.assertIn("mov", rif_globals.RULES)
+        self.assertIn("set", rif_globals.RULES)
 
     @unittest.skipUnless(
         shutil.which("gcc") or shutil.which("clang"),
@@ -80,7 +80,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
     )
     def test_complete_rif_aot_benchmark(self) -> None:
         root = Path(__file__).resolve().parents[2]
-        source_path = root / "examples" / "RIF-Core-Demo" / "main.rif"
+        source_path = root / "examples" / "amd64-friendlysyntaxs" / "main.rif"
         source_size = source_path.stat().st_size
 
         with TemporaryDirectory(prefix="rif-aot-benchmark-"):
@@ -133,7 +133,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
 
         self.assertIsNotNone(ast)
         self.assertEqual(parser.executable, cached_parser.executable)
-        self.assertIn("mov", rif_globals.RULES)
+        self.assertIn("set", rif_globals.RULES)
 
     @unittest.skipUnless(
         shutil.which("gcc") or shutil.which("clang"),

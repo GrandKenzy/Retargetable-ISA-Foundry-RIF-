@@ -36,7 +36,7 @@ RIF/
 ├── MIR/
 ├── tests/
 ├── examples/
-│   └── RIF-Core-Demo/
+│   └── probe/
 ├── main.py
 ├── rif.py
 ├── pack.py

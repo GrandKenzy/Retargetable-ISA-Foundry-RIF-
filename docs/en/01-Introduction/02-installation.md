@@ -41,7 +41,7 @@ RIF/
     ├── suite_aggressive/
     └── dedicated_suite/
 ├── examples/
-│   └── RIF-Core-Demo/
+│   └── probe/
 ├── rif.py
 ├── pack.py
 └── vnma.toml

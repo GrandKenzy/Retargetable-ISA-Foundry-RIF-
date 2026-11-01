@@ -7,5 +7,5 @@ ejecutan en el ciclo esencial.
 Ejecución explícita:
 
 ```powershell
-vnma test test/dedicated_suite
+vnma test tests/dedicated_suite
 ```

@@ -229,8 +229,8 @@ The PCP-I compiler is independent of target compilation. These commands do
 not load a `.rif`, `.pack`, or MIR program:
 
 ```powershell
-rif --comp-pcpi header.pci -o build/header.pcic
-rif --doctor-pcpi build/header.pcic
+main.py --comp-pcpi header.pci -o build/header.pcic
+main.py --doctor-pcpi build/header.pcic
 ```
 
 ## Filling and rendering from Python
@@ -441,7 +441,7 @@ The format is implemented by:
 - `main.py`: `--comp-pcpi` and `--doctor-pcpi` CLI operations;
 - `MIR/preprocessor.py`: syntax and ordering of `::RIF_PCPI` directives;
 - `MIR/external.py`: container insertion and pit address reporting;
-- `test/dedicated_suite/test_pcpi.py`: format, alignment, filling, and rejection
+- `tests/dedicated_suite/test_pcpi.py`: format, alignment, filling, and rejection
   tests;
 - `examples/probe/probe_minios/`: a header-only ISO/El Torito template and an
   independent external cursor payload.

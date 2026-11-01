@@ -75,7 +75,7 @@ rif main.rif program.mir
 Create a precompiled package and use it as the target definition:
 
 ```powershell
-rif --pack main.rif -o target.pack
+main.py --pack main.rif -o target.pack
 rif target.pack program.mir -o program.bin
 ```
 

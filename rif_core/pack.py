@@ -599,7 +599,7 @@ def _build_compiled_database(
     """Compile a source project in an isolated global context."""
 
     try:
-        # Direct ``rif --pack`` must bootstrap the VNMA vendor projection before
+        # Direct ``main.py --pack`` must bootstrap the VNMA vendor projection before
         # importing MIR/Gram. Under ``vnma run`` this is already initialized.
         import vendor  # noqa: F401
         from Frontend import globals as rif_globals
@@ -680,7 +680,7 @@ def create_pack(
     """Create a reproducible ``.pack`` from the project containing ``source``.
 
     ``precompile=True`` adds the SQLite/CompiledRuleSet cache used by the
-    normal ``rif --pack`` command. The default remains source-only for
+    normal ``main.py --pack`` command. The default remains source-only for
     low-level callers that only need the archive and dependency graph.
     """
 

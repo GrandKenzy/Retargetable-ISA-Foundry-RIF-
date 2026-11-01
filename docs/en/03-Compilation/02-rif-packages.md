@@ -7,8 +7,8 @@ database.
 ## Creating a Package
 
 ```powershell
-rif --pack main.rif
-rif --pack main.rif -o targets/amd64.pack
+main.py --pack main.rif
+main.py --pack main.rif -o targets/amd64.pack
 ```
 
 The package includes:
@@ -31,14 +31,14 @@ processed. External MIR directives
 are not part of the package source graph; `::RIF_INSERT FILE` resolves its path
 relative to the MIR file being compiled.
 
-Reusable libraries can be created with `rif --library patterns/main.rif -o
+Reusable libraries can be created with `main.py --library patterns/main.rif -o
 patterns.riflib` and consumed from a target with `@LIBRARY "patterns.riflib"`.
 When creating a `.pack`, RIF embeds and verifies those libraries under
 `libraries/`. A complete `.pack` can also be exported into a declaration-only
 `.riflib`:
 
 ```powershell
-rif --library base.pack -o reusable-patterns.riflib
+main.py --library base.pack -o reusable-patterns.riflib
 ```
 
 That export keeps the package's explicitly loaded declaration sources and
@@ -76,9 +76,9 @@ fingerprint, and compiled SQLite database. It does not execute Rules, activate
 frontend globals, load plugins, or extract files:
 
 ```powershell
-rif --inspect-pack target.pack
-rif --inspect-pack target.pack --json
-rif --inspect-pack target.pack --verbose --max-items 200
+main.py --inspect-pack target.pack
+main.py --inspect-pack target.pack --json
+main.py --inspect-pack target.pack --verbose --max-items 200
 ```
 
 The report includes package format and version, contract fingerprint, sources,

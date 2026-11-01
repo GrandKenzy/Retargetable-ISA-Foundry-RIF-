@@ -61,7 +61,7 @@ main.rif + program.asm -> program.bin
 
 ```powershell
 rif main.rif program.asm
-rif --pack main.rif
+main.py --pack main.rif
 rif main.pack program.asm
 ```
 

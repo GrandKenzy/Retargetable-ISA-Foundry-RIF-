@@ -106,8 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         "-o",
         "--output-dir",
         type=Path,
-        default=Path("test/dedicated_suite"),
-        help="directorio del scaffold (default: test/dedicated_suite)",
+        default=Path("tests/dedicated_suite"),
+        help="directorio del scaffold (default: tests/dedicated_suite)",
     )
     parser.add_argument("--force", action="store_true", help="reemplaza el archivo existente")
     args = parser.parse_args(argv)

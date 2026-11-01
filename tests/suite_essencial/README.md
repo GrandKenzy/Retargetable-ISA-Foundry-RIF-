@@ -7,7 +7,7 @@ principal de empaquetado.
 Ejecución:
 
 ```powershell
-vnma test test/suite_essencial
+vnma test tests/suite_essencial
 ```
 
 El lanzador por defecto `vnma test` apunta a esta suite mediante

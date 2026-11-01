@@ -6,8 +6,8 @@ las fuentes RIF y, si se solicita, una base SQLite precompilada.
 ## Crear un paquete
 
 ```powershell
-rif --pack main.rif
-rif --pack main.rif -o targets/amd64.pack
+main.py --pack main.rif
+main.py --pack main.rif -o targets/amd64.pack
 ```
 
 Puede contener:
@@ -26,13 +26,13 @@ de `@LOAD`, orden de dependencias y la base compilada opcional. El contrato
 identifica la combinación compatible de RIF, Gram/GIR, FFI AOT, SQLite y
 runtime; un artefacto de otra combinación se rechaza antes de procesar MIR.
 
-Las librerías reutilizables se crean con `rif --library patrones/main.rif -o
+Las librerías reutilizables se crean con `main.py --library patrones/main.rif -o
 patrones.riflib` y se consumen desde un target con `@LIBRARY "patrones.riflib"`.
 Al crear un `.pack`, RIF incluye y verifica esas librerías bajo `libraries/`.
 También se puede exportar un `.pack` completo a una librería de declaraciones:
 
 ```powershell
-rif --library base.pack -o patrones-reutilizables.riflib
+main.py --library base.pack -o patrones-reutilizables.riflib
 ```
 
 La exportación conserva las fuentes de declaraciones cargadas explícitamente
@@ -68,9 +68,9 @@ de contenido y la base SQLite compilada. No ejecuta Rules, no activa globals del
 frontend, no carga plugins y no extrae archivos:
 
 ```powershell
-rif --inspect-pack target.pack
-rif --inspect-pack target.pack --json
-rif --inspect-pack target.pack --verbose --max-items 200
+main.py --inspect-pack target.pack
+main.py --inspect-pack target.pack --json
+main.py --inspect-pack target.pack --verbose --max-items 200
 ```
 
 La salida muestra el formato y versión del paquete, fingerprint y contrato,

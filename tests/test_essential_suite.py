@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 _ROOT = Path(__file__).resolve().parents[1]
-_ESSENTIAL_DIR = _ROOT / "test" / "suite_essencial"
+_ESSENTIAL_DIR = _ROOT / "tests" / "suite_essencial"
 
 
 def _load_modules() -> list[object]:

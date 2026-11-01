@@ -35,8 +35,7 @@ RIF/
 │   ├── syntax/
 │   └── processor/
 ├── MIR/
-├── tests/
-└── test/
+└── tests/
     ├── suite_essencial/
     ├── suite_aggressive/
     └── dedicated_suite/

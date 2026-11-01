@@ -34,12 +34,12 @@ QEMU-specific video metadata and the MiniOS boot entry live in the separate
 ## Compile from source and from `.pack`
 
 ```powershell
-vnma run rif.py --pack examples/amd64-friendlysyntaxs/main.rif `
+vnma run main.py --pack examples/amd64-friendlysyntaxs/main.rif `
   -o examples/amd64-friendlysyntaxs/amd64-friendly.pack
-vnma run rif.py examples/amd64-friendlysyntaxs/main.rif `
+vnma run main.py examples/amd64-friendlysyntaxs/main.rif `
   examples/probe/probe_friendlysyntax/demo.mir `
   -o examples/amd64-friendlysyntaxs/friendly.bin
-vnma run rif.py examples/amd64-friendlysyntaxs/amd64-friendly.pack `
+vnma run main.py examples/amd64-friendlysyntaxs/amd64-friendly.pack `
   examples/probe/probe_friendlysyntax/demo.mir `
   -o examples/amd64-friendlysyntaxs/friendly-from-pack.bin
 ```

@@ -40,7 +40,7 @@ RIF how to recognize a language through Rules and target-owned tables.
 During development, compile directly from the target source:
 
 ```powershell
-vnma run rif.py target/main.rif program.mir -o build/program.bin
+vnma run main.py target/main.rif program.mir -o build/program.bin
 ```
 
 The target's linker block defines the accepted MIR extension. A project may
@@ -51,8 +51,8 @@ assembler language.
 When the target is ready to reuse or distribute it, create a package:
 
 ```powershell
-vnma run rif.py --pack target/main.rif -o build/target.pack
-vnma run rif.py build/target.pack program.mir -o build/program.bin
+vnma run main.py --pack target/main.rif -o build/target.pack
+vnma run main.py build/target.pack program.mir -o build/program.bin
 ```
 
 The package contains the target definition, its source graph, referenced
@@ -94,8 +94,8 @@ the RIF source into GIR and RIF then applies its normal target semantics. The
 Python parser remains available for explicit comparison and troubleshooting:
 
 ```powershell
-vnma run rif.py --backend aot target/main.rif program.mir
-vnma run rif.py --backend python target/main.rif program.mir
+vnma run main.py --backend aot target/main.rif program.mir
+vnma run main.py --backend python target/main.rif program.mir
 ```
 
 The backend choice affects parsing of the target definition. It does not
@@ -147,7 +147,7 @@ When a build fails, identify the phase first:
 Use the package inspector and an output map before changing Rules blindly:
 
 ```powershell
-vnma run rif.py --inspect-pack build/target.pack
-vnma run rif.py --inspect-pack build/target.pack --json > build/target.inspect.json
-vnma run rif.py build/target.pack program.mir -o build/program.bin --map build/program.map.json
+vnma run main.py --inspect-pack build/target.pack
+vnma run main.py --inspect-pack build/target.pack --json > build/target.inspect.json
+vnma run main.py build/target.pack program.mir -o build/program.bin --map build/program.map.json
 ```

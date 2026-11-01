@@ -39,10 +39,10 @@ From the RIF root:
 ```powershell
 vnma run examples/probe/probe_minios/build_qemu_iso.py
 
-vnma run rif.py --doctor-pcpi `
+vnma run main.py --doctor-pcpi `
   examples/probe/probe_minios/build/mini_os_iso_header.pcic
 
-vnma run rif.py --doctor-storage `
+vnma run main.py --doctor-storage `
   examples/probe/probe_minios/build/cursor_assets.storage.bin
 ```
 

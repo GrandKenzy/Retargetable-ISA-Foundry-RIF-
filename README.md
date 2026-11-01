@@ -116,7 +116,7 @@ vnma install soundfile
 To compile a standalone `.store` file into indexed raw storage:
 
 ```powershell
-vnma run rif.py --comp-store datos.store -o storage.bin
+vnma run main.py --comp-store datos.store -o storage.bin
 ```
 
 For a clean clone, copy `vnma.toml.example` to `vnma.toml` before installing.
@@ -129,17 +129,17 @@ The repository includes an ELF64 demonstration that emits a small Linux x86-64 e
 
 ```powershell
 # Process an existing RIF definition and its input
-vnma run rif.py examples/probe/probe_elf64/main.rif examples/probe/probe_elf64/main.asm -o exit
+vnma run main.py examples/probe/probe_elf64/main.rif examples/probe/probe_elf64/main.asm -o exit
 
 # Package a user-defined target
-vnma run rif.py --pack examples/probe/probe_elf64/main.rif -o target.pack
+vnma run main.py --pack examples/probe/probe_elf64/main.rif -o target.pack
 
 # Reuse the packaged rules
-vnma run rif.py target.pack examples/probe/probe_elf64/main.asm -o exit-from-pack
+vnma run main.py target.pack examples/probe/probe_elf64/main.asm -o exit-from-pack
 ```
 
 Resource limits can be selected per invocation, in MiB, for example
-`vnma run rif.py --plimit 16 ...`. The value is saved locally as
+`vnma run main.py --plimit 16 ...`. The value is saved locally as
 `RIF_PLIMIT_MIB` in `.env`; `.env` and the local VNMA workflow notes are not
 published.
 

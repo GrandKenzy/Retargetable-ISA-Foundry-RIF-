@@ -117,7 +117,8 @@ def compiler_source_fingerprint() -> str:
     root = Path(__file__).resolve().parent
     paths = [
         root / "pack.py",
-        root / "rif.py",
+        root / "main.py",
+        root / "rif_tools" / "cli.py",
         root / "rif_contract.py",
         root / "rif_limits.py",
         root / "rif_library.py",

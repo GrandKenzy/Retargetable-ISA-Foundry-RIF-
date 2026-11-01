@@ -115,7 +115,7 @@ def build_tests():
 
 
 def run(rifroot,mir,out):
-    return subprocess.run([sys.executable,'rif.py',str(BASE/'amd64.pack'),str(mir),'-o',str(out)],
+    return subprocess.run([sys.executable,'main.py',str(BASE/'amd64.pack'),str(mir),'-o',str(out)],
                           cwd=rifroot, text=True, capture_output=True)
 
 

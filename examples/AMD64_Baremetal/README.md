@@ -56,15 +56,15 @@ ensamblador AMD64 completo.
 Desde la raíz de RIF:
 
 ```bash
-vnma run rif.py --pack examples/AMD64_Baremetal/main.rif \
+vnma run main.py --pack examples/AMD64_Baremetal/main.rif \
   -o examples/AMD64_Baremetal/amd64.pack
-vnma run rif.py --pack examples/AMD64_Baremetal/main_rw.rif \
+vnma run main.py --pack examples/AMD64_Baremetal/main_rw.rif \
   -o examples/AMD64_Baremetal/amd64-rw.pack
 
-vnma run rif.py examples/AMD64_Baremetal/amd64.pack \
+vnma run main.py examples/AMD64_Baremetal/amd64.pack \
   examples/probe/probe_amd64/symbols.mir \
   -o examples/AMD64_Baremetal/symbols.bin
-vnma run rif.py examples/AMD64_Baremetal/amd64-rw.pack \
+vnma run main.py examples/AMD64_Baremetal/amd64-rw.pack \
   examples/probe/probe_amd64/sections.mir \
   -o examples/AMD64_Baremetal/sections.bin
 ```

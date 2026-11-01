@@ -15,9 +15,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent
-# Override with RIF_PY=/path/to/rif.py or pass rif.py as the first argument.
-RIF = Path(os.environ.get('RIF_PY', str(ROOT.parent / 'RIF-main' / 'rif.py')))
-if len(sys.argv) > 1 and sys.argv[1].endswith('rif.py'):
+# Override with RIF_PY=/path/to/main.py or pass main.py as the first argument.
+RIF = Path(os.environ.get('RIF_PY', str(ROOT.parent / 'RIF-main' / 'main.py')))
+if len(sys.argv) > 1 and sys.argv[1].endswith('main.py'):
     RIF = Path(sys.argv[1]).resolve()
 ROM_BASE = 0x08000000
 HEADER_SIZE = 0xC0

@@ -45,7 +45,7 @@ storage has no word size with which to perform a generic endian conversion.
 
 ## Command Line
 
-The command-line entrypoint is `rif.py`:
+The command-line entrypoint is `main.py`:
 
 ```powershell
 rif main.rif program.mir

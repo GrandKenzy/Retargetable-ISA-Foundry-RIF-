@@ -33,13 +33,13 @@ Run commands from the repository root through VNMA:
 
 ```powershell
 # Compile directly from a target definition.
-vnma run rif.py examples/<target>/main.rif examples/<target>/program.mir `
+vnma run main.py examples/<target>/main.rif examples/<target>/program.mir `
   -o examples/<target>/program.bin
 
 # Compile the target once and reuse it.
-vnma run rif.py --pack examples/<target>/main.rif `
+vnma run main.py --pack examples/<target>/main.rif `
   -o examples/<target>/<target>.pack
-vnma run rif.py examples/<target>/<target>.pack `
+vnma run main.py examples/<target>/<target>.pack `
   examples/<target>/program.mir -o examples/<target>/program-from-pack.bin
 ```
 
@@ -140,7 +140,7 @@ embedded in a larger target-generation pipeline.
 Rebuild and verify it with:
 
 ```powershell
-vnma run examples/GBA-Bouncing-Ball/build.py rif.py
+vnma run examples/GBA-Bouncing-Ball/build.py main.py
 vnma run examples/GBA-Bouncing-Ball/verify_cpu.py
 ```
 

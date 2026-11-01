@@ -27,7 +27,7 @@ Necesitas tener RIF instalado con VNMA y Gram disponible según `vnma.toml`.
 Desde la raíz del repositorio:
 
 ```powershell
-vnma run examples/GBA-Bouncing-Ball/build.py rif.py
+vnma run examples/GBA-Bouncing-Ball/build.py main.py
 ```
 
 El script genera `main.asm`, crea `gba.pack` mediante el backend AOT

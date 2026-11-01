@@ -8,7 +8,7 @@ complete.
 Compile it from the repository root:
 
 ```powershell
-vnma run rif.py examples/probe/probe_elf64/main.rif `
+vnma run main.py examples/probe/probe_elf64/main.rif `
   examples/probe/probe_elf64/main.asm `
   -o examples/probe/probe_elf64/exit
 ```

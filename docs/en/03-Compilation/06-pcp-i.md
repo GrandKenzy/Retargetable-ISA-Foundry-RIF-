@@ -145,7 +145,7 @@ later layout pass.
 
 ## Compiled `.pcic` container
 
-`rif.py --comp-pcpi` validates the source and writes a binary `.pcic` file. A
+`main.py --comp-pcpi` validates the source and writes a binary `.pcic` file. A
 version 1 container has this order:
 
 ```text
@@ -207,7 +207,7 @@ is performed both while compiling the source and when loading an existing
 Compile a source template:
 
 ```powershell
-vnma run rif.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
+vnma run main.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
   -o examples/probe/probe_minios/build/mini_os_iso_header.pcic
 ```
 
@@ -217,7 +217,7 @@ uses the source path with a `.pcic` suffix.
 Validate and inspect a compiled container without modifying it:
 
 ```powershell
-vnma run rif.py --doctor-pcpi `
+vnma run main.py --doctor-pcpi `
   examples/probe/probe_minios/build/mini_os_iso_header.pcic
 ```
 
@@ -438,7 +438,7 @@ The format is implemented by:
 
 - `pcpi_compiler.py`: `.pci` parsing and source compilation;
 - `pcpi.py`: `.pcic` serialization, loading, and validation;
-- `rif.py`: `--comp-pcpi` and `--doctor-pcpi` CLI operations;
+- `main.py`: `--comp-pcpi` and `--doctor-pcpi` CLI operations;
 - `MIR/preprocessor.py`: syntax and ordering of `::RIF_PCPI` directives;
 - `MIR/external.py`: container insertion and pit address reporting;
 - `test/dedicated_suite/test_pcpi.py`: format, alignment, filling, and rejection

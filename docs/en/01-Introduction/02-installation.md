@@ -23,7 +23,7 @@ vnma sync-ide
 Run the RIF command-line entrypoint through VNMA:
 
 ```powershell
-vnma run rif.py --help
+vnma run main.py --help
 ```
 
 For development, the workspace normally contains:
@@ -42,7 +42,7 @@ RIF/
     └── dedicated_suite/
 ├── examples/
 │   └── probe/
-├── rif.py
+├── main.py
 ├── pack.py
 └── vnma.toml
 ```
@@ -63,5 +63,5 @@ project's Gram dependency and keeps the Python environment consistent:
 
 ```powershell
 vnma install
-vnma run rif.py target/main.rif program.mir -o build/program.bin
+vnma run main.py target/main.rif program.mir -o build/program.bin
 ```

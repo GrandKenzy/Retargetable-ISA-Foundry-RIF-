@@ -9,11 +9,11 @@ este mapa cuando cambien responsabilidades o conexiones principales.
 RIF trabaja en dos fases y requiere dos artefactos conceptualmente distintos:
 
 1. La definición declarativa `.rif` describe el target: tablas, Rules,
-   configuración, linker y variantes. `rif.py --pack main.rif` la procesa a un
+   configuración, linker y variantes. `main.py --pack main.rif` la procesa a un
    `CompiledRuleSet`; el `.pack` agrupa las fuentes y, con `precompile=True`,
    serializa ese Rule Set, sus tablas y contexto en SQLite. El `.pack` no
    contiene el MIR externo ni el binario final.
-2. El programa `.mir` es la entrada compatible con ese target. `rif.py
+2. El programa `.mir` es la entrada compatible con ese target. `main.py
    target.pack program.mir -o program.bin` carga el `.pack`, tokeniza y
    preprocesa el MIR, selecciona la Rule cuyo nombre inicia cada línea y la
    ejecuta para emitir bits, layout, símbolos, relocaciones y el binario. La
@@ -32,7 +32,7 @@ con `--library target.pack`; no arrastra `config`, `linker` ni bloques del
 target original. Un `.pack` sigue siendo un target completo y no se fusiona
 implícitamente con otro.
 
-Para PCP-I, `rif.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
+Para PCP-I, `main.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
 `.pci` directamente y serializa el contenedor validado con `pcpi.py`. PCP-I es
 una salida especializada e independiente del frontend RIF; no ejecuta Rules
 ni añade una segunda gramática al lenguaje `.rif`. En `@RAW`, `[N]` declara
@@ -121,8 +121,13 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 
 ## Directorios y archivos
 
-- `rif.py`: CLI para empaquetar definiciones, ejecutar MIR compatible, producir PCP-I y
+- `main.py`: CLI para empaquetar definiciones, ejecutar MIR compatible, producir PCP-I y
   revisar artefactos con `--doctor-pcpi`/`--doctor-storage`.
+- `rif_tools/cli.py`: implementación del despacho de todas las operaciones de la CLI;
+  `rif.py` conserva únicamente un wrapper de compatibilidad para invocaciones antiguas.
+  Los módulos `pack.py`, `pack_inspector.py`, `pcpi.py`, `pcpi_compiler.py`,
+  `rif_contract.py`, `rif_library.py`, `rif_limits.py`, `store.py` e `iso.py` son
+  bibliotecas de implementación, no entradas CLI independientes.
 - `Frontend/syntax/`: sesión Gram, keywords y reglas de entrada; `blocks.py`
   contiene el bloque genérico.
 - `Frontend/processor/`: orden de pasadas y visitors para config, linker,
@@ -209,8 +214,8 @@ al target; no son capacidades generales de RIF.
 | Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `test/suite_essencial/test_processor.py`, `test/suite_essencial/test_pipeline.py`, `test/suite_essencial/test_variants.py` |
 | Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `test/suite_essencial/test_runtime.py`, `test/suite_essencial/test_mir.py` |
 | Packs y serialización | `pack.py`, `MIR/compiled.py` | `test/suite_essencial/test_pack.py`, `test/suite_essencial/test_blocks.py` |
-| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `rif.py` | `test/dedicated_suite/test_pcpi.py` |
-| Diagnóstico de artefactos | `rif.py`, `pcpi.py`, `MIR/storage.py` | `test/dedicated_suite/test_doctor.py` |
+| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `main.py` | `test/dedicated_suite/test_pcpi.py` |
+| Diagnóstico de artefactos | `main.py`, `pcpi.py`, `MIR/storage.py` | `test/dedicated_suite/test_doctor.py` |
 | Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `test/suite_essencial/test_artifacts.py` |
 
 El preprocesador del MIR externo usa `::RIF_INSERT` para bytes, binarios o
@@ -232,7 +237,7 @@ backend. Sigue ese recorrido antes de modificar una sola capa.
 
 ## Herramientas y pruebas
 
-- `vnma run rif.py ...` ejecuta la CLI del proyecto.
+- `vnma run main.py ...` ejecuta la CLI del proyecto.
 - `vnma test` ejecuta la suite esencial; `vnma test test/suite_essencial/<archivo>`
   permite una comprobación enfocada.
 - `vnma test test/suite_aggressive` ejecuta benchmarks y estrés.
@@ -273,7 +278,7 @@ Los terminales normales y los tokens de `CaptureRaw` se obtienen mediante la
 API de Gram; RIF ya no re-tokeniza la fuente con el lexer Python.
 
 El pipeline expone `backend="python"` y `backend="aot"`; la CLI selecciona
-el segundo con `rif.py --backend aot`. El parser generado se guarda bajo
+el segundo con `main.py --backend aot`. El parser generado se guarda bajo
 `.rif-cache/aot/`; AOT es ahora el backend predeterminado. La FFI AOT en
 memoria es el camino canónico: la biblioteca compartida vive en ese cache, su
 construcción se serializa con un lock entre procesos y

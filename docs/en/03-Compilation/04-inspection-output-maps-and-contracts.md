@@ -8,7 +8,7 @@ to understand a target or audit a generated image without changing its bytes.
 Inspect a package before using it:
 
 ```powershell
-vnma run rif.py --inspect-pack build/target.pack
+vnma run main.py --inspect-pack build/target.pack
 ```
 
 The inspector validates the ZIP structure, member paths, hashes, resource
@@ -19,15 +19,15 @@ globals, or extract files.
 Use JSON for build tools:
 
 ```powershell
-vnma run rif.py --inspect-pack build/target.pack --json > build/target.inspect.json
+vnma run main.py --inspect-pack build/target.pack --json > build/target.inspect.json
 ```
 
 Use `--verbose` for bounded Rule instructions and table rows, and
 `--show-origins` only when creator paths are needed for a local diagnostic:
 
 ```powershell
-vnma run rif.py --inspect-pack build/target.pack --verbose --max-items 200
-vnma run rif.py --inspect-pack build/target.pack --json --show-origins
+vnma run main.py --inspect-pack build/target.pack --verbose --max-items 200
+vnma run main.py --inspect-pack build/target.pack --json --show-origins
 ```
 
 The report includes the package format and version, content fingerprint,
@@ -40,7 +40,7 @@ extensions.
 An output map is optional and does not alter the binary:
 
 ```powershell
-vnma run rif.py build/target.pack program.mir -o build/program.bin --map build/program.map.json
+vnma run main.py build/target.pack program.mir -o build/program.bin --map build/program.map.json
 ```
 
 The map is a stable JSON document containing:

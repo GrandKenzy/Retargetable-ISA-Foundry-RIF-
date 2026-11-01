@@ -38,7 +38,6 @@ RIF/
 ├── examples/
 │   └── probe/
 ├── main.py
-├── rif.py
 ├── pack.py
 └── vnma.toml
 ```

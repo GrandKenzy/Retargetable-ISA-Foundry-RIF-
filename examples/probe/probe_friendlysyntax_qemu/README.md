@@ -41,9 +41,9 @@ To refresh the reusable declaration package after changing the base Friendly
 target:
 
 ```powershell
-vnma run rif.py --pack examples/amd64-friendlysyntaxs/main.rif `
+vnma run main.py --pack examples/amd64-friendlysyntaxs/main.rif `
   -o examples/amd64-friendlysyntaxs/amd64-friendly.pack
-vnma run rif.py --library examples/amd64-friendlysyntaxs/amd64-friendly.pack `
+vnma run main.py --library examples/amd64-friendlysyntaxs/amd64-friendly.pack `
   -o examples/probe/probe_friendlysyntax_qemu/friendly.riflib
 ```
 
@@ -82,9 +82,9 @@ black for this first framebuffer checkpoint.
 ## Build
 
 ```powershell
-vnma run rif.py --pack examples/probe/probe_friendlysyntax_qemu/main.rif `
+vnma run main.py --pack examples/probe/probe_friendlysyntax_qemu/main.rif `
   -o examples/probe/probe_friendlysyntax_qemu/friendly-qemu.pack
-vnma run rif.py examples/probe/probe_friendlysyntax_qemu/friendly-qemu.pack `
+vnma run main.py examples/probe/probe_friendlysyntax_qemu/friendly-qemu.pack `
   examples/probe/probe_friendlysyntax_qemu/main.mir `
   -o examples/probe/probe_friendlysyntax_qemu/main.bin
 ```
@@ -105,7 +105,7 @@ Rebuild the local PCP-I asset from its canonical source when the header
 changes:
 
 ```powershell
-vnma run rif.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
+vnma run main.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
   -o examples/probe/probe_friendlysyntax_qemu/assets/mini_os_iso_header.pcic
 ```
 

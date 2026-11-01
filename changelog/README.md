@@ -25,8 +25,12 @@ The AMD64 v3 example is now an operating-system-neutral bare-metal raw target;
 its fixtures and tests no longer require object headers or host execution.
 
 `.pack` targets can now publish their explicitly loaded Rules and tables as a
-declaration-only `.riflib` with `rif --library target.pack`. The Friendly QEMU
+declaration-only `.riflib` with `main.py --library target.pack`. The Friendly QEMU
 example consumes that layer and keeps its QEMU blocks and boot Rules local.
+
+`main.py` is now the canonical entrypoint for packaging, MIR compilation,
+PCP-I, storage, inspection, and library operations. `rif_tools/cli.py` owns the
+dispatch implementation, while `rif.py` remains only as a compatibility wrapper.
 
 The ELF64 and MiniOS test examples now live under `examples/probe/` with the
 other target probes.

@@ -11,7 +11,7 @@ Place the reusable `.rif` sources in a small project directory and choose one
 source as its entry point:
 
 ```powershell
-vnma run rif.py --library patterns/main.rif -o build/patterns.riflib
+vnma run main.py --library patterns/main.rif -o build/patterns.riflib
 ```
 
 The command creates a reproducible ZIP archive containing a manifest and the
@@ -30,7 +30,7 @@ For a complete target package, the CLI can export the explicitly loaded
 declaration sources without carrying over target policy:
 
 ```powershell
-vnma run rif.py --library base.pack -o build/base-declarations.riflib
+vnma run main.py --library base.pack -o build/base-declarations.riflib
 ```
 
 The export omits the package root's `config`, `linker`, and generic blocks.
@@ -109,7 +109,7 @@ When a target is packed, referenced libraries are embedded under `libraries/`
 and included in the package content fingerprint:
 
 ```powershell
-vnma run rif.py --pack target/main.rif -o build/target.pack
+vnma run main.py --pack target/main.rif -o build/target.pack
 ```
 
 The resulting package is portable. Compilation from the package does not need

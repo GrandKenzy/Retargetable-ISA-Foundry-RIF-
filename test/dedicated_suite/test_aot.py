@@ -239,7 +239,7 @@ class AOTFrontendTests(unittest.TestCase):
         "se requiere gcc o clang para probar la paridad completa",
     )
     def test_full_semantic_parity_for_amd64_fixture(self):
-        target = Path(__file__).resolve().parents[2] / "examples" / "AMD64-BareMetal-v3" / "main.rif"
+        target = Path(__file__).resolve().parents[2] / "examples" / "AMD64_Baremetal" / "main.rif"
         report = compare_target(target)
         self.assertTrue(report.equal, report.as_dict())
 

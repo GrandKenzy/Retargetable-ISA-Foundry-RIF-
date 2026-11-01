@@ -58,7 +58,7 @@ image for `demo.mir` is:
 90 C3
 ```
 
-The source is intentionally independent from `AMD64-BareMetal-v3`: it uses
+The source is intentionally independent from `AMD64_Baremetal`: it uses
 the same RIF model but declares its own tables and Rules, proving that the
 syntax is target data rather than a built-in parser mode.
 

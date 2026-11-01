@@ -50,7 +50,7 @@ are ignored unless an example explicitly documents otherwise. Source `.rif`,
 | --- | --- | --- | --- |
 | [RIF Core Demo](./RIF-Core-Demo/README.md) | Generic RIF Rule input | Configured assembly image | Tables, matching, reservations, frames and declarative emission without an ISA |
 | [AMD64](./AMD64/README.md) | Conventional `mov`/`nop` names | Raw AMD64 bytes | Smallest architecture-specific target and baseline syntax |
-| [AMD64 Bare Metal v3](./AMD64-BareMetal-v3/README.md) | Explicit AMD64 encoding Rules | Raw AMD64 images | Current `amd64-base-integer` profile, memory, branches, relocations and external verification |
+| [AMD64 Baremetal](./AMD64_Baremetal/README.md) | Explicit AMD64 encoding Rules | Raw AMD64 images | Full raw AMD64 profile, memory, branches, relocations and external verification |
 | [AMD64 Friendly Syntax](./amd64-friendlysyntaxs/README.md) | `set`, `copy`, `add`, `load`, `store`, `return` | Raw AMD64 bytes | QEMU-independent alternative syntax, `R0..R15` register tables and normal/friendly byte equivalence |
 | [AMD64 Friendly Syntax QEMU](./amd64-friendlysyntaxs-qemu/README.md) | Friendly Syntax plus QEMU boot Rules | RIF-emitted El Torito boot image | VBE 0x118 banked framebuffer and centered cursor checkpoint |
 | [MiniOS Example](./MiniOsExample/README.md) | PCP-I, external storage and ISO assembly | Bootable ISO-9660/El Torito image | Complete QEMU BIOS image build with RIF-emitted boot code and cursor data |
@@ -84,9 +84,9 @@ and emits 15 raw bytes. It has no ELF header, system call, operating-system
 ABI, linker or host execution step. It is useful as a first target when
 explaining the two-phase `.rif`/`.pack` workflow.
 
-### AMD64 Bare Metal v3
+### AMD64 Baremetal
 
-`AMD64-BareMetal-v3` is the broad AMD64 demonstration. Its Rules and tables
+`AMD64_Baremetal` is the full raw AMD64 demonstration. Its Rules and tables
 cover the explicitly declared `amd64-base-integer` profile, including:
 
 - 8-, 16-, 32- and 64-bit register and immediate forms;
@@ -171,7 +171,7 @@ vnma run examples/GBA-Bouncing-Ball/verify_cpu.py
 
 - Start with `RIF-Core-Demo` for frontend and runtime changes.
 - Use `AMD64` for a minimal target and conventional syntax.
-- Use `AMD64-BareMetal-v3` for encoding, layout, relocations and raw-image
+- Use `AMD64_Baremetal` for encoding, layout, relocations and raw-image
   validation.
 - Use `amd64-friendlysyntaxs` when testing alternative input vocabulary or
   syntax equivalence.

@@ -1,4 +1,4 @@
-# RIF AMD64 Bare Metal v3
+# RIF AMD64 Baremetal
 
 Este ejemplo describe un emisor de bytes AMD64 para imágenes raw. No depende
 de un sistema operativo, ABI, linker externo ni formato de objeto.
@@ -58,17 +58,17 @@ ensamblador AMD64 completo.
 Desde la raíz de RIF:
 
 ```bash
-vnma run rif.py --pack examples/AMD64-BareMetal-v3/main.rif \
-  -o examples/AMD64-BareMetal-v3/amd64.pack
-vnma run rif.py --pack examples/AMD64-BareMetal-v3/main_rw.rif \
-  -o examples/AMD64-BareMetal-v3/amd64-rw.pack
+vnma run rif.py --pack examples/AMD64_Baremetal/main.rif \
+  -o examples/AMD64_Baremetal/amd64.pack
+vnma run rif.py --pack examples/AMD64_Baremetal/main_rw.rif \
+  -o examples/AMD64_Baremetal/amd64-rw.pack
 
-vnma run rif.py examples/AMD64-BareMetal-v3/amd64.pack \
-  examples/AMD64-BareMetal-v3/symbols.mir \
-  -o examples/AMD64-BareMetal-v3/symbols.bin
-vnma run rif.py examples/AMD64-BareMetal-v3/amd64-rw.pack \
-  examples/AMD64-BareMetal-v3/sections.mir \
-  -o examples/AMD64-BareMetal-v3/sections.bin
+vnma run rif.py examples/AMD64_Baremetal/amd64.pack \
+  examples/AMD64_Baremetal/symbols.mir \
+  -o examples/AMD64_Baremetal/symbols.bin
+vnma run rif.py examples/AMD64_Baremetal/amd64-rw.pack \
+  examples/AMD64_Baremetal/sections.mir \
+  -o examples/AMD64_Baremetal/sections.bin
 ```
 
 Las salidas son bytes raw. El consumidor bare metal decide cómo ubicarlas en
@@ -78,15 +78,15 @@ o dispositivos. RIF solo genera los bits y resuelve los fixups declarados.
 ## Pruebas
 
 ```bash
-vnma run examples/AMD64-BareMetal-v3/tests/test_encoding.py \
+vnma run examples/AMD64_Baremetal/tests/test_encoding.py \
   --rif-root .
-vnma run examples/AMD64-BareMetal-v3/tests/test_relocations.py \
+vnma run examples/AMD64_Baremetal/tests/test_relocations.py \
   --rif-root .
-vnma run examples/AMD64-BareMetal-v3/tests/test_profile_points.py \
+vnma run examples/AMD64_Baremetal/tests/test_profile_points.py \
   --rif-root .
-vnma run examples/AMD64-BareMetal-v3/tests/test_integer_prefixes.py \
+vnma run examples/AMD64_Baremetal/tests/test_integer_prefixes.py \
   --rif-root .
-vnma run examples/AMD64-BareMetal-v3/tests/test_external_oracle.py \
+vnma run examples/AMD64_Baremetal/tests/test_external_oracle.py \
   --rif-root .
 ```
 

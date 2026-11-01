@@ -161,7 +161,7 @@
 
 ## Perfil AMD64 bare metal
 
-- El ejemplo `AMD64-BareMetal-v3` declara en `.rif` las familias de registros
+- El ejemplo `AMD64_Baremetal` declara en `.rif` las familias de registros
   de 8/16/32/64 bits, inmediatos `imm8`/`imm32`/`imm64`, memoria sin
   desplazamiento/`disp8`/`disp32`, las 16 condiciones en ramas cortas y largas,
   y branches indirectos por registro y memoria.

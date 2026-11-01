@@ -141,7 +141,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
     )
     def test_amd64_target_frontend_benchmark(self) -> None:
         root = Path(__file__).resolve().parents[2]
-        source_path = root / "examples" / "AMD64-BareMetal-v3" / "main.rif"
+        source_path = root / "examples" / "AMD64_Baremetal" / "main.rif"
         source = source_path.read_text(encoding="utf-8")
 
         python_measurements: list[tuple[float, float, float, int]] = []

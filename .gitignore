@@ -28,10 +28,10 @@ __pycache__/
 /examples/GBA-Bouncing-Ball/preview_*.gif
 
 # Resultados raw y MIR generados por el target AMD64 bare metal.
-/examples/AMD64-BareMetal-v3/*.bin
-/examples/AMD64-BareMetal-v3/tests/*.bin
-/examples/AMD64-BareMetal-v3/tests/all_encodings.mir
-/examples/AMD64-BareMetal-v3/tests/negative.mir
+/examples/AMD64_Baremetal/*.bin
+/examples/AMD64_Baremetal/tests/*.bin
+/examples/AMD64_Baremetal/tests/all_encodings.mir
+/examples/AMD64_Baremetal/tests/negative.mir
 /examples/AMD64/*.bin
 
 # Salidas generadas por el paquete AMD64 de sintaxis amigable.

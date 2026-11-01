@@ -175,11 +175,11 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   `examples/`: targets y demostraciones completas, incluyendo el demo
   agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs` y su variante QEMU,
   AMD64 bare metal, ELF64 y GBA. El target
-  `AMD64-BareMetal-v3` emite imágenes raw y no asume un sistema operativo,
+  `AMD64_Baremetal` emite imágenes raw y no asume un sistema operativo,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio.
 
-El perfil `AMD64-BareMetal-v3` mantiene sus decisiones de ISA fuera del núcleo:
+El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
 `integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras
 `main.rif` conserva un bloque `isa_scope` que excluye MMX, SSE, AVX, AVX-512,
 x87 y system instructions. Sus pruebas raw y el cross-check LLVM viven junto
@@ -305,7 +305,7 @@ forma parte del camino normal.
 
 ### Benchmark del target AMD64 amplio
 
-El benchmark también procesa `examples/AMD64-BareMetal-v3/main.rif`, incluyendo
+El benchmark también procesa `examples/AMD64_Baremetal/main.rif`, incluyendo
 sus quince archivos `@LOAD`, tablas de registros, reglas REX/ModRM/SIB,
 memoria, condiciones, enteros, prefijos y relocaciones. Se ejecutaron tres iteraciones con el
 parser AOT ya cacheado:

@@ -63,10 +63,11 @@ def check(rif_root: Path) -> None:
     template = load_pcpi_file(BASE / "assets" / "mini_os_iso_header.pcic")
     expected_payload = template.render(
         {
-            0: bytes.fromhex("1500000000000015"),
-            1: bytes(32),
-            2: bytes(16),
-            3: bytes.fromhex("88000000000004001400000000000000"),
+            0: bytes.fromhex("1900000000000019"),
+            1: bytes.fromhex(
+                "2200170000000000001700080000000000087e0b0100000000020000010000010100"
+            ),
+            2: bytes.fromhex("88000000000004001400000000000000"),
         }
     )
     cursor = load_storage_file(BASE / "assets" / "cursor_assets.storage.bin").payload(

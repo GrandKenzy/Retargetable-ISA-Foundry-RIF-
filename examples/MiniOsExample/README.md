@@ -1,10 +1,10 @@
 # MiniOS Example
 
-This directory is the first asset checkpoint for a future AMD64 bare-metal
-MiniOS. It deliberately keeps the two binary inputs separate:
+This directory contains the reproducible AMD64 BIOS image build for MiniOS.
+It deliberately keeps the binary inputs separate:
 
 - `mini_os_iso_header.pci` is the PCP-I source for the ISO-9660/El Torito
-  header only. `build/mini_os_iso_header.pcic` is its validated PCP-I
+  descriptor sectors. `build/mini_os_iso_header.pcic` is its validated PCP-I
   container.
 - `cursor_assets.store` is the source media manifest.
   `build/cursor_assets.storage.bin` is the indexed RIF storage artifact, with
@@ -13,38 +13,31 @@ MiniOS. It deliberately keeps the two binary inputs separate:
 
 ## QEMU contract
 
-QEMU does not boot a PCP-I container directly. For BIOS boot, it needs a
-real ISO-9660 image containing an El Torito boot catalog and a boot image. The
-eventual launch command is:
+QEMU does not boot a PCP-I container directly. The build script uses the QEMU
+Friendly RIF target to emit the El Torito boot image, then assembles a real
+ISO-9660 image containing descriptors, an El Torito catalog, a root directory
+and `README.TXT;1`. Launch it with:
 
 ```powershell
 qemu-system-x86_64 `
-  -cdrom build/mini_os.iso `
+  -cdrom examples/MiniOsExample/build/mini_os.iso `
   -boot order=d `
   -m 128M `
   -no-reboot `
   -no-shutdown
 ```
 
-The current `.pcic` contains the ISO system area plus four header sectors: the
-primary descriptor, boot record, descriptor terminator, and catalog header.
-It has four pits for values that depend on the final layout. It contains no
-boot image, boot code, filesystem, cursor data, or other payload. A later RIF
-MIR/preprocessor step can fill these pits and append the separately emitted
-boot image and filesystem data. `qemu-system-x86_64.exe` 11.x is available in
-the development machine; an ISO authoring tool or a small deterministic
-ISO builder is still required to assemble the final ISO-9660 filesystem.
+The `.pcic` contains the ISO system area plus four descriptor sectors. Its
+three pits are filled by the RIF MIR program and the final ISO producer. The
+resulting ISO has the RIF boot image at LBA 20 and a valid root directory.
+No external `xorriso` or `mkisofs` dependency is required.
 
 ## Rebuild the artifacts
 
 From the RIF root:
 
 ```powershell
-vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
-  -o examples/MiniOsExample/build/mini_os_iso_header.pcic
-
-vnma run rif.py --comp-store examples/MiniOsExample/cursor_assets.store `
-  -o examples/MiniOsExample/build/cursor_assets.storage.bin
+vnma run examples/MiniOsExample/build_qemu_iso.py
 
 vnma run rif.py --doctor-pcpi `
   examples/MiniOsExample/build/mini_os_iso_header.pcic
@@ -52,6 +45,10 @@ vnma run rif.py --doctor-pcpi `
 vnma run rif.py --doctor-storage `
   examples/MiniOsExample/build/cursor_assets.storage.bin
 ```
+
+The script performs the complete chain: PCP-I and storage compilation, RIF
+packaging, `.pack + .mir` boot-image emission, ISO-9660 assembly and
+structural validation. It writes `build/mini_os.iso`.
 
 The storage payloads can later be inserted into MIR with:
 
@@ -63,4 +60,5 @@ The QEMU Friendly target uses the parallel `cursor_arrow_bgrx8888` label so
 the 16-bit boot checkpoint can copy pixels directly into the BGRX framebuffer.
 
 The insertion remains an external-MIR/preprocessor operation. It does not
-make RIF core know anything about cursors or operating systems.
+make RIF core know anything about cursors or operating systems. The ISO
+assembler is deliberately a separate producer for the final container.

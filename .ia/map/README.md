@@ -155,6 +155,10 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   enlazadas, no vendorizadas.
 - `pcpi.py` y `pcpi_compiler.py`: formato PCP-I v1, parser declarativo de
   fuentes `.pci` y compilación de pits alineados.
+- `iso.py`: productor determinista ISO-9660/El Torito. Consume el boot image
+  emitido por RIF y una plantilla PCP-I validada, completa los campos de layout,
+  genera tablas de ruta/directorio y valida el contrato BIOS sin introducir
+  semántica ISO en el parser o runtime de RIF.
 - `pack.py`: creación y lectura segura de paquetes `.pack`.
 - `pack_inspector.py`: inspección de solo lectura de `.pack`; verifica el
   contenedor y SQLite en memoria, y expone Rules, tablas, configuración,
@@ -372,14 +376,14 @@ al mapa de salida y a las relocaciones.
 
 ### MiniOSExample
 
-`examples/MiniOsExample/` es el primer checkpoint de un sistema operativo AMD64
-arrancable. `mini_os_iso_header.pci` usa PCP-I para declarar el área de sistema,
-los cuatro sectores de cabecera ISO/El Torito y cuatro pits para valores que
-dependen del layout final. `ZERO n` representa bytes estáticos cero y no crea
-un pit; `[n]` sigue siendo exclusivamente una región rellenable. El `.pcic`
-resultante es un contenedor PCP-I validado, no una ISO-9660 que QEMU pueda
-arrancar directamente: no contiene boot image, código, filesystem ni payload.
-La ISO final requerirá ensamblar ese layout con las salidas posteriores.
+`examples/MiniOsExample/` es el primer sistema operativo AMD64 arrancable.
+`mini_os_iso_header.pci` usa PCP-I para declarar el área de sistema, los cuatro
+sectores de cabecera ISO/El Torito y tres pits para volumen, raíz y entrada de
+boot. `ZERO n` representa bytes estáticos cero y no crea un pit; `[n]` sigue
+siendo exclusivamente una región rellenable. El target QEMU emite el boot
+image con RIF y `iso.py` ensambla la ISO-9660 final con tablas de ruta,
+directorio raíz y `README.TXT;1`. `build_qemu_iso.py` es el recorrido canónico
+y deja `build/mini_os.iso`, que QEMU BIOS arranca en LBA 20.
 `cursor_assets.store` demuestra la ruta de media externa y produce un
 `storage.bin` indexado con los cursores RGBA y BGRX etiquetados.
 

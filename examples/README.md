@@ -52,8 +52,8 @@ are ignored unless an example explicitly documents otherwise. Source `.rif`,
 | [AMD64](./AMD64/README.md) | Conventional `mov`/`nop` names | Raw AMD64 bytes | Smallest architecture-specific target and baseline syntax |
 | [AMD64 Bare Metal v3](./AMD64-BareMetal-v3/README.md) | Explicit AMD64 encoding Rules | Raw AMD64 images | Current `amd64-base-integer` profile, memory, branches, relocations and external verification |
 | [AMD64 Friendly Syntax](./amd64-friendlysyntaxs/README.md) | `set`, `copy`, `add`, `load`, `store`, `return` | Raw AMD64 bytes | QEMU-independent alternative syntax, `R0..R15` register tables and normal/friendly byte equivalence |
-| [AMD64 Friendly Syntax QEMU](./amd64-friendlysyntaxs-qemu/README.md) | Friendly Syntax plus QEMU boot Rules | Raw El Torito-layout image | VBE 0x118 banked framebuffer and centered cursor checkpoint |
-| [MiniOS Example](./MiniOsExample/README.md) | PCP-I and external storage assets | PCP-I header-only template and indexed media | First AMD64 OS-image checkpoint for QEMU, El Torito planning and cursor data |
+| [AMD64 Friendly Syntax QEMU](./amd64-friendlysyntaxs-qemu/README.md) | Friendly Syntax plus QEMU boot Rules | RIF-emitted El Torito boot image | VBE 0x118 banked framebuffer and centered cursor checkpoint |
+| [MiniOS Example](./MiniOsExample/README.md) | PCP-I, external storage and ISO assembly | Bootable ISO-9660/El Torito image | Complete QEMU BIOS image build with RIF-emitted boot code and cursor data |
 | [ELF64](./ELF64/README.md) | AMD64-like assembly plus image directives | Linux ELF64 executable | Header templates, inserts and final patches; intentionally host-specific |
 | [GBA Bouncing Ball](./GBA-Bouncing-Ball/README.md) | ARM/Thumb-oriented target vocabulary | GBA ROM | ARM7TDMI tables, Thumb variants, ROM assets and a complete generated cartridge demo |
 

@@ -40,10 +40,9 @@ cursor payload from storage, and pads the boot image to four 512-byte sectors:
 
 ```text
 ::RIF_PCPI SET "assets/mini_os_iso_header.pcic"
-::RIF_PCPI FILL 0 "1500000000000015"
-::RIF_PCPI FILL 1 "0000000000000000000000000000000000000000000000000000000000000000"
-::RIF_PCPI FILL 2 "00000000000000000000000000000000"
-::RIF_PCPI FILL 3 "88000000000004001400000000000000"
+::RIF_PCPI FILL 0 "1900000000000019"
+::RIF_PCPI FILL 1 "2200170000000000001700080000000000087E0B0100000000020000010000010100"
+::RIF_PCPI FILL 2 "88000000000004001400000000000000"
 _start
 boot_stage
 ::RIF_STORE "assets/cursor_assets.storage.bin" cursor_arrow_bgrx8888 1 0
@@ -70,6 +69,18 @@ vnma run rif.py examples/amd64-friendlysyntaxs-qemu/friendly-qemu.pack `
   -o examples/amd64-friendlysyntaxs-qemu/main.bin
 ```
 
+That command emits the RIF raw layout (20 descriptor blocks plus the one-block
+boot image). To finish the QEMU artifact as a real ISO-9660 volume, run:
+
+```powershell
+vnma run examples/MiniOsExample/build_qemu_iso.py
+```
+
+The script consumes the RIF output, fills the PCP-I layout fields, appends
+path tables and a root directory, and writes
+`examples/MiniOsExample/build/mini_os.iso`. The ISO contains the boot image at
+LBA 20 and is structurally checked before it is written.
+
 Rebuild the local PCP-I asset from its canonical source when the header
 changes:
 
@@ -78,6 +89,7 @@ vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
   -o examples/amd64-friendlysyntaxs-qemu/assets/mini_os_iso_header.pcic
 ```
 
-The current image is a raw El Torito-layout checkpoint. The protected/long-mode
-transition and framebuffer initialization are the next boot-image stage; they
-do not belong in the PCP-I header template.
+The current boot image remains a real-mode VBE checkpoint: it selects mode
+0x118, draws the cursor through the banked window, and halts safely. A future
+protected/long-mode transition can replace only the RIF boot Rules; it does not
+belong in the PCP-I descriptor template or ISO producer.

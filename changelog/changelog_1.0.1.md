@@ -16,12 +16,19 @@
 
 ## MiniOS asset checkpoint
 
-- Added `examples/MiniOsExample/` with a PCP-I ISO/El Torito header-only
+- Completed the MiniOS QEMU artifact: `build_qemu_iso.py` now compiles the
+  PCP-I/storage inputs, packages and runs the QEMU Friendly target through
+  RIF, then uses the deterministic `iso.py` producer to create a valid
+  ISO-9660/El Torito volume with path tables, a root directory and
+  `README.TXT;1`. The final image is structurally validated and boots under
+  QEMU 11 BIOS; the RIF boot checkpoint remains the real-mode VBE/cursor stage.
+
+- Added `examples/MiniOsExample/` with a PCP-I ISO/El Torito descriptor
   template, a
   public-domain 14x22 arrow cursor source, and a `.store` manifest compiled to
   an indexed `storage.bin` payload. The example documents the QEMU BIOS launch
-  contract and clearly distinguishes the four header pits from the future
-  boot image, filesystem, and final ISO-9660 image. PCP-I `ZERO n` emits
+  contract and clearly distinguishes descriptor pits from the separately
+  emitted boot image, filesystem, and final ISO-9660 image. PCP-I `ZERO n` emits
   static zero bytes without declaring a fill pit. External MIR now provides
   `::RIF_PCPI FILL index "hex"` for exact-size transactional pit replacement;
   the QEMU Friendly variant now owns the boot image and cursor insertion;

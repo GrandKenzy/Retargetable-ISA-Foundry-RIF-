@@ -38,4 +38,3 @@ jmp8_label exit_point
 mark exit_point
 mov rax, 60
 syscall
-link_image

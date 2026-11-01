@@ -106,6 +106,7 @@ class RIFMachine:
         *,
         emitter: BitEmitter | None = None,
         section_name: str | None = None,
+        image: Any | None = None,
     ) -> None:
         self.program = program
         self.context = program.context
@@ -113,6 +114,7 @@ class RIFMachine:
             wordsize=self.context.config.wordsize if self.context.config else 32
         )
         self.section_name = section_name
+        self.image = image
         self.tokens: tuple[lexer.TokenType, ...] = ()
         self.position = 0
         self.last_token: lexer.TokenType | None = None
@@ -477,7 +479,9 @@ class RIFMachine:
         if self.emitter.virtual_position % 8:
             raise RIFRuntimeError("MARK requiere una posición virtual alineada a bytes.")
         if name in self.symbols:
-            raise RIFRuntimeError(f"El símbolo '{name}' ya está definido.")
+            raise RIFRuntimeError(
+                f"El símbolo '{name}' está duplicado; ya está definido."
+            )
         self.symbols[name] = SymbolAddress(
             name=name,
             section=self.section_name or (
@@ -486,6 +490,18 @@ class RIFMachine:
             physical_offset_bits=self.emitter.buffer.bit_length,
             virtual_offset_bits=self.emitter.virtual_position,
         )
+
+    def _select_section(self, name: str) -> None:
+        if self.image is None:
+            raise RIFRuntimeError(
+                "SECTION requiere una AssemblyImage asociada al runtime."
+            )
+        try:
+            self.image.select(name)
+            self.emitter = self.image.emitter(name)
+        except (KeyError, ValueError) as exc:
+            raise RIFRuntimeError(f"La sección '{name}' no existe en CONFIG.") from exc
+        self.section_name = name
 
     def _record_fixup(self, kind: str, reservation: str) -> None:
         token = self._current()
@@ -544,7 +560,7 @@ class RIFMachine:
             return
         bases = dict(virtual_bases or {})
         widths = {"pc8": 8, "pc32": 32, "abs64": 64}
-        planned: list[tuple[Fixup, int]] = []
+        planned: list[tuple[BitEmitter, Fixup, int]] = []
         for fixup in self.fixups:
             symbol = self.symbols.get(fixup.symbol)
             if symbol is None:
@@ -573,16 +589,33 @@ class RIFMachine:
                         f"{fixup.kind}: dirección virtual inválida: {value}."
                     )
                 encoded = value
-            planned.append((fixup, encoded))
+            planned.append((self._emitter_for_section(fixup.section), fixup, encoded))
 
-        with self.emitter.buffer.transaction():
-            for fixup, value in planned:
+        buffers: dict[int, tuple[Any, Any]] = {}
+        for emitter, _, _ in planned:
+            key = id(emitter.buffer)
+            if key not in buffers:
+                buffers[key] = (emitter.buffer, emitter.buffer.checkpoint())
+        try:
+            for emitter, fixup, value in planned:
                 try:
-                    self.emitter.patch_bits(fixup.offset_bits, fixup.width_bits, value)
+                    emitter.patch_bits(fixup.offset_bits, fixup.width_bits, value)
                 except (TypeError, ValueError) as exc:
                     raise RIFRuntimeError(
                         f"No se pudo aplicar FIXUP {fixup.kind} en {fixup.offset_bits // 8}: {exc}"
                     ) from exc
+        except Exception:
+            for buffer, checkpoint in buffers.values():
+                buffer.rollback(checkpoint)
+            raise
+
+    def _emitter_for_section(self, section: str | None) -> BitEmitter:
+        if self.image is None or section is None:
+            return self.emitter
+        try:
+            return self.image.emitter(section)
+        except (KeyError, ValueError) as exc:
+            raise RIFRuntimeError(f"La sección '{section}' no existe en CONFIG.") from exc
 
     def _execute_rule(self, rule_name: str) -> None:
         if self._rule_depth >= MAX_RULE_CALL_DEPTH:
@@ -636,6 +669,10 @@ class RIFMachine:
 
         if opcode == "fixup":
             self._record_fixup(str(operands[0].value), str(operands[1].value))
+            return
+
+        if opcode == "section":
+            self._select_section(str(operands[0].value))
             return
 
         if opcode == "table_matcher":

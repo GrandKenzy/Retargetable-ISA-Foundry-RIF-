@@ -138,6 +138,9 @@ class AOTFrontendTests(unittest.TestCase):
             ". fixup pc32 \"fix32\"\n"
             ". drop_res \"fix32\"\n"
             ". IDENT\n"
+            "@rule use_data:\n"
+            ". IDENT\n"
+            ". section \"data\"\n"
         )
         with TemporaryDirectory(prefix="rif-aot-parity-") as directory:
             root = Path(directory)

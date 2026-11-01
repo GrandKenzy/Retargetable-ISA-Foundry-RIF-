@@ -11,7 +11,9 @@ modificar las fuentes de Gram.
 - `main_rw.rif`: variante ELF64 con **dos PT_LOAD**, `.text` RX (base `0x400000`) y `.data` RW (base `0x401000`, offset en fichero `0x1000`).
 - `registers.rif`, `encoding.rif`, `arithmetic.rif`, `width32.rif`, `memory.rif`, `control.rif`, `conditions.rif`, `instructions.rif`: familias AMD64 anteriores (REX, ModRM, SIB, MOV, aritmética, memoria, stack, condiciones).
 - **`relocations.rif`**: nuevas Rules para símbolos, relocaciones PC-relative (`rel8` y `rel32`), `abs64`, acceso RIP-relative, reservas y posiciones virtuales.
-- **`funcs.py`**: puente de *link* explícito (escape Python documentado de RIF); la Rule MIR `link_image` aplica los fixups y el módulo habilita cambios de sección entre líneas MIR.
+- Las relocaciones y los cambios de sección son nativos: `fixup pc8|pc32|abs64`
+  resuelve pendientes al finalizar el MIR y `section "text|data"` cambia el
+  emisor activo.
 - Los paquetes se generan localmente; no se incluyen `.pack`, ELF ni binarios
   generados en el ejemplo.
 - `symbols_runtime.asm`: saltos y CALL a etiquetas, lectura de texto RIP-relative e impresión `Hi` con syscall `write`.
@@ -70,8 +72,8 @@ loadrip64 r10, label      ; MOV r10, [rip + rel32]
 storerip64 rax, label     ; MOV [rip + rel32], rax
 movaddr64 r9, label       ; MOVABS r9, dir.virtual.64
 dqaddr label              ; emite dirección virtual de 64 bits
-use_data                  ; seleccionar .data vía CALLBACK
-use_text                  ; seleccionar .text vía CALLBACK
+use_data                  ; seleccionar .data de forma nativa
+use_text                  ; seleccionar .text de forma nativa
 db 72                     ; emitir un byte
 dq 42                     ; emitir uint64 en little-endian
 virtual_scratch           ; vreserve 256 bits, no bytes físicos
@@ -96,15 +98,15 @@ reserve_position_demo    ; reserva + resvdir (bit offset virtual)
   el rango junto con la dirección virtual de la instrucción **siguiente**. La
   resolución nativa ocurre después de todas las líneas MIR.
 - `drop_res` libera el *nombre* para reutilizarlo en la siguiente instrucción sin eliminar los cuatro bytes reservados.
-- La línea MIR `link_image` sigue llamando al hook Python para las familias del
-  ejemplo que todavía no fueron migradas; `pc32` ya no depende de ese hook.
+- La finalización de `fixup` es automática y ocurre antes de los parches
+  finales; no existe una Rule `link_image` en este ejemplo.
 - La fase final del preprocesador MIR aplica únicamente los parches **nativos** de cabecera ELF con `::RIF_PATCH`, usando `#:qvsize`, `#:qssize` y `#:qvssize`.
 
 Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango signed 32-bit y se emite el complemento a dos en little-endian; `PC8` usa signed 8-bit. Para `ABS64`, se emite la VA absoluta de 64 bits.
 
 ## Resultados **verificados en Linux x86_64**
 
-- Pack RX: **25.365 bytes**; pack RX/RW: **25.366 bytes** (incluyen el Python externo de enlace).
+- Pack RX: **25.365 bytes**; pack RX/RW: **25.366 bytes** (sin callbacks Python de enlace).
 - **13.073** codificaciones AMD64 existentes conservadas, **68.361 bytes** comparados con un codificador de referencia independiente.
 - **27** verificaciones nuevas de relocaciones, direcciones virtuales, reservas y errores intencionales.
 - **Dos ELF adicionales** ejecutados en Linux: ambos imprimen `Hi` y terminan con `exit(42)`.
@@ -113,9 +115,12 @@ Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango 
 
 ## Detalles y límites encontrados
 
-1. **El ejemplo todavía conserva un escape Python (`funcs.py`) para la orquestación restante.** RIF ya ofrece `mark` y `fixup pc8|pc32|abs64` nativos; la Rule MIR `link_image` y la selección dinámica de secciones del ejemplo siguen siendo parte del experimento Python y no deben atribuirse al núcleo nativo.
+1. **El enlace simbólico del ejemplo ya es nativo.** RIF ofrece `mark`,
+   `fixup pc8|pc32|abs64` y `section`; todavía no generamos un objeto ELF
+   relocatable ni registros `.rela.*` para un linker externo.
 2. **`write_res` escribe bits en el orden de bitstream, no serializa un entero little-endian.** `reserve_position_demo` captura `resvdir` (medido **en bits**, sección-local) y demuestra esta diferencia. Para relocaciones Intel usamos `int.to_bytes(..., 'little')` en el enlace.
-3. **Cambiar entre `.text` y `.data` dentro de un único MIR requiere un callback** que selecciona el `BitEmitter` correspondiente. La API estándar `compile_mir_source` inicializa un único `section`. Esta técnica sirve como experimento y puede alterar la interpretación de `RuleTrace` alrededor de los cambios de sección; no es una directiva nativa de MIR.
+3. Los cambios entre `.text` y `.data` dentro de un único MIR usan la
+   instrucción nativa `section`; cada símbolo y fixup conserva su sección.
 4. `main_rw.rif` fija `.data` en `0x401000` y offset de fichero `0x1000`; los textos mayores de una página se rechazan para evitar solapamientos. Es un layout ilustrativo, no un asignador flexible de segmentos. El programa MIR debe volver a `.text` al terminar si usa la consulta nativa de `_start` en la cabecera.
 5. **ELF ejecutable != objeto relocatable.** No generamos ELF `ET_REL`, registros `.rela.text`, símbolos ELF externos, resolución entre objetos, PLT/GOT, PIE, ASLR o enlazado dinámico. Los fixups se resuelven antes de producir el ejecutable final.
 6. No hay ensamblado completo de AMD64, ni verificación de todas las reglas ejecutadas por CPU. La regresión verifica bytes y hay programas de ejemplo controlados.
@@ -123,9 +128,6 @@ Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango 
 
 ## Recomendaciones al núcleo RIF
 
-- Orquestación nativa para seleccionar secciones durante un mismo MIR y
-  publicar relocaciones entre ellas sin un callback externo.
-- Selección nativa de sección por instrucción MIR sin alterar internamente `RIFMachine.emitter` desde Python.
 - API con offsets dinámicos para `::RIF_PATCH`, o fixups basados en regiones.
 - Especificar en la documentación las diferencias de orden de bits entre `write_res` y emisión de enteros little-endian.
 

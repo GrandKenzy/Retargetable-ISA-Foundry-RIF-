@@ -152,6 +152,38 @@ class ExternalMIRTests(unittest.TestCase):
             with self.assertRaisesRegex(RIFRuntimeError, "Símbolo no definido"):
                 compile_mir_source(program, "jmp missing\n")
 
+    def test_native_section_switch_keeps_symbols_and_emitters_per_section(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(
+                TARGET.replace('    section text ""\n', '    section text ""\n    section data "rw"\n')
+                .replace(
+                    "    default text\n",
+                    "    default text\n    vaddr text 4096\n    vaddr data 8192\n",
+                )
+                + "\n"
+                "@rule use_data:\n"
+                ". IDENT\n"
+                '. section "data"\n'
+                "@rule use_text:\n"
+                ". IDENT\n"
+                '. section "text"\n'
+                "@rule mark:\n"
+                ". IDENT\n"
+                ". mark\n"
+                ". IDENT\n",
+                encoding="utf-8",
+            )
+            program = compile_definition(target)
+            result = compile_mir_source(
+                program,
+                "use_data\nmark data_label\nuse_text\nmark text_label\n",
+            )
+
+        self.assertEqual(result.context.section_name, "text")
+        self.assertEqual(result.context.symbols["data_label"].section, "data")
+        self.assertEqual(result.symbols, {"data_label": 8192, "text_label": 4096})
+
     def test_metaprogramming_directives_are_recognized_without_emission(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

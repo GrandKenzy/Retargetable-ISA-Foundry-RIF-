@@ -385,6 +385,7 @@ def compile_mir_tokens(
         program,
         emitter=image.emitter(selected_section),
         section_name=selected_section,
+        image=image,
     )
     collected: list[lexer.TokenType] = []
     for index, token in enumerate(tokens):

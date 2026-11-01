@@ -21,4 +21,3 @@ syscall
 movrr rdi, r10
 mov rax, 60
 syscall
-link_image

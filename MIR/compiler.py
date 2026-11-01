@@ -502,6 +502,11 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
                 Operand("fixup_kind", str(kind.value), _source_lexeme(kind, source_path)),
                 Operand("string", reservation.value, _source_lexeme(reservation, source_path)),
             )
+        elif opcode == "section":
+            if len(rest) != 1 or rest[0].token.name != "STRING":
+                raise RuntimeError("SECTION requiere exactamente el nombre STRING de una sección.")
+            section = rest[0]
+            operands = (Operand("string", section.value, _source_lexeme(section, source_path)),)
         else:
             raise RuntimeError(f"Instrucción RIF no reconocida: {opcode!r}.")
 

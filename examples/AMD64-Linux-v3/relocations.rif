@@ -95,7 +95,7 @@
 . bits $registers.rex 8
 . bits $registers.opcode 8
 . reserve "fix64" 64
-. CALL #call[record_abs64]
+. fixup abs64 "fix64"
 . drop_res "fix64"
 . IDENT
 
@@ -103,7 +103,7 @@
 @rule dqaddr:
 . IDENT
 . reserve "fix64" 64
-. CALL #call[record_abs64]
+. fixup abs64 "fix64"
 . drop_res "fix64"
 . IDENT
 
@@ -112,7 +112,7 @@
 . IDENT
 . bits 235 8
 . reserve "fix8" 8
-. CALL #call[record_pc8]
+. fixup pc8 "fix8"
 . drop_res "fix8"
 . IDENT
 
@@ -137,19 +137,14 @@
 . write_res "slot_demo" "1010101111001101"
 . drop_res "slot_demo"
 
-; Minimal section selectors via external hook until native MIR section dispatch exists.
+; Native section selectors persist across MIR lines.
 @rule use_text:
 . IDENT
-. CALL #call[select_text]
+. section "text"
 
 @rule use_data:
 . IDENT
-. CALL #call[select_data]
-
-; Final relocation is an explicit MIR step, not an arbitrary preprocessor callback.
-@rule link_image:
-. IDENT
-. CALL #call[link_image]
+. section "data"
 
 ; Reservation metadata: stores the VIRTUAL bit position of this physical slot.
 ; Note: resvdir is bit-relative within the selected section, not an ELF VA.

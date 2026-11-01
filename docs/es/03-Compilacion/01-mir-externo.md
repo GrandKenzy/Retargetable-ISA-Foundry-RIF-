@@ -99,6 +99,9 @@ Las Rules pueden registrar relocaciones con `fixup pc8`, `fixup pc32` o
 `fixup abs64`; el runtime las resuelve después de todas las líneas MIR y antes
 de aplicar `::RIF_PATCH`.
 
+La instrucción `section "nombre"` selecciona otra sección de la misma
+`AssemblyImage` y conserva los emisores, símbolos y relocaciones de cada una.
+
 También está disponible el pipeline de bajo nivel:
 
 ```python

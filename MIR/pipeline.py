@@ -180,6 +180,8 @@ def execute_rule(
     machine = RIFMachine(
         compilation.program,
         emitter=compilation.image.emitter(section),
+        section_name=section or compilation.image.current,
+        image=compilation.image,
     )
     return machine.execute(rule_name, tokens)  # type: ignore[arg-type]
 

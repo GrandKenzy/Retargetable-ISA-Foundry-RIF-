@@ -99,6 +99,10 @@ instrucción; `abs64` escribe una dirección virtual absoluta. Se validan y
 aplican juntas después del MIR, permitiendo símbolos definidos más adelante
 sin dejar parches parciales.
 
+`section "text"` cambia el emisor activo de un MIR sectionado. Solo está
+disponible cuando la ejecución tiene una `AssemblyImage`; los símbolos y
+relocaciones conservan la sección donde fueron definidos.
+
 ## Ajuste de inmediatos
 
 ```rif

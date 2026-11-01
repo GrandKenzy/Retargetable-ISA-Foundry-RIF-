@@ -58,6 +58,8 @@ The storage payloads can later be inserted into MIR with:
 
 The QEMU Friendly target uses the parallel `cursor_arrow_bgrx8888` label so
 the 16-bit boot checkpoint can copy pixels directly into the BGRX framebuffer.
+That checkpoint also polls the standard PS/2 mouse and moves the cursor within
+the 640x480 display; no complete kernel is needed for this example.
 
 The insertion remains an external-MIR/preprocessor operation. It does not
 make RIF core know anything about cursors or operating systems. The ISO

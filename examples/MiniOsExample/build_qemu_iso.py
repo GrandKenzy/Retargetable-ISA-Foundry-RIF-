@@ -64,7 +64,7 @@ def build(output: str | Path | None = None) -> Path:
     readme = (
         b"MiniOS BIOS boot image emitted by RIF.\r\n"
         b"The El Torito boot image initializes QEMU Bochs VBE mode 0x118,\r\n"
-        b"draws the bundled 14x22 cursor and stops safely in real mode.\r\n"
+        b"draws the bundled 14x22 cursor and polls PS/2 mouse movement.\r\n"
     )
     image = build_iso_from_pcpi(
         template,

@@ -35,8 +35,9 @@ the device by themselves and do not make the base Friendly target QEMU-aware.
 ## Minimal boot entry and cursor checkpoint
 
 `main.mir` imports the local PCP-I header in its first line, fills every pit,
-marks `_start`, emits the fixed 16-bit VBE boot stage, inserts the converted
-cursor payload from storage, and pads the boot image to four 512-byte sectors:
+marks `_start`, emits the 16-bit VBE/PS2-mouse boot stage, inserts the
+converted cursor payload from storage, and pads the boot image to four
+512-byte sectors:
 
 ```text
 ::RIF_PCPI SET "assets/mini_os_iso_header.pcic"
@@ -44,16 +45,17 @@ cursor payload from storage, and pads the boot image to four 512-byte sectors:
 ::RIF_PCPI FILL 1 "2200170000000000001700080000000000087E0B0100000000020000010000010100"
 ::RIF_PCPI FILL 2 "88000000000004001400000000000000"
 _start
-boot_stage
+boot_stage_mouse
 ::RIF_STORE "assets/cursor_assets.storage.bin" cursor_arrow_bgrx8888 1 0
 boot_tail
 ```
 
 The boot stage uses the VBE banked window at `A000:0000`, sets mode `0x118`
-(640×480×32), copies the centered 14×22 cursor, and halts. It deliberately
-does not enter protected or long mode yet. `qemu/boot_stage.s` is only a
-human-readable verification reference; the target emits the fixed bytes from
-the `boot_stage` Rule, so the `.pack + .mir` pipeline remains canonical.
+(640×480×32), enables the PS/2 mouse, polls three-byte packets, clamps the
+cursor to the screen and redraws it over black. It deliberately does not enter
+protected or long mode. `qemu/boot_stage.s` is only a human-readable
+verification reference; the target emits the fixed bytes from the
+`boot_stage_mouse` Rule, so the `.pack + .mir` pipeline remains canonical.
 
 The source cursor remains RGBA8888 in `MiniOsExample`; the `.store` compiler
 also produces the target-ready `cursor_arrow_bgrx8888` payload, composited over
@@ -89,7 +91,8 @@ vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
   -o examples/amd64-friendlysyntaxs-qemu/assets/mini_os_iso_header.pcic
 ```
 
-The current boot image remains a real-mode VBE checkpoint: it selects mode
-0x118, draws the cursor through the banked window, and halts safely. A future
-protected/long-mode transition can replace only the RIF boot Rules; it does not
-belong in the PCP-I descriptor template or ISO producer.
+The current boot image remains a real-mode VBE/mouse checkpoint: it selects
+mode 0x118, draws and moves the cursor through the banked window, and keeps
+polling safely. A future protected/long-mode transition is unnecessary for
+this cursor-only goal and does not belong in the PCP-I descriptor template or
+ISO producer.

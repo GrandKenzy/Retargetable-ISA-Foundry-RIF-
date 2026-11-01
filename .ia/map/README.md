@@ -385,7 +385,9 @@ image con RIF y `iso.py` ensambla la ISO-9660 final con tablas de ruta,
 directorio raíz y `README.TXT;1`. `build_qemu_iso.py` es el recorrido canónico
 y deja `build/mini_os.iso`, que QEMU BIOS arranca en LBA 20.
 `cursor_assets.store` demuestra la ruta de media externa y produce un
-`storage.bin` indexado con los cursores RGBA y BGRX etiquetados.
+`storage.bin` indexado con los cursores RGBA y BGRX etiquetados. El boot stage
+de la variante QEMU selecciona VBE 0x118, sondea el mouse PS/2 y redibuja el
+cursor dentro de 640x480 sobre fondo negro; no requiere construir un kernel.
 
 ### Friendly Syntax QEMU
 
@@ -397,7 +399,7 @@ la dependencia `@LOAD "qemu/framebuffer.rif"`, además del bloque raíz
 extensible para las Rules de boot de QEMU std VGA/Bochs VBE a 640×480×32,
 `BGRX8888`, puertos índice/datos y PCI BAR0; no inicializan el dispositivo ni
 añaden código protected/long mode a PCP-I. La variante ya tiene un primer
-checkpoint de boot emitido por la Rule `boot_stage`: modo VBE `0x118` con
-ventana bancanda `A000:0000`, copia del cursor `BGRX8888` desde `RIF_STORE` y
-detención segura. El código sigue en real mode; PCI BAR0, LFB y long mode quedan
-como la siguiente etapa.
+checkpoint de boot emitido por la Rule `boot_stage_mouse`: modo VBE `0x118` con
+ventana bancaria `A000:0000`, cursor `BGRX8888` desde `RIF_STORE` y sondeo de
+mouse PS/2 con límites de pantalla. El código sigue en real mode; PCI BAR0,
+LFB, kernel y long mode quedan fuera del alcance de este ejemplo.

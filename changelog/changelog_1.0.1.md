@@ -21,7 +21,8 @@
   RIF, then uses the deterministic `iso.py` producer to create a valid
   ISO-9660/El Torito volume with path tables, a root directory and
   `README.TXT;1`. The final image is structurally validated and boots under
-  QEMU 11 BIOS; the RIF boot checkpoint remains the real-mode VBE/cursor stage.
+  QEMU 11 BIOS; the RIF boot checkpoint is a real-mode VBE/PS/2-mouse cursor
+  stage, without a full kernel.
 
 - Added `examples/MiniOsExample/` with a PCP-I ISO/El Torito descriptor
   template, a
@@ -42,11 +43,12 @@
   `framebuffer_registers` table for std VGA/Bochs VBE at 640×480×32 with
   `BGRX8888` pixels. This is target metadata; the protected/long-mode
   transition remains boot-image code, not PCP-I data.
-- Added a complete first QEMU display checkpoint to that target: `boot_stage`
-  emits a 16-bit VBE `0x118` banked-window boot image, `RIF_STORE` inserts the
+- Added a cursor-only QEMU display checkpoint to that target: `boot_stage_mouse`
+  emits a 16-bit VBE `0x118` banked-window boot image, enables the PS/2 mouse,
+  and moves the 14×22 cursor inside 640×480. `RIF_STORE` inserts the
   target-ready `cursor_arrow_bgrx8888` payload, and `boot_tail` pads the image
-  to four 512-byte sectors. The checkpoint draws the centered 14×22 cursor and
-  halts; it intentionally postpones PCI BAR0/LFB and long-mode support.
+  to four 512-byte sectors. It intentionally has no kernel, PCI BAR0/LFB or
+  long-mode transition.
 
 ## Suites de pruebas
 

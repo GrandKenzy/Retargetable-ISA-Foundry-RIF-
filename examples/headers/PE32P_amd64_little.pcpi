@@ -1,0 +1,84 @@
+
+; PCP-I v1: encabezados PE32+ (PE64) para Windows x86-64 / AMD64.
+; Plantilla de una seccion .text (lectura + ejecucion), sin imports ni relocaciones.
+; PE32+ es little-endian. Los pits estan en offsets multiplos de 8.
+; A diferencia de PE, .pcic es un contenedor PCP-I; SET solo inserta su imagen.
+;
+; Configuracion base: e_lfanew=0x80, encabezados=0x200, codigo desde 0x200,
+; RVA de .text=0x1000, FileAlignment=0x200 y SectionAlignment=0x1000.
+; Las tallas y direcciones en pits se deben calcular segun el codigo final.
+
+MAGIC "pcpi"
+VERSION 1
+ENDIANNESS 1
+BITORDER 1
+SIGNATURE "PE32+ AMD64 single .text section - RIF PCP-I"
+PADDING 0
+
+@RAW
+; 0x000: DOS header MZ. e_lfanew apunta a 0x80 (offset 0x3C).
+4D 5A
+ZERO 58
+80 00 00 00
+; 0x040..0x07F: DOS stub vacio (reservado).
+ZERO 64
+
+; 0x080: firma PE\0\0.
+50 45 00 00
+
+; 0x084: COFF Machine=AMD64(0x8664), NumberOfSections=1.
+64 86 01 00
+; TimeDateStamp, PointerToSymbolTable, NumberOfSymbols.
+ZERO 12
+; SizeOfOptionalHeader=240, Characteristics=0x0022 (EXE + LARGE_ADDRESS_AWARE).
+F0 00 22 00
+
+; 0x098: Optional header PE32+ (240 bytes).
+; pit 0: Magic=0x20B (2), linkerVersion (2), SizeOfCode (4).
+[8]
+; 0x0A0: SizeOfInitializedData=0, SizeOfUninitializedData=0.
+ZERO 8
+; 0x0A8: pit 1 = AddressOfEntryPoint RVA (4), BaseOfCode RVA (4).
+[8]
+; 0x0B0: pit 2 = ImageBase VA (8), multiplo de 0x10000.
+[8]
+; 0x0B8: SectionAlignment=4096, FileAlignment=512.
+00 10 00 00 00 02 00 00
+
+; 0x0C0: OS version 6.0, image version 0.0,
+;         subsystem version 6.0, Win32VersionValue=0.
+06 00 00 00 00 00 00 00
+06 00 00 00 00 00 00 00
+
+; 0x0D0: pit 3 = SizeOfImage (4) + SizeOfHeaders (4).
+[8]
+; 0x0D8: pit 4 = CheckSum (4) + Subsystem (2) + DllCharacteristics (2).
+;                  CUI=3, GUI=2; NX_COMPAT=0x0100.
+[8]
+
+; 0x0E0: SizeOfStackReserve=1 MiB, SizeOfStackCommit=4 KiB.
+00 00 10 00 00 00 00 00
+00 10 00 00 00 00 00 00
+; 0x0F0: SizeOfHeapReserve=1 MiB, SizeOfHeapCommit=4 KiB.
+00 00 10 00 00 00 00 00
+00 10 00 00 00 00 00 00
+; 0x100: LoaderFlags=0, NumberOfRvaAndSizes=16.
+00 00 00 00 10 00 00 00
+; 0x108..0x187: las 16 DataDirectories son cero (sin imports / .reloc).
+ZERO 128
+
+; 0x188: section header .text (40 bytes).
+2E 74 65 78 74 00 00 00
+; 0x190: pit 5 = VirtualSize (4) + VirtualAddress (4).
+[8]
+; 0x198: pit 6 = SizeOfRawData (4) + PointerToRawData (4).
+[8]
+; 0x1A0: PointerToRelocations=0, PointerToLinenumbers=0,
+;         NumberOfRelocations=0, NumberOfLinenumbers=0.
+ZERO 12
+; 0x1AC: IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ.
+20 00 00 60
+
+; 0x1B0..0x1FF: relleno estatico hasta SizeOfHeaders=0x200.
+ZERO 80
+@END

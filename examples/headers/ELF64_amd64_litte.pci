@@ -1,0 +1,51 @@
+MAGIC "pcpi"
+VERSION 1
+ENDIANNESS 1
+BITORDER 1
+SIGNATURE "ELF64 AMD64 executable - one PT_LOAD"
+PADDING 0
+
+@RAW
+; ELF64 e_ident
+7F 45 4C 46 02 01 01 00
+ZERO 8
+
+; ET_EXEC, EM_X86_64, EV_CURRENT
+02 00 3E 00 01 00 00 00
+
+; e_entry
+[8]
+
+; e_phoff = 64
+40 00 00 00 00 00 00 00
+
+; e_shoff = 0, e_flags = 0
+ZERO 12
+
+; e_ehsize=64, e_phentsize=56, e_phnum=1
+40 00 38 00 01 00
+
+; No section headers
+ZERO 6
+
+; PT_LOAD, PF_R | PF_X
+01 00 00 00 05 00 00 00
+
+; p_offset = 0
+ZERO 8
+
+; p_vaddr
+[8]
+
+; p_paddr
+[8]
+
+; p_filesz
+[8]
+
+; p_memsz
+[8]
+
+; p_align = 4096
+00 10 00 00 00 00 00 00
+@END

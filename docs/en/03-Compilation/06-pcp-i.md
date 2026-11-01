@@ -441,7 +441,7 @@ The format is implemented by:
 - `rif.py`: `--comp-pcpi` and `--doctor-pcpi` CLI operations;
 - `MIR/preprocessor.py`: syntax and ordering of `::RIF_PCPI` directives;
 - `MIR/external.py`: container insertion and pit address reporting;
-- `dedicated-suite/test_pcpi.py`: format, alignment, filling, and rejection
+- `test/dedicated_suite/test_pcpi.py`: format, alignment, filling, and rejection
   tests;
 - `examples/MiniOsExample/`: a header-only ISO/El Torito template and an
   independent external cursor payload.

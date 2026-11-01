@@ -10,7 +10,7 @@ vnma test
 Las suites completas se ejecutan explícitamente:
 
 ```powershell
-vnma test suite-essencial
-vnma test suite-aggressive
-vnma test dedicated-suite
+vnma test test/suite_essencial
+vnma test test/suite_aggressive
+vnma test test/dedicated_suite
 ```

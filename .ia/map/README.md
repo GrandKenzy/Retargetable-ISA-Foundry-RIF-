@@ -164,13 +164,14 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   contenedor y SQLite en memoria, y expone Rules, tablas, configuración,
   linker, variantes, fingerprint, versión y extensiones MIR sin ejecutar el
   target. `rif --inspect-pack` ofrece salida humana o JSON acotada.
-- `suite-essencial/`: pruebas fundamentales de parser, semántica, MIR,
+- `test/suite_essencial/`: pruebas fundamentales de parser, semántica, MIR,
   runtime y empaquetado; se ejecuta en cada cambio.
-- `suite-aggressive/`: benchmarks y pruebas de estrés; se ejecuta de forma
+- `test/suite_aggressive/`: benchmarks y pruebas de estrés; se ejecuta de forma
   explícita cuando el cambio afecta rendimiento, volumen o límites.
-- `dedicated-suite/`: pruebas específicas de AOT, formatos, CLI, plugins,
+- `test/dedicated_suite/`: pruebas específicas de AOT, formatos, CLI, plugins,
   hardening e integraciones que pueden requerir adaptación ante cambios de API.
-- `tests/`: lanzador compatible para que `vnma test` ejecute la suite esencial.
+- `tests/`: lanzador compatible para que `vnma test` ejecute la suite esencial;
+  `test/` contiene las suites organizadas por nivel.
   `examples/`: targets y demostraciones completas, incluyendo el demo
   agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs` y su variante QEMU,
   AMD64 bare metal, ELF64 y GBA. El target
@@ -190,13 +191,13 @@ al target; no son capacidades generales de RIF.
 
 | Área | Código principal | Pruebas relacionadas |
 | --- | --- | --- |
-| Sintaxis de bloques | `Frontend/syntax/items/blocks.py`, `Frontend/syntax/__init__.py` | `suite-essencial/test_blocks.py`, `suite-essencial/test_declarations.py` |
-| Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `suite-essencial/test_processor.py`, `suite-essencial/test_pipeline.py`, `suite-essencial/test_variants.py` |
-| Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `suite-essencial/test_runtime.py`, `suite-essencial/test_mir.py` |
-| Packs y serialización | `pack.py`, `MIR/compiled.py` | `suite-essencial/test_pack.py`, `suite-essencial/test_blocks.py` |
-| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `rif.py` | `dedicated-suite/test_pcpi.py` |
-| Diagnóstico de artefactos | `rif.py`, `pcpi.py`, `MIR/storage.py` | `dedicated-suite/test_doctor.py` |
-| Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `suite-essencial/test_artifacts.py` |
+| Sintaxis de bloques | `Frontend/syntax/items/blocks.py`, `Frontend/syntax/__init__.py` | `test/suite_essencial/test_blocks.py`, `test/suite_essencial/test_declarations.py` |
+| Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `test/suite_essencial/test_processor.py`, `test/suite_essencial/test_pipeline.py`, `test/suite_essencial/test_variants.py` |
+| Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `test/suite_essencial/test_runtime.py`, `test/suite_essencial/test_mir.py` |
+| Packs y serialización | `pack.py`, `MIR/compiled.py` | `test/suite_essencial/test_pack.py`, `test/suite_essencial/test_blocks.py` |
+| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `rif.py` | `test/dedicated_suite/test_pcpi.py` |
+| Diagnóstico de artefactos | `rif.py`, `pcpi.py`, `MIR/storage.py` | `test/dedicated_suite/test_doctor.py` |
+| Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `test/suite_essencial/test_artifacts.py` |
 
 El preprocesador del MIR externo usa `::RIF_INSERT` para bytes, binarios o
 archivos y `::RIF_PATCH` para correcciones finales. Sus expresiones tienen un
@@ -218,16 +219,16 @@ backend. Sigue ese recorrido antes de modificar una sola capa.
 ## Herramientas y pruebas
 
 - `vnma run rif.py ...` ejecuta la CLI del proyecto.
-- `vnma test` ejecuta la suite esencial; `vnma test suite-essencial/<archivo>`
+- `vnma test` ejecuta la suite esencial; `vnma test test/suite_essencial/<archivo>`
   permite una comprobación enfocada.
-- `vnma test suite-aggressive` ejecuta benchmarks y estrés.
-- `vnma test dedicated-suite` ejecuta las pruebas específicas e integraciones.
+- `vnma test test/suite_aggressive` ejecuta benchmarks y estrés.
+- `vnma test test/dedicated_suite` ejecuta las pruebas específicas e integraciones.
 - Los `.pack`, binarios y logs generados no son puntos de partida para cambios
   de código. Conserva `.vscode/` y cualquier artefacto local no relacionado.
 
 ### Baseline del frontend Python
 
-El benchmark `suite-aggressive/test_frontend_benchmark.py` procesa `main.rif` completo y
+El benchmark `test/suite_aggressive/test_frontend_benchmark.py` procesa `main.rif` completo y
 mide lexing, parsing y procesamiento semántico por separado. Baseline del 31
 de octubre de 2026, con Gram 3.0.0 y tres iteraciones promedio:
 
@@ -277,12 +278,12 @@ La huella del contrato incluye las fuentes Python de producción bajo `Frontend/
 y `MIR/`, además de los módulos raíz que participan en compilación, empaquetado
 y runtime. Cambiar el compilador invalida los artefactos derivados aunque las
 fuentes `.rif` permanezcan iguales.
-La prueba `dedicated-suite/test_aot.py` verifica compilación nativa, lectura de GIR y
+La prueba `test/dedicated_suite/test_aot.py` verifica compilación nativa, lectura de GIR y
 procesamiento semántico de `main.rif`, sin alterar el camino predeterminado.
 También compara el AST normalizado y el `TargetContext` resultante contra el
 backend Python, incluyendo los opcodes de las Rules.
 
-El benchmark AOT de `suite-aggressive/test_frontend_benchmark.py` se ejecutó el 31 de
+El benchmark AOT de `test/suite_aggressive/test_frontend_benchmark.py` se ejecutó el 31 de
 octubre de 2026 sobre tres iteraciones. La compilación inicial se mide aparte;
 el tamaño AOT cuenta los saltos de línea físicos y el baseline Python usa el
 texto normalizado por `read_text()`.

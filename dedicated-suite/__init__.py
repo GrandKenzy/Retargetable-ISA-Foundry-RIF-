@@ -1,1 +1,0 @@
-"""Dedicated RIF test suite."""

@@ -45,8 +45,8 @@ vnma test
 Ese comando ejecuta la suite esencial. Las otras capas son explícitas:
 
 ```powershell
-vnma test suite-aggressive
-vnma test dedicated-suite
+vnma test test/suite_aggressive
+vnma test test/dedicated_suite
 ```
 
 La suite esencial cubre Gram, tablas, paquetes, compilación CLI y directa de

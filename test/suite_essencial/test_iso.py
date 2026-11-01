@@ -7,7 +7,7 @@ from iso import ISOFile, build_iso_from_pcpi, validate_bios_iso
 from pcpi_compiler import compile_pcpi_source
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "examples" / "MiniOsExample" / "mini_os_iso_header.pci"
 
 

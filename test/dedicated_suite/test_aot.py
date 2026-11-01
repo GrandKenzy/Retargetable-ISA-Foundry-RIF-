@@ -79,7 +79,7 @@ class AOTFrontendTests(unittest.TestCase):
     )
     def test_builds_and_reads_gir_for_complete_rif(self):
         source_path = (
-            Path(__file__).resolve().parents[1]
+            Path(__file__).resolve().parents[2]
             / "examples"
             / "RIF-Core-Demo"
             / "main.rif"
@@ -239,7 +239,7 @@ class AOTFrontendTests(unittest.TestCase):
         "se requiere gcc o clang para probar la paridad completa",
     )
     def test_full_semantic_parity_for_amd64_fixture(self):
-        target = Path(__file__).resolve().parents[1] / "examples" / "AMD64-BareMetal-v3" / "main.rif"
+        target = Path(__file__).resolve().parents[2] / "examples" / "AMD64-BareMetal-v3" / "main.rif"
         report = compare_target(target)
         self.assertTrue(report.equal, report.as_dict())
 

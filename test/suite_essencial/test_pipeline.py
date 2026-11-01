@@ -10,7 +10,7 @@ from pack import create_pack, read_pack
 
 
 DEMO_TARGET = (
-    Path(__file__).resolve().parents[1]
+    Path(__file__).resolve().parents[2]
     / "examples"
     / "RIF-Core-Demo"
     / "main.rif"

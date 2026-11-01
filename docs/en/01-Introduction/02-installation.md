@@ -35,9 +35,11 @@ RIF/
 │   ├── syntax/
 │   └── processor/
 ├── MIR/
-├── suite-essencial/
-├── suite-aggressive/
-├── dedicated-suite/
+├── tests/
+└── test/
+    ├── suite_essencial/
+    ├── suite_aggressive/
+    └── dedicated_suite/
 ├── examples/
 │   └── RIF-Core-Demo/
 ├── rif.py

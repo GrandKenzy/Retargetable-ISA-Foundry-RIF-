@@ -57,8 +57,8 @@ vnma test
 That command runs the essential suite. Run the other layers explicitly:
 
 ```powershell
-vnma test suite-aggressive
-vnma test dedicated-suite
+vnma test test/suite_aggressive
+vnma test test/dedicated_suite
 ```
 
 The essential suite covers parser integration, packages, direct and CLI MIR

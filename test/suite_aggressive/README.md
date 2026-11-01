@@ -6,5 +6,5 @@ parte del ciclo rápido de cada cambio.
 Ejecución explícita:
 
 ```powershell
-vnma test suite-aggressive
+vnma test test/suite_aggressive
 ```

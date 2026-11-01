@@ -52,9 +52,13 @@
 
 ## Suites de pruebas
 
-- Separadas las pruebas en `suite-essencial`, `suite-aggressive` y
-  `dedicated-suite`. `vnma test` conserva la suite esencial por defecto;
+- Separadas las pruebas en `test/suite_essencial`, `test/suite_aggressive` y
+  `test/dedicated_suite`. `vnma test` conserva la suite esencial por defecto;
   benchmarks, estrés e integraciones específicas requieren ejecución explícita.
+- Reubicadas las suites y sus README bajo `test/`, conservando sus carpetas
+  internas y haciendo explícitas esas rutas en la CLI y la documentación. El
+  lanzador rápido permanece en `tests/` para no alterar el descubrimiento por
+  defecto de VNMA.
 
 ## Organización de ejemplos
 

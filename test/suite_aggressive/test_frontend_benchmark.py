@@ -37,7 +37,7 @@ def _reset_frontend() -> None:
 
 class FrontendBenchmarkTests(unittest.TestCase):
     def test_complete_rif_frontend_baseline(self) -> None:
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         source_path = root / "examples" / "RIF-Core-Demo" / "main.rif"
         source = source_path.read_text(encoding="utf-8")
 
@@ -79,7 +79,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
         "se requiere gcc o clang para medir el frontend AOT",
     )
     def test_complete_rif_aot_benchmark(self) -> None:
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         source_path = root / "examples" / "RIF-Core-Demo" / "main.rif"
         source_size = source_path.stat().st_size
 
@@ -140,7 +140,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
         "se requiere gcc o clang para medir el target AMD64 AOT",
     )
     def test_amd64_target_frontend_benchmark(self) -> None:
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         source_path = root / "examples" / "AMD64-BareMetal-v3" / "main.rif"
         source = source_path.read_text(encoding="utf-8")
 
@@ -214,7 +214,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
         "se requiere gcc o clang para medir el target GBA AOT",
     )
     def test_gba_target_frontend_benchmark(self) -> None:
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         source_path = root / "examples" / "GBA-Bouncing-Ball" / "main.rif"
         source = source_path.read_text(encoding="utf-8")
 

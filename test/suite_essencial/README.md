@@ -7,8 +7,8 @@ principal de empaquetado.
 Ejecución:
 
 ```powershell
-vnma test suite-essencial
+vnma test test/suite_essencial
 ```
 
 El lanzador por defecto `vnma test` apunta a esta suite mediante
-`tests/test_essential_suite.py`.
+`tests/test_essential_suite.py`, que carga esta carpeta.

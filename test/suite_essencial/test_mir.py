@@ -147,7 +147,7 @@ class MIRCompilerTests(unittest.TestCase):
 
     def test_project_rules_resolve_as_a_complete_program(self) -> None:
         path = (
-            Path(__file__).resolve().parents[1]
+            Path(__file__).resolve().parents[2]
             / "examples"
             / "RIF-Core-Demo"
             / "main.rif"

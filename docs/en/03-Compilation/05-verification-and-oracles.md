@@ -15,8 +15,8 @@ vnma test
 Run the additional suites explicitly:
 
 ```powershell
-vnma test suite-aggressive
-vnma test dedicated-suite
+vnma test test/suite_aggressive
+vnma test test/dedicated_suite
 ```
 
 The essential suite is intended for every change. It covers the target

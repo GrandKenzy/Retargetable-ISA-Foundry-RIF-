@@ -28,9 +28,9 @@ its fixtures and tests no longer require object headers or host execution.
 declaration-only `.riflib` with `main.py --library target.pack`. The Friendly QEMU
 example consumes that layer and keeps its QEMU blocks and boot Rules local.
 
-`main.py` is now the canonical entrypoint for packaging, MIR compilation,
+`main.py` is the canonical and only entrypoint for packaging, MIR compilation,
 PCP-I, storage, inspection, and library operations. `rif_tools/cli.py` owns the
-dispatch implementation, while `rif.py` remains only as a compatibility wrapper.
+dispatch implementation.
 
 The ELF64 and MiniOS test examples now live under `examples/probe/` with the
 other target probes.

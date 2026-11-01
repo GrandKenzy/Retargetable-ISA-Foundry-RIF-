@@ -124,8 +124,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 - `main.py`: CLI para empaquetar definiciones, ejecutar MIR compatible, producir PCP-I y
   revisar artefactos con `--doctor-pcpi`/`--doctor-storage`.
 - `rif_tools/cli.py`: implementación del despacho de todas las operaciones de la CLI;
-  `rif.py` conserva únicamente un wrapper de compatibilidad para invocaciones antiguas.
-  Los módulos `rif_core/pack.py`, `rif_tools/pack_inspector.py`, `rif_tools/pcpi.py`, `rif_tools/pcpi_compiler.py`,
+  `main.py` es la única entrada pública. Los módulos `rif_core/pack.py`,
+  `rif_tools/pack_inspector.py`, `rif_tools/pcpi.py`, `rif_tools/pcpi_compiler.py`,
   `rif_core/contract.py`, `rif_core/library.py`, `rif_core/limits.py`, `rif_tools/store.py` e `rif_tools/iso.py` son
   bibliotecas de implementación, no entradas CLI independientes.
 - `Frontend/syntax/`: sesión Gram, keywords y reglas de entrada; `blocks.py`

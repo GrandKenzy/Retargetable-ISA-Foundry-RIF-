@@ -303,5 +303,5 @@
   package origins, and concurrent Gram compilations.
 - `vnma test` passes 121 essential tests; the dedicated suite passes 65 tests
   with 6 optional skips and the aggressive suite passes 12 tests.
-- `python -m compileall -q .`, `vnma run rif.py ...`, and direct
-  `python rif.py ...` execution were verified.
+- `python -m compileall -q .`, `vnma run main.py ...`, and direct
+  `python main.py ...` execution were verified.

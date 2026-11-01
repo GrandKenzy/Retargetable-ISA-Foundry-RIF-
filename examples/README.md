@@ -134,7 +134,7 @@ noop
 return
 ```
 
-`equivalent.mir` rewrites the existing
+`examples/probe/probe_friendlysyntax/equivalent.mir` rewrites the existing
 `examples/probe/probe_amd64/main.mir` program as:
 
 ```text

@@ -6,3 +6,6 @@ packages.
 
 `probe_amd64/` contains the raw AMD64 programs and relocation/section fixtures
 used by `AMD64_Baremetal` and by the Friendly Syntax equivalence checks.
+
+`probe_friendlysyntax/` contains the external Friendly Syntax programs used by
+the base target. QEMU-specific MIR remains alongside its QEMU target.

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[3]
 NORMAL_TARGET = ROOT / "examples" / "AMD64" / "main.rif"
 NORMAL_MIR = ROOT / "examples" / "probe" / "probe_amd64" / "main.mir"
 FRIENDLY_TARGET = ROOT / "examples" / "amd64-friendlysyntaxs" / "main.rif"
-FRIENDLY_MIR = ROOT / "examples" / "amd64-friendlysyntaxs" / "equivalent.mir"
+FRIENDLY_MIR = ROOT / "examples" / "probe" / "probe_friendlysyntax" / "equivalent.mir"
 EXPECTED = bytes.fromhex("48 c7 c0 2a 00 00 00 48 c7 c7 07 00 00 00 90")
 
 

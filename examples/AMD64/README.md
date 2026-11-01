@@ -42,7 +42,7 @@ little-endian.
 ## Comparación de sintaxis
 
 El programa `examples/probe/probe_amd64/main.mir` es la versión convencional
-del programa usado por `examples/amd64-friendlysyntaxs/equivalent.mir`. La prueba diferencial compila
+del programa usado por `examples/probe/probe_friendlysyntax/equivalent.mir`. La prueba diferencial compila
 ambos targets desde `.rif` y desde `.pack` y verifica que las cuatro salidas
 sean los mismos 15 bytes:
 

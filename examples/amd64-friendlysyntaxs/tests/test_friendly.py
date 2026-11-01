@@ -8,6 +8,7 @@ import tempfile
 
 
 BASE = Path(__file__).resolve().parents[1]
+PROBE = BASE.parents[0] / "probe" / "probe_friendlysyntax"
 
 EXPECTED = bytes.fromhex(
     "48 c7 c0 2a 00 00 00 "
@@ -26,7 +27,7 @@ def check(rif_root: Path) -> None:
     from MIR.external import compile_mir_source, prepare_target  # noqa: PLC0415
     from pack import create_pack  # noqa: PLC0415
 
-    source = (BASE / "demo.mir").read_text(encoding="utf-8")
+    source = (PROBE / "demo.mir").read_text(encoding="utf-8")
     direct_target = prepare_target(BASE / "main.rif")
     assert "framebuffer" not in direct_target.program.context.blocks
     assert "framebuffer_registers" not in direct_target.program.context.tables

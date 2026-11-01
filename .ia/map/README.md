@@ -179,7 +179,9 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio. Sus programas MIR externos y fixtures están en
   `examples/probe/probe_amd64/`; el target conserva la definición `.rif`, las
-  pruebas y los paquetes compilados.
+pruebas y los paquetes compilados. Los programas MIR del target base Friendly
+Syntax están en `examples/probe/probe_friendlysyntax/`; los del target QEMU
+siguen junto a su target específico.
 
 El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
 `integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras

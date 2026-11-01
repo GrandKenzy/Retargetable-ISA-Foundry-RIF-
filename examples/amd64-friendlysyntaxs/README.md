@@ -5,7 +5,7 @@ input vocabulary. It demonstrates that RIF does not require the input language
 to look like AMD64 assembly: the target Rules and extensible tables define the
 syntax and emit raw bytes.
 
-The accepted forms in `demo.mir` are:
+The accepted forms in `examples/probe/probe_friendlysyntax/demo.mir` are:
 
 ```text
 set R0 = 42
@@ -37,15 +37,15 @@ QEMU-specific video metadata and the MiniOS boot entry live in the separate
 vnma run rif.py --pack examples/amd64-friendlysyntaxs/main.rif `
   -o examples/amd64-friendlysyntaxs/amd64-friendly.pack
 vnma run rif.py examples/amd64-friendlysyntaxs/main.rif `
-  examples/amd64-friendlysyntaxs/demo.mir `
+  examples/probe/probe_friendlysyntax/demo.mir `
   -o examples/amd64-friendlysyntaxs/friendly.bin
 vnma run rif.py examples/amd64-friendlysyntaxs/amd64-friendly.pack `
-  examples/amd64-friendlysyntaxs/demo.mir `
+  examples/probe/probe_friendlysyntax/demo.mir `
   -o examples/amd64-friendlysyntaxs/friendly-from-pack.bin
 ```
 
 The source and packed paths must produce identical raw bytes. The expected
-image for `demo.mir` is:
+image for `examples/probe/probe_friendlysyntax/demo.mir` is:
 
 ```text
 48 C7 C0 2A 00 00 00

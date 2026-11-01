@@ -75,6 +75,9 @@
 - Añadida una prueba de equivalencia que compila el mismo programa AMD64 normal
   y amigable desde fuente y desde `.pack`; los cuatro resultados deben coincidir
   byte a byte.
+- Separados los MIR externos de Friendly Syntax: `demo.mir` y `equivalent.mir`
+  viven en `examples/probe/probe_friendlysyntax/`, fuera de la definición del
+  target.
 
 ## Contrato de target y primitivas declarativas
 

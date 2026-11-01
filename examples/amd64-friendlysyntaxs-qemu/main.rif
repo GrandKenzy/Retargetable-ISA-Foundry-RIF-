@@ -29,9 +29,9 @@
     search_path ""
 @end
 
-@LOAD "registers.rif"
+@LIBRARY "friendly.riflib"
 @LOAD "qemu/framebuffer.rif"
-@LOAD "rules.rif"
+@LOAD "qemu/rules.rif"
 
 @block isa_scope:
     profile "amd64-friendly-base-integer"

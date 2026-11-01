@@ -39,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--library",
         metavar="MAIN.RIF",
-        help="crea una librería reutilizable .riflib desde un proyecto RIF",
+        help="crea una librería .riflib desde un .rif o exporta declaraciones desde un .pack",
     )
     parser.add_argument(
         "--comp-pcpi",

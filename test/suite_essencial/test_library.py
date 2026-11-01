@@ -22,8 +22,17 @@ class LibraryTests(unittest.TestCase):
                 '. KW "ok"\n',
                 encoding="utf-8",
             )
+            (library_root / "unrelated.rif").write_text(
+                '@rule unrelated:\n. KW "no"\n',
+                encoding="utf-8",
+            )
             library_path = root / "patterns.riflib"
             create_library(library_source, library_path)
+            with LibraryReader(library_path) as reader:
+                self.assertEqual(
+                    {entry.path for entry in reader.manifest.files},
+                    {"sources/patterns.rif"},
+                )
 
             target = root / "target.rif"
             target.write_text(
@@ -45,6 +54,35 @@ class LibraryTests(unittest.TestCase):
             self.assertEqual(set(packed.rules), {"library_rule", "local_rule"})
             packed_native = compile_pack(package, backend="aot")
             self.assertEqual(set(packed_native.rules), {"library_rule", "local_rule"})
+
+    def test_pack_can_export_loaded_declarations_without_target_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            (source_root / "main.rif").write_text(
+                "@block config:\n"
+                "    section text \"rx\"\n"
+                "@end\n"
+                "@block linker:\n"
+                "    extension \".mir\"\n"
+                "    search_path \"\"\n"
+                "@end\n"
+                '@LOAD "rules.rif"\n',
+                encoding="utf-8",
+            )
+            (source_root / "rules.rif").write_text(
+                '@rule imported:\n. KW "from-pack"\n',
+                encoding="utf-8",
+            )
+            package = create_pack(source_root / "main.rif")
+            library = root / "exported.riflib"
+            create_library(package, library)
+
+            target = root / "consumer.rif"
+            target.write_text('@LIBRARY "exported.riflib"\n', encoding="utf-8")
+            program = compile_source(target, backend="python")
+            self.assertEqual(set(program.rules), {"imported"})
 
     def test_library_reader_rejects_zip_extras_and_exposes_virtual_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

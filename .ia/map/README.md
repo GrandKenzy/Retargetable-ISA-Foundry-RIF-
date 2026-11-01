@@ -25,6 +25,13 @@ RIF trabaja en dos fases y requiere dos artefactos conceptualmente distintos:
 `MIR/external.py` posee la segunda fase, incluyendo preprocesador, secciones,
 fixups, parches e imagen final. El MIR externo no es el `CompiledRuleSet`.
 
+La composición entre targets usa una frontera explícita: `@LIBRARY` consume
+`.riflib` con declaraciones reutilizables (`@define`, tablas y Rules). La CLI
+puede exportar a esa forma la gráfica de declaraciones cargada por un `.pack`
+con `--library target.pack`; no arrastra `config`, `linker` ni bloques del
+target original. Un `.pack` sigue siendo un target completo y no se fusiona
+implícitamente con otro.
+
 Para PCP-I, `rif.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
 `.pci` directamente y serializa el contenedor validado con `pcpi.py`. PCP-I es
 una salida especializada e independiente del frontend RIF; no ejecuta Rules
@@ -160,6 +167,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   genera tablas de ruta/directorio y valida el contrato BIOS sin introducir
   semántica ISO en el parser o runtime de RIF.
 - `pack.py`: creación y lectura segura de paquetes `.pack`.
+- `rif_library.py`: creación, exportación desde `.pack` y lectura segura de
+  librerías `.riflib` de declaraciones reutilizables.
 - `pack_inspector.py`: inspección de solo lectura de `.pack`; verifica el
   contenedor y SQLite en memoria, y expone Rules, tablas, configuración,
   linker, variantes, fingerprint, versión y extensiones MIR sin ejecutar el
@@ -398,9 +407,9 @@ cursor dentro de 640x480 sobre fondo negro; no requiere construir un kernel.
 
 `examples/amd64-friendlysyntaxs/` es deliberadamente independiente de QEMU:
 no declara framebuffer, registros Bochs VBE ni un contrato de dispositivo. La
-variante `examples/amd64-friendlysyntaxs-qemu/` copia ese vocabulario y añade
-la dependencia `@LOAD "qemu/framebuffer.rif"`, además del bloque raíz
-`framebuffer`. La tabla `framebuffer_registers` y el bloque describen metadata
+variante `examples/amd64-friendlysyntaxs-qemu/` consume la capa Friendly desde
+`friendly.riflib` y añade `@LOAD "qemu/framebuffer.rif"` y sus Rules de boot,
+además del bloque raíz `framebuffer`. La tabla `framebuffer_registers` y el bloque describen metadata
 extensible para las Rules de boot de QEMU std VGA/Bochs VBE a 640×480×32,
 `BGRX8888`, puertos índice/datos y PCI BAR0; no inicializan el dispositivo ni
 añaden código protected/long mode a PCP-I. La variante ya tiene un primer

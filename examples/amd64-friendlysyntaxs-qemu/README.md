@@ -2,8 +2,8 @@
 
 This target is a QEMU-specific wrapper around
 [AMD64 Friendly Syntax](../amd64-friendlysyntaxs/README.md). It keeps the
-same readable Rules and register tables, then adds the QEMU std VGA/Bochs VBE
-contract through an explicit `@LOAD` dependency.
+same readable Rules and register tables through a declaration-only `.riflib`,
+then adds the QEMU std VGA/Bochs VBE contract through its own loaded sources.
 
 The base Friendly target remains free of QEMU and framebuffer assumptions.
 This directory is the bare-metal integration target for the MiniOS experiment.
@@ -13,11 +13,16 @@ This directory is the bare-metal integration target for the MiniOS experiment.
 `main.rif` loads:
 
 ```rif
+@LIBRARY "friendly.riflib"
 @LOAD "qemu/framebuffer.rif"
+@LOAD "qemu/rules.rif"
 ```
 
-The loaded table describes the Bochs VBE register indexes. The root target
-declares the generic `framebuffer` block with this current test contract:
+`friendly.riflib` is exported from the base Friendly `.pack` and contains only
+the Friendly register tables and Rules. It cannot replace this target's
+configuration, linker, or generic blocks. The QEMU-specific sources contain
+the Bochs VBE register indexes, boot Rules, and the generic `framebuffer`
+metadata block with this current test contract:
 
 ```text
 provider       qemu-std-vga
@@ -31,6 +36,19 @@ LFB source     PCI BAR0
 
 The block and table are metadata for future boot Rules. They do not initialize
 the device by themselves and do not make the base Friendly target QEMU-aware.
+
+To refresh the reusable declaration package after changing the base Friendly
+target:
+
+```powershell
+vnma run rif.py --pack examples/amd64-friendlysyntaxs/main.rif `
+  -o examples/amd64-friendlysyntaxs/amd64-friendly.pack
+vnma run rif.py --library examples/amd64-friendlysyntaxs/amd64-friendly.pack `
+  -o examples/amd64-friendlysyntaxs-qemu/friendly.riflib
+```
+
+This explicit export is the supported composition boundary: a `.pack` is a
+complete target, while `.riflib` is the reusable Rules/tables layer.
 
 ## Minimal boot entry and cursor checkpoint
 

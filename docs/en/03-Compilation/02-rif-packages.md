@@ -34,7 +34,17 @@ relative to the MIR file being compiled.
 Reusable libraries can be created with `rif --library patterns/main.rif -o
 patterns.riflib` and consumed from a target with `@LIBRARY "patterns.riflib"`.
 When creating a `.pack`, RIF embeds and verifies those libraries under
-`libraries/`.
+`libraries/`. A complete `.pack` can also be exported into a declaration-only
+`.riflib`:
+
+```powershell
+rif --library base.pack -o reusable-patterns.riflib
+```
+
+That export keeps the package's explicitly loaded declaration sources and
+discards its root `config`, `linker`, and generic blocks. The consuming target
+therefore chooses its own output policy and platform metadata. A `.pack` is a
+complete target and is not implicitly merged into another target.
 
 ## Why Use a Package?
 

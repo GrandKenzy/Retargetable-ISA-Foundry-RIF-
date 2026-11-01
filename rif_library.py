@@ -33,6 +33,7 @@ MAX_MANIFEST_SIZE = 1 << 20
 MAX_TOTAL_UNCOMPRESSED = 512 << 20
 MAX_COMPRESSION_RATIO = 10_000
 _LOAD_RE = re.compile(r'^\s*@LOAD\s+"([^"]+)"(?:\s*;.*)?\s*$', re.IGNORECASE)
+_LIBRARY_RE = re.compile(r'^\s*@LIBRARY\s+"([^"]+)"(?:\s*;.*)?\s*$', re.IGNORECASE)
 
 
 def _sha256(data: bytes) -> str:
@@ -171,9 +172,11 @@ def _content_fingerprint(entrypoint: str, files: tuple[LibraryEntry, ...]) -> st
 
 
 def _collect_files(entrypoint: Path) -> tuple[tuple[str, Path], ...]:
+    """Collect only the source graph reachable from the library entrypoint."""
+
     root = entrypoint.parent
     limit = resolve_limits().cap(MAX_SOURCE_SIZE)
-    collected: list[tuple[str, Path]] = []
+    available: dict[str, Path] = {}
     for candidate in root.rglob("*"):
         if not candidate.is_file() or candidate.suffix.lower() != ".rif":
             continue
@@ -181,13 +184,39 @@ def _collect_files(entrypoint: Path) -> tuple[tuple[str, Path], ...]:
         if resolved.stat().st_size > limit:
             raise ValueError(f"La fuente RIF excede el límite: {resolved}")
         relative = PurePosixPath(resolved.relative_to(root).as_posix()).as_posix()
-        collected.append((relative, resolved))
+        available[relative] = resolved
+
+    entry_relative = PurePosixPath(
+        entrypoint.resolve(strict=True).relative_to(root).as_posix()
+    ).as_posix()
+    if entry_relative not in available:
+        raise FileNotFoundError(f"No se pudo incluir el entrypoint: {entrypoint}")
+
+    collected: dict[str, Path] = {}
+    visiting: list[str] = []
+
+    def visit(relative: str) -> None:
+        if relative in collected:
+            return
+        if relative in visiting:
+            cycle = " -> ".join((*visiting, relative))
+            raise ValueError(f"Ciclo de @LOAD en la librería: {cycle}")
+        path = available.get(relative)
+        if path is None:
+            raise FileNotFoundError(f"Fuente no encontrada en la librería: {relative}")
+        visiting.append(relative)
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = _LOAD_RE.match(line)
+            if match:
+                dependency = _resolve_load(match.group(1), relative, root)
+                visit(dependency.removeprefix(SOURCE_PREFIX))
+        visiting.pop()
+        collected[relative] = path
         if len(collected) > MAX_SOURCE_FILES:
             raise ValueError("La librería excede el límite de fuentes.")
-    expected = entrypoint.resolve(strict=True).relative_to(root).as_posix()
-    if expected not in {relative for relative, _ in collected}:
-        raise FileNotFoundError(f"No se pudo incluir el entrypoint: {entrypoint}")
-    return tuple(sorted(collected, key=lambda item: item[0].casefold()))
+
+    visit(entry_relative)
+    return tuple(sorted(collected.items(), key=lambda item: item[0].casefold()))
 
 
 def _resolve_load(requested: str, relative: str, root: Path) -> str:
@@ -239,6 +268,78 @@ def _index(entrypoint: Path, files: tuple[tuple[str, Path], ...]):
     return graph, tuple(order)
 
 
+def _create_library_from_pack(
+    source: Path,
+    output: str | Path | None,
+    *,
+    name: str | None,
+    version: str,
+) -> Path:
+    """Export the declaration graph of a complete target package.
+
+    A target package owns its root configuration and platform blocks.  The
+    explicit export path copies only the root's ``@LOAD`` graph into a
+    declaration-only library, so consuming projects choose their own config,
+    linker, and opaque blocks.
+    """
+
+    from pack import PackReader
+
+    target = Path(output).expanduser().resolve() if output else source.with_suffix(".riflib")
+    with PackReader(source) as package:
+        root_source = package.source_text()
+        in_block = False
+        for line_number, raw_line in enumerate(root_source.splitlines(), 1):
+            line = raw_line.strip()
+            if not line or line.startswith(";"):
+                continue
+            if in_block:
+                if line.lower() == "@end":
+                    in_block = False
+                continue
+            if line.lower().startswith("@block "):
+                in_block = True
+                continue
+            if _LOAD_RE.match(line):
+                continue
+            if _LIBRARY_RE.match(line):
+                raise ValueError(
+                    f"No se puede exportar @LIBRARY anidada desde el .pack "
+                    f"(línea {line_number}); exporta esa librería por separado."
+                )
+            raise ValueError(
+                "El entrypoint del .pack contiene declaraciones locales; "
+                "usa un entrypoint de librería dedicado para exportarlas."
+            )
+        if in_block:
+            raise ValueError("El entrypoint del .pack contiene un @block sin @end.")
+
+        root_key = package.manifest.entrypoint
+        dependencies = package.manifest.load_graph.get(root_key, ())
+        with tempfile.TemporaryDirectory(prefix="rif-pack-library-") as temporary:
+            staging = Path(temporary)
+            for entry in package.manifest.files:
+                if entry.path == root_key:
+                    continue
+                relative = PurePosixPath(entry.path.removeprefix(SOURCE_PREFIX))
+                destination = staging.joinpath(*relative.parts)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(package.source_bytes(entry.path))
+
+            entrypoint = staging / "main.rif"
+            loads = []
+            for dependency in dependencies:
+                relative = PurePosixPath(dependency.removeprefix(SOURCE_PREFIX))
+                loads.append(f'@LOAD "{relative.as_posix()}"')
+            entrypoint.write_text("\n".join((*loads, "")), encoding="utf-8")
+            return create_library(
+                entrypoint,
+                target,
+                name=name or f"{package.manifest.name}-declarations",
+                version=version,
+            )
+
+
 def create_library(
     source: str | Path,
     output: str | Path | None = None,
@@ -246,11 +347,23 @@ def create_library(
     name: str | None = None,
     version: str = "1.0.0",
 ) -> Path:
-    """Create a reproducible ``.riflib`` from a source project."""
+    """Create a reproducible ``.riflib`` from RIF source or a ``.pack``.
+
+    When the input is a complete ``.pack``, only the root's explicitly loaded
+    declaration sources are exported; target configuration and generic blocks
+    never cross the project boundary.
+    """
 
     entrypoint = Path(source).expanduser().resolve(strict=True)
+    if entrypoint.suffix.lower() == ".pack":
+        return _create_library_from_pack(
+            entrypoint,
+            output,
+            name=name,
+            version=version,
+        )
     if entrypoint.suffix.lower() != ".rif":
-        raise ValueError("El entrypoint de una librería debe ser .rif.")
+        raise ValueError("El entrypoint de una librería debe ser .rif o .pack.")
     files = _collect_files(entrypoint)
     graph, order = _index(entrypoint, files)
     entries = tuple(

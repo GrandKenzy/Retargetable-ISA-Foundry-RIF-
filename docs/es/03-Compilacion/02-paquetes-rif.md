@@ -29,6 +29,17 @@ runtime; un artefacto de otra combinación se rechaza antes de procesar MIR.
 Las librerías reutilizables se crean con `rif --library patrones/main.rif -o
 patrones.riflib` y se consumen desde un target con `@LIBRARY "patrones.riflib"`.
 Al crear un `.pack`, RIF incluye y verifica esas librerías bajo `libraries/`.
+También se puede exportar un `.pack` completo a una librería de declaraciones:
+
+```powershell
+rif --library base.pack -o patrones-reutilizables.riflib
+```
+
+La exportación conserva las fuentes de declaraciones cargadas explícitamente
+por el paquete y descarta su `config`, `linker` y bloques genéricos raíz. El
+target consumidor elige así su propia política de salida y metadatos de
+plataforma. Un `.pack` es un target completo y no se mezcla implícitamente con
+otro target.
 Las directivas del MIR externo no
 forman parte del grafo de fuentes; `::RIF_INSERT FILE` resuelve su ruta
 respecto al archivo MIR que se está compilando.

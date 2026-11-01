@@ -26,6 +26,17 @@ from rif_library import create_library
 create_library("patterns/main.rif", "build/patterns.riflib")
 ```
 
+For a complete target package, the CLI can export the explicitly loaded
+declaration sources without carrying over target policy:
+
+```powershell
+vnma run rif.py --library base.pack -o build/base-declarations.riflib
+```
+
+The export omits the package root's `config`, `linker`, and generic blocks.
+Use this boundary when a new target should reuse Rules or tables but select a
+different memory layout or platform contract.
+
 The manifest records the entry point, source sizes, SHA-256 hashes, `@LOAD`
 dependencies, dependency order, and one content fingerprint for the complete
 library.

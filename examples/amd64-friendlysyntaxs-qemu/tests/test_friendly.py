@@ -28,6 +28,10 @@ def check(rif_root: Path) -> None:
     from pcpi import load_pcpi_file  # noqa: PLC0415
     from MIR.storage import load_storage_file  # noqa: PLC0415
 
+    assert (BASE / "friendly.riflib").is_file()
+    assert not (BASE / "registers.rif").exists()
+    assert not (BASE / "rules.rif").exists()
+
     source = (BASE / "demo.mir").read_text(encoding="utf-8")
     direct_target = prepare_target(BASE / "main.rif")
     framebuffer = direct_target.program.context.blocks["framebuffer"][0]

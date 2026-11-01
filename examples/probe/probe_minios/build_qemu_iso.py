@@ -1,6 +1,6 @@
 """Build the bootable MiniOS BIOS ISO through the RIF pipeline.
 
-RIF emits the El Torito boot image.  ``iso.py`` then assembles that output
+RIF emits the El Torito boot image.  ``rif_tools/iso.py`` then assembles that output
 with the PCP-I descriptor template, path tables, a root directory and a small
 readme file so the result is a real ISO-9660 image consumable by QEMU.
 """
@@ -23,11 +23,11 @@ BUILD = MINI / "build"
 def build(output: str | Path | None = None) -> Path:
     from MIR.external import compile_mir_file  # noqa: PLC0415
     from MIR.storage import load_storage_file  # noqa: PLC0415
-    from iso import ISOFile, build_iso_from_pcpi, validate_bios_iso, write_iso  # noqa: PLC0415
-    from pack import create_pack  # noqa: PLC0415
-    from pcpi import load_pcpi_file  # noqa: PLC0415
-    from pcpi_compiler import compile_pcpi_source_file  # noqa: PLC0415
-    from store import compile_store_file  # noqa: PLC0415
+    from rif_tools.iso import ISOFile, build_iso_from_pcpi, validate_bios_iso, write_iso  # noqa: PLC0415
+    from rif_core.pack import create_pack  # noqa: PLC0415
+    from rif_tools.pcpi import load_pcpi_file  # noqa: PLC0415
+    from rif_tools.pcpi_compiler import compile_pcpi_source_file  # noqa: PLC0415
+    from rif_tools.store import compile_store_file  # noqa: PLC0415
 
     BUILD.mkdir(parents=True, exist_ok=True)
     qemu_assets = QEMU / "assets"

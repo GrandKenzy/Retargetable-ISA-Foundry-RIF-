@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 RIFLIB_FORMAT = "RIF_LIBRARY"
@@ -283,7 +283,7 @@ def _create_library_from_pack(
     linker, and opaque blocks.
     """
 
-    from pack import PackReader
+    from rif_core.pack import PackReader
 
     target = Path(output).expanduser().resolve() if output else source.with_suffix(".riflib")
     with PackReader(source) as package:

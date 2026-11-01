@@ -1,4 +1,4 @@
-"""Developer tools for RIF target authors."""
+"""Developer and operational tools for the RIF project."""
 from .oracles import (
     OracleError,
     OracleMismatch,

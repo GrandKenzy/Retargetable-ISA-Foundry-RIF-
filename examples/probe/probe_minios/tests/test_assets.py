@@ -11,7 +11,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 
 def check() -> None:
-    from pcpi import load_pcpi_file  # noqa: PLC0415
+    from rif_tools.pcpi import load_pcpi_file  # noqa: PLC0415
     from MIR.storage import load_storage_file  # noqa: PLC0415
 
     pcic = load_pcpi_file(BASE / "build" / "mini_os_iso_header.pcic")

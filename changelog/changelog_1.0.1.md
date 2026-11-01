@@ -18,7 +18,7 @@
 
 - Completed the MiniOS QEMU artifact: `build_qemu_iso.py` now compiles the
   PCP-I/storage inputs, packages and runs the QEMU Friendly target through
-  RIF, then uses the deterministic `iso.py` producer to create a valid
+  RIF, then uses the deterministic `rif_tools/iso.py` producer to create a valid
   ISO-9660/El Torito volume with path tables, a root directory and
   `README.TXT;1`. The final image is structurally validated and boots under
   QEMU 11 BIOS; the RIF boot checkpoint is a real-mode VBE/PS/2-mouse cursor

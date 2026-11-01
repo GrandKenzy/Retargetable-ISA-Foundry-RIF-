@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from gram import lexer
-from rif_contract import ContractError, require_compatible
-from rif_limits import resolve_limits
+from rif_core.contract import ContractError, require_compatible
+from rif_core.limits import resolve_limits
 
 from .emitter import BitEmitter, BitField
 from .instructions import CompiledRuleSet, Instruction, Operand

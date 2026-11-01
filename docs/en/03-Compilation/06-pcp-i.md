@@ -238,7 +238,7 @@ rif --doctor-pcpi build/header.pcic
 The Python API exposes a validated `CompiledPCPI` object:
 
 ```python
-from pcpi_compiler import compile_pcpi_source
+from rif_tools.pcpi_compiler import compile_pcpi_source
 
 compiled = compile_pcpi_source("header.pci").image
 
@@ -436,8 +436,8 @@ source parser.
 
 The format is implemented by:
 
-- `pcpi_compiler.py`: `.pci` parsing and source compilation;
-- `pcpi.py`: `.pcic` serialization, loading, and validation;
+- `rif_tools/pcpi_compiler.py`: `.pci` parsing and source compilation;
+- `rif_tools/pcpi.py`: `.pcic` serialization, loading, and validation;
 - `main.py`: `--comp-pcpi` and `--doctor-pcpi` CLI operations;
 - `MIR/preprocessor.py`: syntax and ordering of `::RIF_PCPI` directives;
 - `MIR/external.py`: container insertion and pit address reporting;

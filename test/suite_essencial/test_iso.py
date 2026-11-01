@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
-from iso import ISOFile, build_iso_from_pcpi, validate_bios_iso
-from pcpi_compiler import compile_pcpi_source
+from rif_tools.iso import ISOFile, build_iso_from_pcpi, validate_bios_iso
+from rif_tools.pcpi_compiler import compile_pcpi_source
 
 
 ROOT = Path(__file__).resolve().parents[2]

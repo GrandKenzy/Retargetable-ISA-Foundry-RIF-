@@ -25,7 +25,7 @@ EXPECTED = bytes.fromhex(
 def check(rif_root: Path) -> None:
     sys.path.insert(0, str(rif_root))
     from MIR.external import compile_mir_source, prepare_target  # noqa: PLC0415
-    from pack import create_pack  # noqa: PLC0415
+    from rif_core.pack import create_pack  # noqa: PLC0415
 
     source = (PROBE / "demo.mir").read_text(encoding="utf-8")
     direct_target = prepare_target(BASE / "main.rif")

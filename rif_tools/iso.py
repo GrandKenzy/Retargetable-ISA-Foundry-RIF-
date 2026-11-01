@@ -15,7 +15,7 @@ import struct
 import tempfile
 from typing import Iterable
 
-from pcpi import CompiledPCPI, PCPIError
+from rif_tools.pcpi import CompiledPCPI, PCPIError
 
 
 ISO_BLOCK_SIZE = 2048

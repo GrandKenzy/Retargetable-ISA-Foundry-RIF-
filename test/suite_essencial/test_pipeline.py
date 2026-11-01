@@ -6,7 +6,7 @@ from pathlib import Path
 
 from Frontend import globals as rif_globals
 from MIR import DiagnosticBag, compile_project, compile_source
-from pack import create_pack, read_pack
+from rif_core.pack import create_pack, read_pack
 
 
 COMPLETE_TARGET_SOURCE = """@block config:

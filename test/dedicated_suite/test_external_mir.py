@@ -19,10 +19,10 @@ from MIR import (
     tokenize_mir,
 )
 from MIR.storage import StorageBuilder
-from pack import PackReader, create_pack, read_pack
-from pcpi import load_pcpi_file
-from pcpi_compiler import compile_pcpi_source_file
-from rif import main as rif_main
+from rif_core.pack import PackReader, create_pack, read_pack
+from rif_tools.pcpi import load_pcpi_file
+from rif_tools.pcpi_compiler import compile_pcpi_source_file
+from main import main as rif_main
 
 
 TARGET = '''\

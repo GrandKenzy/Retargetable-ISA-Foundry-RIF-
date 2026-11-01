@@ -9,7 +9,7 @@ from pathlib import Path
 
 from Frontend import globals
 from MIR import compile_source
-from pack import create_pack, read_pack
+from rif_core.pack import create_pack, read_pack
 
 
 def reset_globals() -> None:

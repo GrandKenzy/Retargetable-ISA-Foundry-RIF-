@@ -17,7 +17,7 @@ from MIR import (
     current_contract,
     load_database,
 )
-from pack import PackReader, create_pack
+from rif_core.pack import PackReader, create_pack
 
 
 TARGET = '''\

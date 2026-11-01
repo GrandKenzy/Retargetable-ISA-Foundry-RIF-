@@ -30,7 +30,7 @@ from gram.core.ast.nodes import (
     RawNode,
 )
 from gram.ir import GirView, load_gir
-from rif_contract import AOT_CACHE_FORMAT_VERSION, AOT_MODE
+from rif_core.contract import AOT_CACHE_FORMAT_VERSION, AOT_MODE
 
 
 class _GramIrBlob(ctypes.Structure):
@@ -281,7 +281,7 @@ class AOTParser:
         if compiler is None:
             raise AOTError("No se encontró gcc ni clang para compilar el parser AOT.")
         import gram
-        from rif_contract import current_contract
+        from rif_core.contract import current_contract
 
         gram_root = Path(gram.__file__).resolve().parents[1]
         native = gram_root / "native" / "gram_lexer"

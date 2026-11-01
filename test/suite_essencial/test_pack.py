@@ -7,9 +7,9 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from pack import PackReader, create_pack, read_pack
-from rif import main as rif_main
-from rif_contract import current_contract
+from rif_core.pack import PackReader, create_pack, read_pack
+from main import main as rif_main
+from rif_core.contract import current_contract
 
 
 class PackTests(unittest.TestCase):

@@ -10,7 +10,7 @@ from urllib.parse import quote, unquote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from gram.utilities import Diagnostics
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAX_REQSTS_BYTES = 16 << 20

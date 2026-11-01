@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from Frontend import globals
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 from .emitter import BitEmitter
 from .functions import CalcError, calc

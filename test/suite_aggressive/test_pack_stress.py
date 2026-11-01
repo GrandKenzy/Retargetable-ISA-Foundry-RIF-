@@ -7,7 +7,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from pack import PackReader, create_pack, read_pack
+from rif_core.pack import PackReader, create_pack, read_pack
 
 
 class PackStressTests(unittest.TestCase):

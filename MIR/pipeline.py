@@ -9,8 +9,8 @@ from typing import Iterable
 from Frontend import RIF_LANG_SESSION, globals
 from Frontend.processor import process
 from Frontend.processor.parsing import SourceParser
-from pack import PackReader
-from rif_limits import COMPILATION_LOCK, resolve_limits
+from rif_core.pack import PackReader
+from rif_core.limits import COMPILATION_LOCK, resolve_limits
 
 from . import compiler as compiler_module
 from .compiler import compile_rules

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from Frontend import globals
-from rif_library import LibraryReader, resolve_library
+from rif_core.library import LibraryReader, resolve_library
 from .parsing import SourceParser
 
 

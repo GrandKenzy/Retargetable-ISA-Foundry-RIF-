@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from MIR import compile_mir_file, compile_mir_tokens, prepare_target, tokenize_mir
-from rif import main as rif_main
+from main import main as rif_main
 
 
 TARGET = '''\

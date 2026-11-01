@@ -15,8 +15,8 @@ from MIR import compile_definition, compile_mir_file, compile_mir_source, prepar
 from MIR.artifacts import ArtifactError, _file_payload
 from MIR.runtime import RIFRuntimeError
 from Frontend.processor.sources import resolve_source
-from pack import create_pack, read_pack
-from rif_limits import resolve_limits, write_mib
+from rif_core.pack import create_pack, read_pack
+from rif_core.limits import resolve_limits, write_mib
 
 
 CONFIG = '''\

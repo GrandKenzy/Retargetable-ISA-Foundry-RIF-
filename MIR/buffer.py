@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 from Frontend import globals
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 from .functions import ReqstsError, reqsts
 from .preprocessor import RIFMetaDirective

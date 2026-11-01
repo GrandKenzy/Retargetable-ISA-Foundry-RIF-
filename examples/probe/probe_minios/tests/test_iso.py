@@ -11,7 +11,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 def check(rif_root: Path) -> None:
     sys.path.insert(0, str(rif_root))
-    from iso import validate_bios_iso  # noqa: PLC0415
+    from rif_tools.iso import validate_bios_iso  # noqa: PLC0415
 
     image_path = BASE / "build" / "mini_os.iso"
     report = validate_bios_iso(image_path.read_bytes())

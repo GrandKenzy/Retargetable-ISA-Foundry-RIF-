@@ -24,8 +24,8 @@ EXPECTED = bytes.fromhex(
 def check(rif_root: Path) -> None:
     sys.path.insert(0, str(rif_root))
     from MIR.external import compile_mir_source, prepare_target  # noqa: PLC0415
-    from pack import create_pack  # noqa: PLC0415
-    from pcpi import load_pcpi_file  # noqa: PLC0415
+    from rif_core.pack import create_pack  # noqa: PLC0415
+    from rif_tools.pcpi import load_pcpi_file  # noqa: PLC0415
     from MIR.storage import load_storage_file  # noqa: PLC0415
 
     assert (BASE / "friendly.riflib").is_file()

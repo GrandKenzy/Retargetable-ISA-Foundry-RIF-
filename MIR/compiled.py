@@ -10,7 +10,7 @@ from typing import Any
 from gram import lexer
 
 from Frontend import globals
-from rif_contract import (
+from rif_core.contract import (
     COMPILED_SCHEMA_VERSION,
     CompilationContract,
     ContractError,

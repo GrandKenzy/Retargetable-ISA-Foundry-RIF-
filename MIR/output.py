@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Iterator
 
 from Frontend import globals
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 from .bitbuffer import BitBuffer, BitCheckpoint, BitLayout
 from .emitter import BitEmitter, BitEmitterCheckpoint

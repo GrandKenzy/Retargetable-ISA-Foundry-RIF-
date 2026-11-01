@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import tempfile
 
-from pcpi import (
+from rif_tools.pcpi import (
     BITORDER_LSB,
     BITORDER_MSB,
     CompiledPCPI,
@@ -23,7 +23,7 @@ from pcpi import (
     PCPIError,
     parse_pcpi,
 )
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAX_PCPI_BYTES = 128 << 20

@@ -7,7 +7,7 @@ import wave
 from pathlib import Path
 
 from MIR.storage import parse_storage
-from store import StoreError, compile_store, compile_store_file, parse_store
+from rif_tools.store import StoreError, compile_store, compile_store_file, parse_store
 
 
 class StoreTests(unittest.TestCase):

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pcpi import (
+from rif_tools.pcpi import (
     BITORDER_MSB,
     ENDIAN_LITTLE,
     PCPIError,
@@ -12,8 +12,8 @@ from pcpi import (
     load_pcpi_file,
     parse_pcpi,
 )
-from pcpi_compiler import compile_pcpi_source, compile_pcpi_source_file
-from rif import main as rif_main
+from rif_tools.pcpi_compiler import compile_pcpi_source, compile_pcpi_source_file
+from main import main as rif_main
 
 
 SOURCE = '''\

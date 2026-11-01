@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from MIR import compile_pack, compile_source
-from pack import PackReader, create_pack
-from rif_library import LibraryReader, create_library
+from rif_core.pack import PackReader, create_pack
+from rif_core.library import LibraryReader, create_library
 
 
 class LibraryTests(unittest.TestCase):

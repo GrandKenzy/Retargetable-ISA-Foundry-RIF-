@@ -37,7 +37,7 @@ mediante la API directa.
 | `MIR.runtime.RIFMachine` | Ejecuta instrucciones contra tokens MIR. |
 | `MIR.bitbuffer.BitBuffer` | Guarda y reescribe rangos arbitrarios de bits. |
 | `MIR.output.AssemblyImage` | Mantiene un buffer por sección. |
-| `pack.py` | Crea y valida paquetes `.pack` reproducibles. |
+| `rif_core/pack.py` | Crea y valida paquetes `.pack` reproducibles. |
 
 La definición raíz posee el contexto global. `RIFMachine` posee el estado de
 ejecución: posición de tokens, storage, datastack, reservas y trazas.

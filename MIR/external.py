@@ -11,9 +11,9 @@ from typing import Iterable
 from gram import lexer
 
 from Frontend import RIF_LANG_SESSION, globals
-from pack import PackReader
-from pcpi import PCPIError, load_pcpi_file
-from rif_limits import COMPILATION_LOCK, resolve_limits
+from rif_core.pack import PackReader
+from rif_tools.pcpi import PCPIError, load_pcpi_file
+from rif_core.limits import COMPILATION_LOCK, resolve_limits
 
 from .instructions import CompiledRuleSet
 from .diagnostics import Diagnostic, DiagnosticBag

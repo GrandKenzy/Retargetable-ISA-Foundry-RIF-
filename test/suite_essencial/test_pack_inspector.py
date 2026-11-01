@@ -8,9 +8,9 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from pack import create_pack
-from pack_inspector import PackInspectionError, inspect_pack, render_pack_inspection
-from rif import main as rif_main
+from rif_core.pack import create_pack
+from rif_tools.pack_inspector import PackInspectionError, inspect_pack, render_pack_inspection
+from main import main as rif_main
 
 
 CONFIG = '''\

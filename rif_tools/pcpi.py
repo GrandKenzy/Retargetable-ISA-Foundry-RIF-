@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import struct
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAX_PCPI_BYTES = 128 << 20

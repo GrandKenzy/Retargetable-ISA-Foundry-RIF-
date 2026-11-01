@@ -16,7 +16,7 @@ from typing import Any
 from MIR.compiled import SCHEMA_VERSION, context_from_dict, program_from_dict
 from MIR.instructions import CompiledRuleSet, Operand
 from MIR.preprocessor import RIF_META_OPERATIONS
-from pack import (
+from rif_core.pack import (
     MAX_COMPILED_SIZE,
     PACK_FORMAT,
     PACK_FORMAT_VERSION,
@@ -24,7 +24,7 @@ from pack import (
     PackReader,
     read_pack,
 )
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAX_REPORT_ITEMS = 1_000

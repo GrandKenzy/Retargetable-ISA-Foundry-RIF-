@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 RULE_OPERATION_ABI_VERSION = "1.1"

@@ -43,7 +43,18 @@ RIF/
 ├── examples/
 │   └── probe/
 ├── main.py
-├── pack.py
+├── rif_core/
+│   ├── contract.py
+│   ├── limits.py
+│   ├── library.py
+│   └── pack.py
+├── rif_tools/
+│   ├── cli.py
+│   ├── iso.py
+│   ├── pack_inspector.py
+│   ├── pcpi.py
+│   ├── pcpi_compiler.py
+│   └── store.py
 └── vnma.toml
 ```
 

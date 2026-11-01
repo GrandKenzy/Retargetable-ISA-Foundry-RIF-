@@ -21,14 +21,14 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from rif_contract import (
+from rif_core.contract import (
     PACK_FORMAT_VERSION,
     CompilationContract,
     ContractError,
     current_contract,
     require_compatible,
 )
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 PACK_FORMAT = "RIF_PACK"
@@ -1105,7 +1105,7 @@ class PackReader:
     def open_library(self, library: str | Path) -> Any:
         """Open one packaged library without exposing its ZIP to callers."""
 
-        from rif_library import LibraryReader
+        from rif_core.library import LibraryReader
 
         value = str(library)
         key = value.rsplit("::", 1)[1] if "::" in value else value

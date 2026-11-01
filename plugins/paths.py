@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAX_PLUGIN_BYTES = 64 << 20

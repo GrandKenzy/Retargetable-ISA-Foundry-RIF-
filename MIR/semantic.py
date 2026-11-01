@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from gram import lexer
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 from Frontend import globals
 

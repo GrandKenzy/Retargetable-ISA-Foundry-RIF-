@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from Frontend import globals
-from rif_contract import CompilationContract, current_contract
+from rif_core.contract import CompilationContract, current_contract
 
 
 @dataclass(frozen=True)

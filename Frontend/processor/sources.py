@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from Frontend import globals
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 from .parsing import SourceParser
 
 

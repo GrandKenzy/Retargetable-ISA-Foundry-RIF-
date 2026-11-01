@@ -39,8 +39,8 @@ tokens from another compiler through the direct Python API.
 | `MIR.runtime.RIFMachine` | Executes instructions against MIR tokens. |
 | `MIR.bitbuffer.BitBuffer` | Stores and rewrites arbitrary bit ranges. |
 | `MIR.output.AssemblyImage` | Owns one output buffer per configured section. |
-| `pack.py` | Creates and validates reproducible `.pack` archives. |
-| `rif_library.py` | Creates and validates reusable `.riflib` source packages. |
+| `rif_core/pack.py` | Creates and validates reproducible `.pack` archives. |
+| `rif_core/library.py` | Creates and validates reusable `.riflib` source packages. |
 
 ## State Ownership
 

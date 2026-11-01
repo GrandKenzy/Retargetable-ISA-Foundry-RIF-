@@ -18,7 +18,7 @@ EXPECTED = bytes.fromhex("48 c7 c0 2a 00 00 00 48 c7 c7 07 00 00 00 90")
 def check(rif_root: Path) -> None:
     sys.path.insert(0, str(rif_root))
     from MIR.external import compile_mir_source, prepare_target  # noqa: PLC0415
-    from pack import create_pack  # noqa: PLC0415
+    from rif_core.pack import create_pack  # noqa: PLC0415
 
     normal_source = NORMAL_MIR.read_text(encoding="utf-8")
     friendly_source = FRIENDLY_MIR.read_text(encoding="utf-8")

@@ -9,18 +9,18 @@ import os
 import sys
 from pathlib import Path
 
-from pack import create_pack
-from pack_inspector import (
+from rif_core.pack import create_pack
+from rif_tools.pack_inspector import (
     MAX_REPORT_ITEMS,
     PackInspectionError,
     inspect_pack,
     render_pack_inspection,
 )
-from pcpi import PCPIError, load_pcpi_file
-from pcpi_compiler import compile_pcpi_source_file
-from rif_limits import ENV_KEY, parse_mib, write_mib
-from rif_library import create_library
-from store import StoreError, compile_store_file
+from rif_tools.pcpi import PCPIError, load_pcpi_file
+from rif_tools.pcpi_compiler import compile_pcpi_source_file
+from rif_core.limits import ENV_KEY, parse_mib, write_mib
+from rif_core.library import create_library
+from rif_tools.store import StoreError, compile_store_file
 from MIR.storage import StorageError, load_storage_file
 from MIR.diagnostics import format_exception
 

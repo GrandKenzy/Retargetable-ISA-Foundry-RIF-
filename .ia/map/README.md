@@ -32,8 +32,8 @@ con `--library target.pack`; no arrastra `config`, `linker` ni bloques del
 target original. Un `.pack` sigue siendo un target completo y no se fusiona
 implícitamente con otro.
 
-Para PCP-I, `main.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
-`.pci` directamente y serializa el contenedor validado con `pcpi.py`. PCP-I es
+Para PCP-I, `main.py --comp-pcpi` usa `rif_tools/pcpi_compiler.py`: compila una fuente
+`.pci` directamente y serializa el contenedor validado con `rif_tools/pcpi.py`. PCP-I es
 una salida especializada e independiente del frontend RIF; no ejecuta Rules
 ni añade una segunda gramática al lenguaje `.rif`. En `@RAW`, `[N]` declara
 un pit alineado y `ZERO N` emite ceros estáticos sin crear un pit. El
@@ -125,8 +125,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   revisar artefactos con `--doctor-pcpi`/`--doctor-storage`.
 - `rif_tools/cli.py`: implementación del despacho de todas las operaciones de la CLI;
   `rif.py` conserva únicamente un wrapper de compatibilidad para invocaciones antiguas.
-  Los módulos `pack.py`, `pack_inspector.py`, `pcpi.py`, `pcpi_compiler.py`,
-  `rif_contract.py`, `rif_library.py`, `rif_limits.py`, `store.py` e `iso.py` son
+  Los módulos `rif_core/pack.py`, `rif_tools/pack_inspector.py`, `rif_tools/pcpi.py`, `rif_tools/pcpi_compiler.py`,
+  `rif_core/contract.py`, `rif_core/library.py`, `rif_core/limits.py`, `rif_tools/store.py` e `rif_tools/iso.py` son
   bibliotecas de implementación, no entradas CLI independientes.
 - `Frontend/syntax/`: sesión Gram, keywords y reglas de entrada; `blocks.py`
   contiene el bloque genérico.
@@ -151,8 +151,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   `u64`, padding `u32` y tamaño de label `u32`; los bytes UTF-8 del label viven
   junto al payload dentro del raw. Se genera
   desde fuentes independientes `.store`, no desde el flujo `.rif`. Su cargador
-  seguro alimenta `rif --doctor-storage`.
-- `store.py`: parser y compilador de fuentes `.store`; valida `MAGIC`,
+  seguro alimenta `main.py --doctor-storage`.
+- `rif_tools/store.py`: parser y compilador de fuentes `.store`; valida `MAGIC`,
   `VERSION`, bloques `@ITEM IMAGE`/`@ITEM AUDIO`, rutas locales y labels.
 - `MIR/external.py`: consumo de entradas MIR externas y validación del linker.
 - `MIR/preprocessor.py`: reconoce directivas cerradas de metaprogramación
@@ -165,16 +165,16 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   y verificar los ejemplos de `examples/`; no es una dependencia del núcleo ni
   un artefacto final. Las fuentes completas de Intel y NASM permanecen
   enlazadas, no vendorizadas.
-- `pcpi.py` y `pcpi_compiler.py`: formato PCP-I v1, parser declarativo de
+- `rif_tools/pcpi.py` y `rif_tools/pcpi_compiler.py`: formato PCP-I v1, parser declarativo de
   fuentes `.pci` y compilación de pits alineados.
-- `iso.py`: productor determinista ISO-9660/El Torito. Consume el boot image
+- `rif_tools/iso.py`: productor determinista ISO-9660/El Torito. Consume el boot image
   emitido por RIF y una plantilla PCP-I validada, completa los campos de layout,
   genera tablas de ruta/directorio y valida el contrato BIOS sin introducir
   semántica ISO en el parser o runtime de RIF.
-- `pack.py`: creación y lectura segura de paquetes `.pack`.
-- `rif_library.py`: creación, exportación desde `.pack` y lectura segura de
+- `rif_core/pack.py`: creación y lectura segura de paquetes `.pack`.
+- `rif_core/library.py`: creación, exportación desde `.pack` y lectura segura de
   librerías `.riflib` de declaraciones reutilizables.
-- `pack_inspector.py`: inspección de solo lectura de `.pack`; verifica el
+- `rif_tools/pack_inspector.py`: inspección de solo lectura de `.pack`; verifica el
   contenedor y SQLite en memoria, y expone Rules, tablas, configuración,
   linker, variantes, fingerprint, versión y extensiones MIR sin ejecutar el
   target. `rif --inspect-pack` ofrece salida humana o JSON acotada.
@@ -213,9 +213,9 @@ al target; no son capacidades generales de RIF.
 | Sintaxis de bloques | `Frontend/syntax/items/blocks.py`, `Frontend/syntax/__init__.py` | `test/suite_essencial/test_blocks.py`, `test/suite_essencial/test_declarations.py` |
 | Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `test/suite_essencial/test_processor.py`, `test/suite_essencial/test_pipeline.py`, `test/suite_essencial/test_variants.py` |
 | Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `test/suite_essencial/test_runtime.py`, `test/suite_essencial/test_mir.py` |
-| Packs y serialización | `pack.py`, `MIR/compiled.py` | `test/suite_essencial/test_pack.py`, `test/suite_essencial/test_blocks.py` |
-| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `main.py` | `test/dedicated_suite/test_pcpi.py` |
-| Diagnóstico de artefactos | `main.py`, `pcpi.py`, `MIR/storage.py` | `test/dedicated_suite/test_doctor.py` |
+| Packs y serialización | `rif_core/pack.py`, `MIR/compiled.py` | `test/suite_essencial/test_pack.py`, `test/suite_essencial/test_blocks.py` |
+| PCP-I | `rif_tools/pcpi.py`, `rif_tools/pcpi_compiler.py`, `main.py` | `test/dedicated_suite/test_pcpi.py` |
+| Diagnóstico de artefactos | `main.py`, `rif_tools/pcpi.py`, `MIR/storage.py` | `test/dedicated_suite/test_doctor.py` |
 | Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `test/suite_essencial/test_artifacts.py` |
 
 El preprocesador del MIR externo usa `::RIF_INSERT` para bytes, binarios o
@@ -289,7 +289,7 @@ pueden usar AOT porque sus bytes entran directamente por la misma FFI.
 
 El cache AOT guarda formato, modo, huella del contrato, Gram/GIR, ABI del
 parser C, fuentes nativas y compilador. El contrato compartido en
-`rif_contract.py` también se serializa en el manifiesto `.pack` (formato 7) y
+`rif_core/contract.py` también se serializa en el manifiesto `.pack` (formato 7) y
 en SQLite compilado (esquema 7); `read_pack` y `load_database` rechazan
 artefactos de otra combinación de RIF, Gram, AOT, MIR o runtime.
 
@@ -366,7 +366,7 @@ reutilizable de pruebas válidas, límites, símbolos y errores para un target.
 
 ### Librerías, oráculos y operaciones AOT
 
-`rif_library.py` define el formato `.riflib`: un ZIP reproducible de fuentes
+`rif_core/library.py` define el formato `.riflib`: un ZIP reproducible de fuentes
 `.rif` con manifiesto, índice de `@LOAD`, límites y huella. La directiva
 canónica `@LIBRARY "patrones.riflib"` procesa sus declaraciones en el mismo
 contexto de tablas, defines y Rules del target. `create_library()` crea el
@@ -401,7 +401,7 @@ al mapa de salida y a las relocaciones.
 sectores de cabecera ISO/El Torito y tres pits para volumen, raíz y entrada de
 boot. `ZERO n` representa bytes estáticos cero y no crea un pit; `[n]` sigue
 siendo exclusivamente una región rellenable. El target QEMU emite el boot
-image con RIF y `iso.py` ensambla la ISO-9660 final con tablas de ruta,
+image con RIF y `rif_tools/iso.py` ensambla la ISO-9660 final con tablas de ruta,
 directorio raíz y `README.TXT;1`. `build_qemu_iso.py` es el recorrido canónico
 y deja `build/mini_os.iso`, que QEMU BIOS arranca en LBA 20.
 `cursor_assets.store` demuestra la ruta de media externa y produce un

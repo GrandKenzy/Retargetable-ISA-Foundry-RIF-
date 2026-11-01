@@ -51,7 +51,7 @@ from .functions import (
     reqsts,
 )
 from .buffer import BufferError, BufferResult, execute_buffer
-from rif_contract import CompilationContract, ContractError, current_contract
+from rif_core.contract import CompilationContract, ContractError, current_contract
 from .preprocessor import (
     MIRLine,
     RIFMetaDirective,

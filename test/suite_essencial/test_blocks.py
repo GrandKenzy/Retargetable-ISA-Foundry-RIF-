@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from MIR import compile_source
-from pack import create_pack
+from rif_core.pack import create_pack
 
 
 CONFIG_BLOCK = '''\

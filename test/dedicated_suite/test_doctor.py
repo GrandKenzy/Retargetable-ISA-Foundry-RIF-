@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 
 from MIR.storage import StorageBuilder
-from pcpi_compiler import compile_pcpi_source_file
-from rif import main as rif_main
+from rif_tools.pcpi_compiler import compile_pcpi_source_file
+from main import main as rif_main
 
 
 PCPI_SOURCE = '''\

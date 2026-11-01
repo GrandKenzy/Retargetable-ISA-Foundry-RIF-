@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterator, Literal
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 BitOrder = Literal["msb", "lsb"]

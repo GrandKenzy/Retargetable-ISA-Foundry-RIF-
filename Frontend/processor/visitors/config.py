@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 _SCALAR_FIELDS = {

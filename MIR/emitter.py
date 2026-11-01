@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 from .bitbuffer import (
     MAX_BUFFER_BITS,

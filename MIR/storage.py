@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from rif_limits import resolve_limits
+from rif_core.limits import resolve_limits
 
 
 MAGIC = b"RIFSTOR\0"

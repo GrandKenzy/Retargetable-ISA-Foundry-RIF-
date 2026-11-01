@@ -21,7 +21,7 @@ executable compiler.
 The Python API is also available:
 
 ```python
-from rif_library import create_library
+from rif_core.library import create_library
 
 create_library("patterns/main.rif", "build/patterns.riflib")
 ```

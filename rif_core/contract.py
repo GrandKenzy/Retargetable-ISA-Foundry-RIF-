@@ -114,16 +114,14 @@ def compiler_source_fingerprint() -> str:
     artifact even when the declarative sources are unchanged.
     """
 
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     paths = [
-        root / "pack.py",
         root / "main.py",
-        root / "rif_tools" / "cli.py",
-        root / "rif_contract.py",
-        root / "rif_limits.py",
-        root / "rif_library.py",
+        *sorted((root / "rif_core").rglob("*.py")),
+        *sorted((root / "rif_tools").rglob("*.py")),
         *sorted((root / "Frontend").rglob("*.py")),
         *sorted((root / "MIR").rglob("*.py")),
+        *sorted((root / "plugins").rglob("*.py")),
     ]
     digest = hashlib.sha256()
     for path in sorted({path.resolve() for path in paths}):

@@ -1,0 +1,18 @@
+; Shared AMD64 bare-metal declarations for both flat-image layouts.
+; Root targets keep their own config/linker blocks because main_rw aligns data.
+
+@LOAD "registers.rif"
+@LOAD "instructions.rif"
+@LOAD "encoding.rif"
+@LOAD "arithmetic.rif"
+@LOAD "memory.rif"
+@LOAD "control.rif"
+@LOAD "conditions.rif"
+@LOAD "width32.rif"
+@LOAD "width16.rif"
+@LOAD "width8.rif"
+@LOAD "addressing.rif"
+@LOAD "branches.rif"
+@LOAD "integer.rif"
+@LOAD "prefixes.rif"
+@LOAD "relocations.rif"

@@ -30,21 +30,7 @@
     search_path ""
 @end
 
-@LOAD "registers.rif"
-@LOAD "instructions.rif"
-@LOAD "encoding.rif"
-@LOAD "arithmetic.rif"
-@LOAD "memory.rif"
-@LOAD "control.rif"
-@LOAD "conditions.rif"
-@LOAD "width32.rif"
-@LOAD "width16.rif"
-@LOAD "width8.rif"
-@LOAD "addressing.rif"
-@LOAD "branches.rif"
-@LOAD "integer.rif"
-@LOAD "prefixes.rif"
-@LOAD "relocations.rif"
+@LOAD "profile.rif"
 
 @block isa_scope:
     profile "amd64-base-integer"

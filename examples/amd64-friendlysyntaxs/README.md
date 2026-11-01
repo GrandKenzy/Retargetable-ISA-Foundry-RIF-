@@ -62,6 +62,8 @@ The Friendly layer is intentionally independent from the RIF core. The
 `amd64_*.rif` modules carry the complete raw AMD64 profile from
 `AMD64_Baremetal`, while `friendly_registers.rif` and `friendly_rules.rif`
 add the readable vocabulary above. Both vocabularies emit the same raw bytes.
+The shared `profile.rif` load keeps `main.rif` and `main_rw.rif` aligned; their
+root configuration remains separate only because the latter aligns `data`.
 
 ## Full AMD64 coverage
 

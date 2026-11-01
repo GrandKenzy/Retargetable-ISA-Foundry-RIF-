@@ -9,6 +9,8 @@ familias de encoding que este target declara.
 
 - `main.rif`: target AMD64 raw con una sección `text`.
 - `main_rw.rif`: target AMD64 raw con `text` y `data` alineada a 4096 bytes.
+- `profile.rif`: carga una sola vez las tablas y Rules compartidas por ambos
+  layouts; los dos `main` solo conservan la configuración raíz que difiere.
 - `registers.rif`, `encoding.rif`, `arithmetic.rif`, `width8.rif`,
   `width16.rif`, `width32.rif`, `memory.rif`, `addressing.rif`, `control.rif`,
   `branches.rif`, `integer.rif`, `prefixes.rif`, `conditions.rif`,
@@ -16,6 +18,10 @@ familias de encoding que este target declara.
   aritmética, control, enteros y prefijos.
 - `relocations.rif`: símbolos, `pc8`, `pc32`, `abs64`, referencias RIP-relative,
   reservas y posiciones virtuales.
+- `registers.rif` es la fuente canónica de los datos de registros por familia;
+  `integer.rif` reutiliza sus columnas para BSWAP y `prefixes.rif` reutiliza
+  `dst32` para las direcciones de 32 bits. `shiftcl` permanece separado porque
+  debe aceptar únicamente `CL`.
 - Los programas MIR y fixtures raw viven fuera del target, en
   `examples/probe/probe_amd64/`; este directorio conserva solo la definición
   AMD64, sus pruebas y los paquetes compilados.
@@ -46,7 +52,9 @@ AVX-512, x87 y system instructions están declarados como excluidos. Su
 ausencia produce rechazo normal por falta de Rule; no se agrega una tabla
 universal de la ISA.
 
-Las formas se mantienen separadas por nombre MIR (`load64_0`, `load64_8`,
+`main.rif` y `main_rw.rif` comparten las mismas Rules y tablas; la segunda solo
+alinea la sección `data` a 4096 bytes. Las formas se mantienen separadas por
+nombre MIR (`load64_0`, `load64_8`,
 `load64`, `jcc8`, `jcc32`, etc.) para que el matching sea explícito y el
 preprocesador pueda seleccionar el MIR compatible. El ejemplo no afirma ser un
 ensamblador AMD64 completo.

@@ -142,40 +142,42 @@ __
 
 
 ; Independent selections for destination and source of register-register MOV.
+; bswapop is shared with the integer Rules so BSWAP does not keep a second
+; copy of the 64-bit register rows.
 @table movdst
-| name | lo | hi |
+| name | lo | hi | bswapop |
 __
-| rax | 0 | 0 |
+| rax | 0 | 0 | 200 |
 __
-| rcx | 1 | 0 |
+| rcx | 1 | 0 | 201 |
 __
-| rdx | 2 | 0 |
+| rdx | 2 | 0 | 202 |
 __
-| rbx | 3 | 0 |
+| rbx | 3 | 0 | 203 |
 __
-| rsp | 4 | 0 |
+| rsp | 4 | 0 | 204 |
 __
-| rbp | 5 | 0 |
+| rbp | 5 | 0 | 205 |
 __
-| rsi | 6 | 0 |
+| rsi | 6 | 0 | 206 |
 __
-| rdi | 7 | 0 |
+| rdi | 7 | 0 | 207 |
 __
-| r8 | 0 | 1 |
+| r8 | 0 | 1 | 200 |
 __
-| r9 | 1 | 1 |
+| r9 | 1 | 1 | 201 |
 __
-| r10 | 2 | 1 |
+| r10 | 2 | 1 | 202 |
 __
-| r11 | 3 | 1 |
+| r11 | 3 | 1 | 203 |
 __
-| r12 | 4 | 1 |
+| r12 | 4 | 1 | 204 |
 __
-| r13 | 5 | 1 |
+| r13 | 5 | 1 | 205 |
 __
-| r14 | 6 | 1 |
+| r14 | 6 | 1 | 206 |
 __
-| r15 | 7 | 1 |
+| r15 | 7 | 1 | 207 |
 @end
 @table movsrc
 | name | lo | hi |
@@ -333,41 +335,42 @@ __
 | r15 | 7 | 1 | 87 | 95 |
 @end
 
-; 32-bit GPR names with independent dest and source selections.
+; 32-bit GPR names with independent dest and source selections. bswapop keeps
+; the integer Rules on this canonical width table as well.
 @table dst32
-| name | lo | hi | movop |
+| name | lo | hi | movop | bswapop |
 __
-| eax | 0 | 0 | 184 |
+| eax | 0 | 0 | 184 | 200 |
 __
-| ecx | 1 | 0 | 185 |
+| ecx | 1 | 0 | 185 | 201 |
 __
-| edx | 2 | 0 | 186 |
+| edx | 2 | 0 | 186 | 202 |
 __
-| ebx | 3 | 0 | 187 |
+| ebx | 3 | 0 | 187 | 203 |
 __
-| esp | 4 | 0 | 188 |
+| esp | 4 | 0 | 188 | 204 |
 __
-| ebp | 5 | 0 | 189 |
+| ebp | 5 | 0 | 189 | 205 |
 __
-| esi | 6 | 0 | 190 |
+| esi | 6 | 0 | 190 | 206 |
 __
-| edi | 7 | 0 | 191 |
+| edi | 7 | 0 | 191 | 207 |
 __
-| r8d | 0 | 1 | 184 |
+| r8d | 0 | 1 | 184 | 200 |
 __
-| r9d | 1 | 1 | 185 |
+| r9d | 1 | 1 | 185 | 201 |
 __
-| r10d | 2 | 1 | 186 |
+| r10d | 2 | 1 | 186 | 202 |
 __
-| r11d | 3 | 1 | 187 |
+| r11d | 3 | 1 | 187 | 203 |
 __
-| r12d | 4 | 1 | 188 |
+| r12d | 4 | 1 | 188 | 204 |
 __
-| r13d | 5 | 1 | 189 |
+| r13d | 5 | 1 | 189 | 205 |
 __
-| r14d | 6 | 1 | 190 |
+| r14d | 6 | 1 | 190 | 206 |
 __
-| r15d | 7 | 1 | 191 |
+| r15d | 7 | 1 | 191 | 207 |
 @end
 @table src32
 | name | lo | hi | movop |

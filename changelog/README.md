@@ -43,6 +43,12 @@ AMD64 profile from `AMD64_Baremetal` and validates it with the same encoding,
 relocation, integer/prefix and external-oracle checks, while retaining its
 readable aliases.
 
+The AMD64 targets now keep shared BSWAP and 32-bit address-register metadata in
+the canonical register tables instead of repeating those rows in integer and
+prefix sources; the CL-only shift-count table remains intentionally narrow.
+The two AMD64 image roots now share their declaration load through `profile.rif`;
+only root configuration and the optional data alignment remain layout-specific.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

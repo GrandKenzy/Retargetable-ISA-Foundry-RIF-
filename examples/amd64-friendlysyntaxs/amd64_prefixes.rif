@@ -1,48 +1,14 @@
 ; Prefix families deliberately exposed by this target profile.
 
-@table membase32
-| name | lo | hi |
-__
-| eax | 0 | 0 |
-__
-| ecx | 1 | 0 |
-__
-| edx | 2 | 0 |
-__
-| ebx | 3 | 0 |
-__
-| esp | 4 | 0 |
-__
-| ebp | 5 | 0 |
-__
-| esi | 6 | 0 |
-__
-| edi | 7 | 0 |
-__
-| r8d | 0 | 1 |
-__
-| r9d | 1 | 1 |
-__
-| r10d | 2 | 1 |
-__
-| r11d | 3 | 1 |
-__
-| r12d | 4 | 1 |
-__
-| r13d | 5 | 1 |
-__
-| r14d | 6 | 1 |
-__
-| r15d | 7 | 1 |
-@end
-
-; 0x67 address-size override with the existing 64-bit operand size.
+; 0x67 address-size override with the existing 64-bit operand size. The
+; 32-bit address registers reuse the canonical dst32 table from
+; amd64_registers.rif.
 @rule encode_rex_addr32_mem:
 . bits 4 4
 . bits 1 1
 . bits $movdst.hi 1
 . bits 0 1
-. bits $membase32.hi 1
+. bits $dst32.hi 1
 
 @rule encode_modrm_addr32_mem:
 . bits 2 2
@@ -50,13 +16,13 @@ __
 . bits 4 3
 . bits 0 2
 . bits 4 3
-. bits $membase32.lo 3
+. bits $dst32.lo 3
 
 @rule load64_67:
 . IDENT
 . $movdst.name, IDENT
 . COMMA
-. $membase32.name, IDENT
+. $dst32.name, IDENT
 . COMMA
 . bits 103 8
 . JUMP encode_rex_addr32_mem
@@ -68,7 +34,7 @@ __
 . IDENT
 . $movdst.name, IDENT
 . COMMA
-. $membase32.name, IDENT
+. $dst32.name, IDENT
 . COMMA
 . bits 103 8
 . JUMP encode_rex_addr32_mem

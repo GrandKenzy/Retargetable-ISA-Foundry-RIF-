@@ -194,15 +194,19 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio. Sus programas MIR externos y fixtures están en
   `examples/probe/probe_amd64/`; el target conserva la definición `.rif`, las
-  pruebas y los paquetes compilados. Los programas MIR del target base Friendly
+pruebas y los paquetes compilados. `profile.rif` concentra las cargas comunes
+de `main.rif` y `main_rw.rif`; ambos conservan solo su configuración raíz y el
+alineamiento diferencial de `data`. Los programas MIR del target base Friendly
   Syntax están en `examples/probe/probe_friendlysyntax/`; el target QEMU
   completo y sus probes están en `examples/probe/probe_friendlysyntax_qemu/`.
 
 El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
-`integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras
-`main.rif` conserva un bloque `isa_scope` que excluye MMX, SSE, AVX, AVX-512,
-x87 y system instructions. Sus pruebas raw y el cross-check LLVM viven junto
-al target; no son capacidades generales de RIF.
+`registers.rif` concentra los datos canónicos por familia; `integer.rif` y
+`prefixes.rif` reutilizan esas columnas para BSWAP y direcciones de 32 bits,
+mientras `shiftcl` conserva una tabla restringida a CL. `main.rif` conserva un
+bloque `isa_scope` que excluye MMX, SSE, AVX, AVX-512, x87 y system
+instructions. Sus pruebas raw y el cross-check LLVM viven junto al target; no
+son capacidades generales de RIF.
 - `docs/en/` y `docs/es/`: documentación del lenguaje, compilación y memoria.
   `changelog/`: notas versionadas de cambios importantes.
 

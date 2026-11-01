@@ -1,0 +1,146 @@
+; Independent table selections let each operand choose its own register row.
+@table dst
+| name | lo | hi |
+__
+| R0 | 0 | 0 |
+__
+| R1 | 1 | 0 |
+__
+| R2 | 2 | 0 |
+__
+| R3 | 3 | 0 |
+__
+| R4 | 4 | 0 |
+__
+| R5 | 5 | 0 |
+__
+| R6 | 6 | 0 |
+__
+| R7 | 7 | 0 |
+__
+| R8 | 0 | 1 |
+__
+| R9 | 1 | 1 |
+__
+| R10 | 2 | 1 |
+__
+| R11 | 3 | 1 |
+__
+| R12 | 4 | 1 |
+__
+| R13 | 5 | 1 |
+__
+| R14 | 6 | 1 |
+__
+| R15 | 7 | 1 |
+@end
+
+@table src
+| name | lo | hi |
+__
+| R0 | 0 | 0 |
+__
+| R1 | 1 | 0 |
+__
+| R2 | 2 | 0 |
+__
+| R3 | 3 | 0 |
+__
+| R4 | 4 | 0 |
+__
+| R5 | 5 | 0 |
+__
+| R6 | 6 | 0 |
+__
+| R7 | 7 | 0 |
+__
+| R8 | 0 | 1 |
+__
+| R9 | 1 | 1 |
+__
+| R10 | 2 | 1 |
+__
+| R11 | 3 | 1 |
+__
+| R12 | 4 | 1 |
+__
+| R13 | 5 | 1 |
+__
+| R14 | 6 | 1 |
+__
+| R15 | 7 | 1 |
+@end
+
+@table base
+| name | lo | hi |
+__
+| R0 | 0 | 0 |
+__
+| R1 | 1 | 0 |
+__
+| R2 | 2 | 0 |
+__
+| R3 | 3 | 0 |
+__
+| R4 | 4 | 0 |
+__
+| R5 | 5 | 0 |
+__
+| R6 | 6 | 0 |
+__
+| R7 | 7 | 0 |
+__
+| R8 | 0 | 1 |
+__
+| R9 | 1 | 1 |
+__
+| R10 | 2 | 1 |
+__
+| R11 | 3 | 1 |
+__
+| R12 | 4 | 1 |
+__
+| R13 | 5 | 1 |
+__
+| R14 | 6 | 1 |
+__
+| R15 | 7 | 1 |
+@end
+
+; Reserved friendly namespace for future width-specific sub-register Rules.
+; The current package deliberately encodes only full-width R0..R15 operands.
+@table subregs
+| name | parent | width |
+__
+| SR0 | R0 | 32 |
+__
+| SR1 | R1 | 32 |
+__
+| SR2 | R2 | 32 |
+__
+| SR3 | R3 | 32 |
+__
+| SR4 | R4 | 32 |
+__
+| SR5 | R5 | 32 |
+__
+| SR6 | R6 | 32 |
+__
+| SR7 | R7 | 32 |
+__
+| SR8 | R8 | 32 |
+__
+| SR9 | R9 | 32 |
+__
+| SR10 | R10 | 32 |
+__
+| SR11 | R11 | 32 |
+__
+| SR12 | R12 | 32 |
+__
+| SR13 | R13 | 32 |
+__
+| SR14 | R14 | 32 |
+__
+| SR15 | R15 | 32 |
+@end

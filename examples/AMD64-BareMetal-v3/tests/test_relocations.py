@@ -99,6 +99,29 @@ jmp8_label data
     assert virtual.image.sections['text'].virtual_size == len(virtual.binary) + 32
     checked += 1
 
+    # Direct signed fields accept the complete range and reject both-sided
+    # overflow; no displacement or branch may be silently truncated.
+    negative_disp = compile_mir_source(text, '_start\nload64 rax, rbx, -1\n')
+    assert negative_disp.binary == bytes.fromhex('48 8b 84 23 ff ff ff ff')
+    compile_mir_source(text, '_start\njmp8 -128\njmp32 -2147483648\n')
+    for source, message in (
+        ('_start\nload64 rax, rbx, 2147483648\n', 'no cabe'),
+        ('_start\nload64 rax, rbx, -2147483649\n', 'no cabe'),
+        ('_start\njmp8 128\n', 'no cabe'),
+        ('_start\njmp32 2147483648\n', 'no cabe'),
+    ):
+        try:
+            compile_mir_source(text, source)
+        except Exception as exception:
+            assert message in str(exception), (source, repr(exception))
+            checked += 1
+        else:
+            raise AssertionError(f'overflow should fail: {source!r}')
+
+    entry = compile_mir_source(text, '_start\nnop\n')
+    assert entry.symbols['_start'] == 0
+    checked += 2
+
     # Native reservation from RIF's own syntax and patch.
     slots = compile_mir_source(text, '_start\nreserve_and_fill_demo\n')
     assert slots.binary[-2:] == bytes.fromhex('abcd')

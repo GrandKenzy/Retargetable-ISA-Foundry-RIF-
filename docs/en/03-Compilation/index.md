@@ -10,6 +10,7 @@ same target definition and use the same MIR dispatcher.
 | [03. Native Functions](./03-native-functions.md) | Closed native operations, `#:calc`, and bounded acquisition. |
 | [04. Inspection, Output Maps, and Contracts](./04-inspection-output-maps-and-contracts.md) | Package inspection, maps, caches, and artifact compatibility. |
 | [05. Verification, Oracles, and Property Testing](./05-verification-and-oracles.md) | Test tiers, optional assemblers, and deterministic fuzzing. |
+| [06. PCP-I](./06-pcp-i.md) | Declarative binary templates, pits, static bytes, and external MIR integration. |
 
 ## Two Compilation Stages
 

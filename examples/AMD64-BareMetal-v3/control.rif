@@ -3,24 +3,24 @@
 @rule jmp32:
 . IDENT
 . bits 233 8
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule je32:
 . IDENT
 . bits 15 8
 . bits 132 8
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule jne32:
 . IDENT
 . bits 15 8
 . bits 133 8
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule call32:
 . IDENT
 . bits 232 8
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule push64:
 . IDENT

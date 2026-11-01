@@ -40,6 +40,16 @@ class ImagePluginTests(unittest.TestCase):
         self.assertIsInstance(result, bytes)
         self.assertEqual(result, bytes((1, 2, 3, 4)) * 2)
 
+    def test_image_is_converted_to_bgrx8888_with_transparency_over_black(self) -> None:
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "pixel.png"
+            Image.new("RGBA", (2, 1), (10, 20, 30, 128)).save(source)
+            result = convert_image(source, "BGRX8888")
+
+        self.assertEqual(result, bytes((15, 10, 5, 0)) * 2)
+
 
 @unittest.skipUnless(HAS_AUDIO, "soundfile/numpy no están instalados")
 class AudioPluginTests(unittest.TestCase):

@@ -1,0 +1,236 @@
+; Friendly syntax: SET, COPY, ADD, INCREASE, LOAD, STORE, RETURN and NOOP.
+; The names are arbitrary target-level vocabulary, not AMD64 built-ins.
+
+; SET r64, imm32 -> mov r64, imm32 (sign-extended by AMD64).
+@rule set:
+. IDENT
+. $dst.name, IDENT
+. ASSIGN
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $dst.hi 1
+. bits 199 8
+. bits 3 2
+. bits 0 3
+. bits $dst.lo 3
+. fit_signed_exact 32
+
+; COPY destination, source -> mov destination, source.
+@rule copy:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $src.name, IDENT
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $src.hi 1
+. bits 139 8
+. bits 3 2
+. bits $dst.lo 3
+. bits $src.lo 3
+
+; ADD destination, source.
+@rule add:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $src.name, IDENT
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $src.hi 1
+. bits 3 8
+. bits 3 2
+. bits $dst.lo 3
+. bits $src.lo 3
+
+; INCREASE destination, signed_imm32.
+@rule increase:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $dst.hi 1
+. bits 129 8
+. bits 3 2
+. bits 0 3
+. bits $dst.lo 3
+. fit_signed_exact 32
+
+; LOAD destination, base, displacement32.
+@rule load:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $base.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $base.hi 1
+. bits 139 8
+. bits 2 2
+. bits $dst.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $base.lo 3
+. fit_signed_exact 32
+
+; STORE source, base, displacement32.
+@rule store:
+. IDENT
+. $src.name, IDENT
+. COMMA
+. $base.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits $src.hi 1
+. bits 0 1
+. bits $base.hi 1
+. bits 137 8
+. bits 2 2
+. bits $src.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $base.lo 3
+. fit_signed_exact 32
+
+@rule return:
+. IDENT
+. bits 195 8
+
+@rule noop:
+. IDENT
+. bits 144 8
+
+; LOOP: a self-relative short jump. It never returns to the next Rule.
+@rule loop:
+. IDENT
+. bits 235 8
+. bits 254 8
+
+; The configured entry is a real native symbol, not only metadata.
+@rule _start:
+. mark
+. IDENT
+
+; BOOT_STAGE: 16-bit VBE checkpoint. It selects mode 0x118, writes the
+; cursor through the A000:0000 banked window, and stops in a safe loop.
+; The fixed bytes are kept in RIF so .pack + .mir remains the canonical path.
+@rule boot_stage:
+. IDENT
+. bits 250 8
+. bits 49 8
+. bits 192 8
+. bits 142 8
+. bits 216 8
+. bits 142 8
+. bits 208 8
+. bits 188 8
+. bits 0 8
+. bits 124 8
+. bits 251 8
+. bits 184 8
+. bits 2 8
+. bits 79 8
+. bits 187 8
+. bits 24 8
+. bits 1 8
+. bits 205 8
+. bits 16 8
+. bits 131 8
+. bits 248 8
+. bits 79 8
+. bits 117 8
+. bits 68 8
+. bits 184 8
+. bits 5 8
+. bits 79 8
+. bits 49 8
+. bits 219 8
+. bits 186 8
+. bits 8 8
+. bits 0 8
+. bits 205 8
+. bits 16 8
+. bits 184 8
+. bits 0 8
+. bits 160 8
+. bits 142 8
+. bits 192 8
+. bits 190 8
+. bits 0 8
+. bits 126 8
+. bits 191 8
+. bits 228 8
+. bits 246 8
+. bits 185 8
+. bits 14 8
+. bits 0 8
+. bits 102 8
+. bits 243 8
+. bits 165 8
+. bits 184 8
+. bits 5 8
+. bits 79 8
+. bits 49 8
+. bits 219 8
+. bits 186 8
+. bits 9 8
+. bits 0 8
+. bits 205 8
+. bits 16 8
+. bits 184 8
+. bits 0 8
+. bits 160 8
+. bits 142 8
+. bits 192 8
+. bits 190 8
+. bits 56 8
+. bits 126 8
+. bits 191 8
+. bits 228 8
+. bits 0 8
+. bits 189 8
+. bits 21 8
+. bits 0 8
+. bits 185 8
+. bits 14 8
+. bits 0 8
+. bits 102 8
+. bits 243 8
+. bits 165 8
+. bits 129 8
+. bits 199 8
+. bits 200 8
+. bits 9 8
+. bits 77 8
+. bits 117 8
+. bits 243 8
+. bits 250 8
+. bits 244 8
+. bits 235 8
+. bits 252 8
+. bits 250 8
+. bits 244 8
+. bits 235 8
+. bits 252 8
+. pad 3312
+. bits 85 8
+. bits 170 8
+
+; BOOT_TAIL pads the boot image to four 512-byte sectors after the 1232-byte
+; BGRX cursor payload is inserted by ::RIF_STORE. PAD receives bits.
+@rule boot_tail:
+. IDENT
+. pad 2432

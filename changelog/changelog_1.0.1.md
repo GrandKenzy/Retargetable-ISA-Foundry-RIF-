@@ -1,5 +1,46 @@
 # RIF 1.0.1 · Security hardening and resource controls
 
+## Correctness patches
+
+- AMD64 displacement, branch, condition-code and signed-immediate Rules now use
+  exact signed fitting. Negative values remain valid, while values outside the
+  declared field range are rejected instead of being truncated.
+- Friendly AMD64 `set`, `increase`, `load` and `store` now reject overflowing
+  immediates and displacements.
+- Configured `_start` entry Rules in the AMD64 examples call the native
+  `mark` primitive, so the entry is present in the symbol map rather than only
+  in target metadata.
+- The Rule-operation C ABI is version `1.1`; relocation transport uses
+  `uint64_t`, preserving the complete absolute 64-bit address domain while
+  retaining signed relative values as two's-complement bit patterns.
+
+## MiniOS asset checkpoint
+
+- Added `examples/MiniOsExample/` with a PCP-I ISO/El Torito header-only
+  template, a
+  public-domain 14x22 arrow cursor source, and a `.store` manifest compiled to
+  an indexed `storage.bin` payload. The example documents the QEMU BIOS launch
+  contract and clearly distinguishes the four header pits from the future
+  boot image, filesystem, and final ISO-9660 image. PCP-I `ZERO n` emits
+  static zero bytes without declaring a fill pit. External MIR now provides
+  `::RIF_PCPI FILL index "hex"` for exact-size transactional pit replacement;
+  the QEMU Friendly variant now owns the boot image and cursor insertion;
+  the generic Friendly target remains free of both.
+
+- Added a separate `examples/amd64-friendlysyntaxs-qemu/` target that copies
+  Friendly Syntax and loads its QEMU-only framebuffer dependency with
+  `@LOAD "qemu/framebuffer.rif"`. The base
+  `examples/amd64-friendlysyntaxs/` target now remains QEMU-independent;
+  the QEMU variant owns the generic `framebuffer` block and
+  `framebuffer_registers` table for std VGA/Bochs VBE at 640×480×32 with
+  `BGRX8888` pixels. This is target metadata; the protected/long-mode
+  transition remains boot-image code, not PCP-I data.
+- Added a complete first QEMU display checkpoint to that target: `boot_stage`
+  emits a 16-bit VBE `0x118` banked-window boot image, `RIF_STORE` inserts the
+  target-ready `cursor_arrow_bgrx8888` payload, and `boot_tail` pads the image
+  to four 512-byte sectors. The checkpoint draws the centered 14×22 cursor and
+  halts; it intentionally postpones PCI BAR0/LFB and long-mode support.
+
 ## Suites de pruebas
 
 - Separadas las pruebas en `suite-essencial`, `suite-aggressive` y
@@ -157,7 +198,8 @@
   functions.
 - Reworked PCP-I into a standalone declarative `.pci` source format. Sources
   declare `MAGIC`, `VERSION`, `ENDIANNESS`, `BITORDER`, `SIGNATURE`, optional
-  `PADDING`, and an `@RAW` region where `[N]` creates an aligned pit. The v1
+  `PADDING`, and an `@RAW` region where `[N]` creates an aligned pit and
+  `ZERO N` emits static zero bytes. The v1
   compiled container has a fixed 144-byte header, generated `RPAD`, and 20-byte
   pit records containing 64-bit relative address, 64-bit size, and 32-bit
   alignment padding; the old RIF Rule entry path and `--pcpi-entry` were
@@ -170,9 +212,10 @@
   `::RIF_STORE`. `::RIF_STORE "storage.bin" label endianness bitorder` now
   resolves a relative storage path, validates the per-item layout values,
   extracts the labeled raw payload, and inserts it at the current byte-aligned
-  position. `::RIF_PCPI SET "image.pcic"` inserts a complete PCP-I container
-  as the first MIR directive, while `::RIF_PCPI PIT index [SECTION name]`
-  reports the absolute payload offset without emitting bytes.
+  position. `::RIF_PCPI SET "image.pcic"` is the first MIR directive and
+  materializes only `PADDING + RAW + RPAD`; `::RIF_PCPI FILL index "hex"`
+  resolves every pit transactionally, while `::RIF_PCPI PIT index [SECTION
+  name]` reports the absolute rendered-payload offset without emitting bytes.
 
 ## Security
 
@@ -191,7 +234,8 @@
   Acquisition failures are now published through Gram `Diagnostics` before
   propagating as compilation errors; console rendering is safe on Windows
   code pages.
-- Added local media plugins: Pillow converts images to RGBA8888 and
+- Added local media plugins: Pillow converts images to RGB888, RGBA8888 or
+  framebuffer-ready BGRX8888 and
   `soundfile`/NumPy converts WAV, FLAC, and OGG audio to interleaved
   PCM_S16LE. They accept only local paths; URL and in-memory byte inputs are
   rejected. Video conversion is out of scope.

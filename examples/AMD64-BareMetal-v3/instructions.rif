@@ -38,6 +38,7 @@
 . bits 153 8
 
 @rule _start:
+. mark
 . IDENT
 
 ; Separate instruction to expose table->datastack->rule flow.

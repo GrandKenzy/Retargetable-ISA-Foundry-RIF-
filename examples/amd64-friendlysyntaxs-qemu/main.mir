@@ -1,0 +1,10 @@
+::RIF_PCPI SET "assets/mini_os_iso_header.pcic"
+; Fill every promised pit. Pit 1 is intentionally an empty root metadata field.
+::RIF_PCPI FILL 0 "1500000000000015"
+::RIF_PCPI FILL 1 "0000000000000000000000000000000000000000000000000000000000000000"
+::RIF_PCPI FILL 2 "00000000000000000000000000000000"
+::RIF_PCPI FILL 3 "88000000000004001400000000000000"
+_start
+boot_stage
+::RIF_STORE "assets/cursor_assets.storage.bin" cursor_arrow_bgrx8888 1 0
+boot_tail

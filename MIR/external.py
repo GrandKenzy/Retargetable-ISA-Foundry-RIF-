@@ -12,7 +12,7 @@ from gram import lexer
 
 from Frontend import RIF_LANG_SESSION, globals
 from pack import PackReader
-from pcpi import PCPIError, PCPI_HEADER_SIZE, load_pcpi_file
+from pcpi import PCPIError, load_pcpi_file
 from rif_limits import COMPILATION_LOCK, resolve_limits
 
 from .instructions import CompiledRuleSet
@@ -45,7 +45,7 @@ class MIRInputError(ValueError):
 
 @dataclass(frozen=True)
 class PCPIPitAddress:
-    """Absolute address reported by one ``::RIF_PCPI PIT`` query."""
+    """Absolute rendered-payload address reported by ``::RIF_PCPI PIT``."""
 
     index: int
     address: int
@@ -437,11 +437,28 @@ def _load_pcpi_directive(
     if emitter.buffer.bit_length % 8:
         raise MIRInputError("::RIF_PCPI SET solo puede comenzar alineado a bytes.")
     offset = emitter.buffer.byte_length
-    try:
-        emitter.emit_bytes(pcpi.to_bytes())
-    except (TypeError, ValueError) as exc:
-        raise MIRInputError(f"No se pudo insertar ::RIF_PCPI SET: {exc}") from exc
     return pcpi, section, offset
+
+
+def _materialize_pcpi(
+    image: AssemblyImage,
+    pcpi: object,
+    set_section: str,
+    set_offset: int,
+) -> None:
+    """Insert only the rendered PCP-I payload, never its container metadata."""
+
+    emitter = image.emitter(set_section)
+    if emitter.buffer.bit_length % 8:
+        raise MIRInputError("::RIF_PCPI SET solo puede comenzar alineado a bytes.")
+    if emitter.buffer.byte_length != set_offset:
+        raise MIRInputError(
+            "La posición de materialización PCP-I cambió antes de insertar el RAW."
+        )
+    try:
+        emitter.emit_bytes(pcpi.render())
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise MIRInputError(f"No se pudo materializar el RAW PCP-I: {exc}") from exc
 
 
 def _pcpi_query_address(
@@ -467,11 +484,87 @@ def _pcpi_query_address(
     address = (
         image.section_offset(section)
         + set_offset
-        + PCPI_HEADER_SIZE
         + len(getattr(pcpi, "padding"))
         + pit.address
     )
     return address, section
+
+
+def _pcpi_fill_bytes(directive: RIFMetaDirective) -> bytes:
+    """Decode one exact-size hexadecimal PCP-I replacement from MIR."""
+
+    if len(directive.payload) != 1:
+        raise MIRInputError("::RIF_PCPI FILL requiere un string hexadecimal.")
+    value = directive.payload[0].value
+    if not isinstance(value, str):
+        raise MIRInputError("::RIF_PCPI FILL requiere un string hexadecimal.")
+    compact = value.replace(" ", "").replace("_", "")
+    if compact.lower().startswith("0x"):
+        compact = compact[2:]
+    if (
+        not compact
+        or len(compact) % 2
+        or any(character not in "0123456789abcdefABCDEF" for character in compact)
+    ):
+        raise MIRInputError(
+            "::RIF_PCPI FILL requiere bytes hexadecimales completos."
+        )
+    try:
+        return bytes.fromhex(compact)
+    except ValueError as exc:
+        raise MIRInputError(
+            "::RIF_PCPI FILL requiere bytes hexadecimales completos."
+        ) from exc
+
+
+def _apply_pcpi_fills(
+    image: AssemblyImage,
+    pcpi: object,
+    set_section: str,
+    set_offset: int,
+    fills: tuple[RIFMetaDirective, ...],
+) -> None:
+    """Fill every PCP-I pit in the rendered RAW payload transactionally."""
+
+    image.layout()
+    pits = getattr(pcpi, "pits", ())
+    working = bytearray(image.file_bytes())
+    used: set[int] = set()
+    base = (
+        image.section_offset(set_section)
+        + set_offset
+        + len(getattr(pcpi, "padding"))
+    )
+    for directive in fills:
+        if directive.index is None:
+            raise MIRInputError("::RIF_PCPI FILL requiere un índice.")
+        index = directive.index
+        if index in used:
+            raise MIRInputError(f"El PIT {index} solo puede rellenarse una vez.")
+        used.add(index)
+        try:
+            pit = pits[index]
+        except IndexError as exc:
+            raise MIRInputError(f"No existe el PIT {index} en la PCP-I seleccionada.") from exc
+        replacement = _pcpi_fill_bytes(directive)
+        if len(replacement) != pit.size:
+            raise MIRInputError(
+                f"El PIT {index} requiere {pit.size} bytes; "
+                f"se recibieron {len(replacement)}."
+            )
+        address = base + pit.address
+        end = address + pit.size
+        if address < 0 or end > len(working):
+            raise MIRInputError(f"El PIT {index} está fuera del binario final.")
+        working[address:end] = replacement
+    missing = [index for index in range(len(pits)) if index not in used]
+    if missing:
+        missing_text = ", ".join(str(index) for index in missing)
+        raise MIRInputError(
+            f"La PCP-I conserva pits sin rellenar: {missing_text}. "
+            "Use ::RIF_PCPI FILL para todos los pits."
+        )
+    image.set_final_bytes(bytes(working))
 
 
 def _resolve_rule_name(
@@ -540,12 +633,29 @@ def _compile_mir_tokens(
     pcpi: object | None = None
     pcpi_set_section: str | None = None
     pcpi_set_offset = 0
+    pcpi_materialized = False
     pcpi_queries: list[RIFMetaDirective] = []
+    pcpi_fills: list[RIFMetaDirective] = []
     dynamic_patches: list[PatchData] = []
+
+    def materialize_pcpi() -> None:
+        nonlocal pcpi_materialized
+        if pcpi is None or pcpi_materialized:
+            return
+        if pcpi_set_section is None:
+            raise MIRInputError("::RIF_PCPI SET no tiene una sección de destino.")
+        _materialize_pcpi(
+            image,
+            pcpi,
+            pcpi_set_section,
+            pcpi_set_offset,
+        )
+        pcpi_materialized = True
 
     def handle_directive(directive: RIFMetaDirective) -> None:
         nonlocal pcpi, pcpi_set_section, pcpi_set_offset
         if directive.name == "RIF_STORE":
+            materialize_pcpi()
             _apply_meta_directive(
                 directive,
                 image,
@@ -554,6 +664,7 @@ def _compile_mir_tokens(
             )
             return
         if directive.name == "RIF_SECTION":
+            materialize_pcpi()
             if directive.section is None:
                 raise MIRInputError("::RIF_SECTION requiere el nombre de una sección.")
             try:
@@ -562,6 +673,7 @@ def _compile_mir_tokens(
                 raise MIRInputError(str(exc)) from exc
             return
         if directive.name == "RIF_INSERT":
+            materialize_pcpi()
             try:
                 insert = _insert_from_meta(directive, image, mir_path)
                 apply_insert_directives(image, (insert,), assets=prepared.assets)
@@ -592,7 +704,12 @@ def _compile_mir_tokens(
                 raise MIRInputError("::RIF_PCPI PIT requiere un SET previo.")
             pcpi_queries.append(directive)
             return
-        raise MIRInputError("::RIF_PCPI requiere SET o PIT.")
+        if directive.operation == "FILL":
+            if pcpi is None:
+                raise MIRInputError("::RIF_PCPI FILL requiere un SET previo.")
+            pcpi_fills.append(directive)
+            return
+        raise MIRInputError("::RIF_PCPI requiere SET, PIT o FILL.")
 
     buffer_result = execute_preprocessor_buffer(
         line for line in lines if isinstance(line, RIFMetaDirective)
@@ -619,6 +736,7 @@ def _compile_mir_tokens(
         if isinstance(line, RIFMetaDirective):
             handle_directive(line)
             continue
+        materialize_pcpi()
         name = resolved_names[resolved_index]
         resolved_index += 1
         result = machine.execute_line(name, line)
@@ -640,11 +758,23 @@ def _compile_mir_tokens(
         )
         image.invalidate_layout()
 
-    apply_patch_directives(
-        image,
-        machine,
-        tuple(dynamic_patches),
-    )
+    materialize_pcpi()
+    with image.transaction():
+        apply_patch_directives(
+            image,
+            machine,
+            tuple(dynamic_patches),
+        )
+        if pcpi is not None:
+            if pcpi_set_section is None:
+                raise MIRInputError("::RIF_PCPI FILL requiere un SET previo.")
+            _apply_pcpi_fills(
+                image,
+                pcpi,
+                pcpi_set_section,
+                pcpi_set_offset,
+                tuple(pcpi_fills),
+            )
 
     pit_addresses: list[PCPIPitAddress] = []
     if pcpi_queries:

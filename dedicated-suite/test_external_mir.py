@@ -20,6 +20,7 @@ from MIR import (
 )
 from MIR.storage import StorageBuilder
 from pack import PackReader, create_pack, read_pack
+from pcpi import load_pcpi_file
 from pcpi_compiler import compile_pcpi_source_file
 from rif import main as rif_main
 
@@ -326,6 +327,7 @@ class ExternalMIRTests(unittest.TestCase):
             target.write_text(TARGET, encoding="utf-8")
             source.write_text(
                 "::RIF_PCPI SET \"header.pcic\"\n"
+                "::RIF_PCPI FILL 0 \"0102\"\n"
                 "::RIF_PCPI PIT 0\n"
                 "::RIF_PCPI PIT 0 SECTION text\n"
                 "::RIF_STORE \"imagenes.bin\" payload 1 0\n",
@@ -354,14 +356,17 @@ class ExternalMIRTests(unittest.TestCase):
             create_pack(target, package, precompile=True)
             loaded_from_pack = compile_mir_file(package, source)
 
-            pcpi_bytes = pcic.read_bytes()
-            self.assertEqual(loaded.binary, pcpi_bytes + b"RAWIMAGE")
+            template = load_pcpi_file(pcic)
+            self.assertEqual(
+                loaded.binary,
+                template.render({0: b"\x01\x02"}) + b"RAWIMAGE",
+            )
             self.assertEqual(loaded.executions, ())
             self.assertEqual(
                 loaded.pcpi_pit_addresses,
                 (
-                    PCPIPitAddress(0, 152, "text"),
-                    PCPIPitAddress(0, 152, "text"),
+                    PCPIPitAddress(0, 8, "text"),
+                    PCPIPitAddress(0, 8, "text"),
                 ),
             )
             self.assertEqual(loaded_from_pack.binary, loaded.binary)
@@ -380,6 +385,52 @@ class ExternalMIRTests(unittest.TestCase):
             )
             self.assertEqual(result.binary, b"\xbb\x01")
             self.assertEqual(result.executions[0].position, 1)
+
+    def test_pcpi_fill_replaces_declared_pits_transactionally(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "main.rif"
+            source = root / "program.asm"
+            pci_source = root / "header.pci"
+            pcic = root / "header.pcic"
+            target.write_text(TARGET, encoding="utf-8")
+            pci_source.write_text(
+                'MAGIC "pcpi"\n'
+                "VERSION 1\n"
+                "ENDIANNESS 1\n"
+                "BITORDER 1\n"
+                'SIGNATURE "fill"\n'
+                "@RAW\n"
+                "AA\n"
+                "[2]\n"
+                "BB\n"
+                "[1]\n"
+                "@END\n",
+                encoding="utf-8",
+            )
+            compile_pcpi_source_file(pci_source, pcic)
+            source.write_text(
+                '::RIF_PCPI SET "header.pcic"\n'
+                '::RIF_PCPI FILL 0 "0102"\n'
+                '::RIF_PCPI FILL 1 "03"\n',
+                encoding="utf-8",
+            )
+
+            result = compile_mir_file(compile_definition(target), source)
+            template = load_pcpi_file(pcic)
+            expected = bytearray(template.render({0: b"\x01\x02", 1: b"\x03"}))
+            base = len(template.padding)
+            expected[base + template.pits[0].address : base + template.pits[0].end] = b"\x01\x02"
+            expected[base + template.pits[1].address : base + template.pits[1].end] = b"\x03"
+            self.assertEqual(result.binary, bytes(expected))
+
+            with self.assertRaisesRegex(MIRInputError, "requiere 2 bytes"):
+                compile_mir_source(
+                    compile_definition(target),
+                    '::RIF_PCPI SET "header.pcic"\n'
+                    '::RIF_PCPI FILL 0 "01"\n',
+                    name=str(root / "bad.asm"),
+                )
 
     def test_store_directive_rejects_invalid_layout_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

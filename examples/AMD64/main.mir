@@ -1,4 +1,5 @@
 ; OS-neutral AMD64 raw instruction fixture.
+_start
 mov rax, 42
 mov rdi, 7
 nop

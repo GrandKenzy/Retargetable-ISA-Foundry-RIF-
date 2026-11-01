@@ -29,6 +29,7 @@ from rif_limits import resolve_limits
 MAX_PCPI_BYTES = 128 << 20
 _HEX = re.compile(r"^(?:0x)?[0-9A-Fa-f]{2}$")
 _PIT = re.compile(r"^\[(\d+)\]$")
+_ZERO = re.compile(r"^ZERO\s+(\d+)$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -143,6 +144,14 @@ def _parse_raw(
             ended = True
             end_index = index
             break
+        zero_match = _ZERO.fullmatch(line)
+        if zero_match:
+            size = _integer(zero_match.group(1), line_number, "ZERO")
+            maximum = resolve_limits().cap(MAX_PCPI_BYTES)
+            if len(raw) + size > maximum:
+                raise PCPIError("La imagen PCP-I excede el límite de recursos configurado.")
+            raw.extend(b"\0" * size)
+            continue
         for token in line.split():
             pit_match = _PIT.fullmatch(token)
             if pit_match:

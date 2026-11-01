@@ -1,0 +1,18 @@
+; RIF indexed media source for MiniOS UI assets.
+MAGIC "store"
+VERSION 1
+
+@ITEM IMAGE
+: "assets/cursor_arrow_14x22.png"
+: "png"
+: "RGBA8888"
+: cursor_arrow_rgba8888
+@end
+
+; Runtime-ready pixels for the QEMU BGRX8888 framebuffer.
+@ITEM IMAGE
+: "assets/cursor_arrow_14x22.png"
+: "png"
+: "BGRX8888"
+: cursor_arrow_bgrx8888
+@end

@@ -64,3 +64,8 @@ __
 @rule nop:
 . IDENT
 . bits 144 8
+
+; The configured entry is a real native symbol, not only metadata.
+@rule _start:
+. mark
+. IDENT

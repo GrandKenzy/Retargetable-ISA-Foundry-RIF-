@@ -1,9 +1,9 @@
 # AMD64 Friendly Syntax
 
-This is an AMD64 bare-metal `.pack` target with a deliberately readable input
-vocabulary. It demonstrates that RIF does not require the input language to
-look like AMD64 assembly: the target Rules and extensible tables define the
-syntax and emit the raw bytes.
+This is the QEMU-independent AMD64 bare-metal `.pack` target with a readable
+input vocabulary. It demonstrates that RIF does not require the input language
+to look like AMD64 assembly: the target Rules and extensible tables define the
+syntax and emit raw bytes.
 
 The accepted forms in `demo.mir` are:
 
@@ -21,13 +21,15 @@ return
 General-purpose registers use the friendly names `R0` through `R15`; the
 architectural mapping is kept in tables, so the names are not built into RIF.
 `SR0` through `SR15` are reserved for future width-specific sub-register Rules;
-this first package intentionally emits only full-width registers.
+this package intentionally emits only full-width registers.
 
 `set` and `increase` immediate values use signed 32-bit operands. `load` and
-`store` use an explicit base register and signed 32-bit displacement; the
-Rules emit the AMD64 SIB form with a 32-bit displacement. The target is raw
-and OS-neutral: it does not create ELF, Linux syscalls, a host ABI, or an
-external linker contract.
+`store` use an explicit base register and signed 32-bit displacement. The
+target is raw and OS-neutral: it does not contain Linux, ELF, QEMU, VGA,
+framebuffer, or host-ABI dependencies.
+
+QEMU-specific video metadata and the MiniOS boot entry live in the separate
+[AMD64 Friendly Syntax QEMU](../amd64-friendlysyntaxs-qemu/README.md) target.
 
 ## Compile from source and from `.pack`
 
@@ -64,8 +66,7 @@ syntax is target data rather than a built-in parser mode.
 
 `equivalent.mir` is the same small bare-metal program as
 `examples/AMD64/main.mir`, rewritten with the friendly vocabulary. The
-dedicated comparison compiles both targets from source and from `.pack` and
-requires all four outputs to be the same 15 bytes:
+dedicated comparison compiles both targets from source and from `.pack`:
 
 ```powershell
 vnma run examples/amd64-friendlysyntaxs/tests/test_syntax_equivalence.py `

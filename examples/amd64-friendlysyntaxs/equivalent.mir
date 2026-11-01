@@ -1,4 +1,5 @@
 ; Same semantic program as examples/AMD64/main.mir, using the friendly syntax.
+_start
 set R0 = 42
 set R7 = 7
 noop

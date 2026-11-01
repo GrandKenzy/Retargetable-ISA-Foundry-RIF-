@@ -4,14 +4,14 @@
 @rule jmp8:
 . IDENT
 . bits 235 8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule jcc8:
 . IDENT
 . $conditions.name, IDENT
 . COMMA
 . bits $conditions.sjopcode 8
-. fit_signed 8
+. fit_signed_exact 8
 
 ; Indirect register branches use FF /4 (JMP) and FF /2 (CALL). REX.B is
 ; emitted even for low registers, which is legal and keeps one Rule shape.
@@ -162,7 +162,7 @@
 . JUMP encode_rex_indirect_mem
 . bits 255 8
 . JUMP encode_modrm_indirect_mem8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule callmem64_8:
 . IDENT
@@ -171,7 +171,7 @@
 . JUMP encode_rex_indirect_mem
 . bits 255 8
 . JUMP encode_modrm_call_indirect_mem8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule jmpmem64:
 . IDENT
@@ -180,7 +180,7 @@
 . JUMP encode_rex_indirect_mem
 . bits 255 8
 . JUMP encode_modrm_indirect_mem32
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule callmem64:
 . IDENT
@@ -189,4 +189,4 @@
 . JUMP encode_rex_indirect_mem
 . bits 255 8
 . JUMP encode_modrm_call_indirect_mem32
-. fit_signed 32
+. fit_signed_exact 32

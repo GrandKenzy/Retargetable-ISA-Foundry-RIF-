@@ -5,6 +5,18 @@
       "editable": true,
       "path": "~/Desktop/Gram",
       "source": "editable"
+    },
+    "pillow": {
+      "active_extras": [],
+      "dll_directories": [
+        "PIL"
+      ],
+      "files_count": 120,
+      "has_native_binaries": true,
+      "sha256": "f7cbb7a64e7ec664775195e4f81923bc8a93d9451b963f844e59118f63147a7a",
+      "source": "pypi",
+      "version": "13.0.0",
+      "wheel_filename": "pillow-13.0.0-cp314-cp314-win_amd64.whl"
     }
   },
   "python_version": "3.14.7"

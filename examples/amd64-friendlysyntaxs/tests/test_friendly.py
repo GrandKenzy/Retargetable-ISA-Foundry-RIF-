@@ -1,4 +1,4 @@
-"""Verify the friendly AMD64 syntax from source and from a compiled pack."""
+"""Verify the QEMU-independent Friendly AMD64 syntax."""
 from __future__ import annotations
 
 import argparse
@@ -28,6 +28,8 @@ def check(rif_root: Path) -> None:
 
     source = (BASE / "demo.mir").read_text(encoding="utf-8")
     direct_target = prepare_target(BASE / "main.rif")
+    assert "framebuffer" not in direct_target.program.context.blocks
+    assert "framebuffer_registers" not in direct_target.program.context.tables
     subregs = direct_target.program.context.tables["subregs"].matrix
     assert subregs[0] == ("SR0", "R0", 32)
     assert subregs[-1] == ("SR15", "R15", 32)
@@ -36,11 +38,33 @@ def check(rif_root: Path) -> None:
 
     with tempfile.TemporaryDirectory(prefix="rif-friendly-pack-") as directory:
         package = create_pack(BASE / "main.rif", Path(directory) / "friendly.pack")
-        packed = compile_mir_source(prepare_target(package), source)
+        packed_target = prepare_target(package)
+        assert "framebuffer" not in packed_target.program.context.blocks
+        assert "framebuffer_registers" not in packed_target.program.context.tables
+        packed = compile_mir_source(packed_target, source)
 
     assert packed.binary == EXPECTED
     assert packed.binary == direct.binary
-    print(f"OK AMD64 friendly syntax: {len(EXPECTED)} bytes; source == pack")
+
+    # Friendly syntax must reject, rather than truncate, signed imm32 and
+    # disp32 fields. These are intentionally invalid MIR inputs.
+    invalid = (
+        "set R0 = 2147483648\n",
+        "increase R0, 2147483648\n",
+        "load R0, R4, 2147483648\n",
+        "store R0, R4, -2147483649\n",
+    )
+    for program in invalid:
+        try:
+            compile_mir_source(direct_target, program)
+        except Exception:
+            pass
+        else:
+            raise AssertionError(f"friendly input should be rejected: {program!r}")
+
+    entry = compile_mir_source(direct_target, "_start\nnoop\n")
+    assert entry.symbols["_start"] == 0
+    print(f"OK AMD64 friendly syntax without QEMU dependencies: {len(EXPECTED)} bytes")
 
 
 if __name__ == "__main__":

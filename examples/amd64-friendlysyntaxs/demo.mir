@@ -1,4 +1,5 @@
 ; Friendly syntax is intentionally not AMD64 mnemonic syntax.
+_start
 set R0 = 42
 set R7 = 7
 copy R8, R0

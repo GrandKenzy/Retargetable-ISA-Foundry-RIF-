@@ -24,7 +24,7 @@ RIF_META_OPERATIONS = {
     "RIF_BUFFER": ("SET", "CLEAN", "EXTRACT"),
     "RIF_INSERT": ("BYTES", "BINARY", "FILE"),
     "RIF_PATCH": ("PATCH",),
-    "RIF_PCPI": ("SET", "PIT"),
+        "RIF_PCPI": ("SET", "PIT", "FILL"),
     "RIF_REQSTS": ("REQSTS",),
     "RIF_SECTION": ("SECTION",),
     "RIF_STORE": ("STORE",),
@@ -102,7 +102,26 @@ def _directive(line: tuple[lexer.TokenType, ...]) -> RIFMetaDirective | None:
                 section=section,
                 line=line_number,
             )
-        raise ValueError("::RIF_PCPI solo acepta SET o PIT.")
+        if operation == "FILL":
+            if (
+                len(line) != 6
+                or line[4].token != lexer.Token.NUMBER
+                or line[5].token != lexer.Token.STRING
+            ):
+                raise ValueError(
+                    '::RIF_PCPI FILL requiere un índice y un string hexadecimal.'
+                )
+            index = int(line[4].value)
+            if index < 0:
+                raise ValueError("El índice de ::RIF_PCPI FILL no puede ser negativo.")
+            return RIFMetaDirective(
+                name,
+                operation=operation,
+                index=index,
+                payload=(line[5],),
+                line=line_number,
+            )
+        raise ValueError("::RIF_PCPI solo acepta SET, PIT o FILL.")
     if name == "RIF_REQSTS":
         if len(line) != 4 or line[3].token != lexer.Token.STRING:
             raise ValueError('::RIF_REQSTS requiere una ruta GitHub entre comillas.')

@@ -70,6 +70,17 @@ class PCPITests(unittest.TestCase):
             self.assertEqual(result, output.resolve())
             self.assertTrue(output.is_file())
 
+    def test_zero_directive_emits_static_bytes_without_creating_a_pit(self) -> None:
+        source_text = SOURCE.replace("7F 44\n[2]", "7F 44\nZERO 6\n[2]")
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "header.pci"
+            source.write_text(source_text, encoding="utf-8")
+
+            image = compile_pcpi_source(source).image
+
+            self.assertEqual(image.image[:8], b"\x7fD" + b"\0" * 6)
+            self.assertEqual(image.pits, (PCPIPit(8, 2, 0),))
+
     def test_fill_requires_exact_pit_size(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "header.pci"

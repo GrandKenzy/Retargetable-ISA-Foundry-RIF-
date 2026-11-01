@@ -1,0 +1,23 @@
+@table framebuffer_registers
+| name | index | width |
+__
+| ID | 0 | 16 |
+__
+| XRES | 1 | 16 |
+__
+| YRES | 2 | 16 |
+__
+| BPP | 3 | 16 |
+__
+| ENABLE | 4 | 16 |
+__
+| BANK | 5 | 16 |
+__
+| VIRT_WIDTH | 6 | 16 |
+__
+| VIRT_HEIGHT | 7 | 16 |
+__
+| X_OFFSET | 8 | 16 |
+__
+| Y_OFFSET | 9 | 16 |
+@end

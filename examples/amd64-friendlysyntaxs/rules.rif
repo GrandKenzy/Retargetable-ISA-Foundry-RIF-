@@ -14,7 +14,7 @@
 . bits 3 2
 . bits 0 3
 . bits $dst.lo 3
-. fit_signed 32
+. fit_signed_exact 32
 
 ; COPY destination, source -> mov destination, source.
 @rule copy:
@@ -61,7 +61,7 @@
 . bits 3 2
 . bits 0 3
 . bits $dst.lo 3
-. fit_signed 32
+. fit_signed_exact 32
 
 ; LOAD destination, base, displacement32.
 @rule load:
@@ -82,7 +82,7 @@
 . bits 0 2
 . bits 4 3
 . bits $base.lo 3
-. fit_signed 32
+. fit_signed_exact 32
 
 ; STORE source, base, displacement32.
 @rule store:
@@ -103,7 +103,7 @@
 . bits 0 2
 . bits 4 3
 . bits $base.lo 3
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule return:
 . IDENT
@@ -112,3 +112,14 @@
 @rule noop:
 . IDENT
 . bits 144 8
+
+; LOOP: a self-relative short jump. It never returns to the next Rule.
+@rule loop:
+. IDENT
+. bits 235 8
+. bits 254 8
+
+; The configured entry is a real native symbol, not only metadata.
+@rule _start:
+. mark
+. IDENT

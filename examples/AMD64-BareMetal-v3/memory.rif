@@ -10,7 +10,7 @@
 . JUMP encode_rex_w_mem
 . bits 139 8
 . JUMP encode_modrm_mem
-. fit 32
+. fit_signed_exact 32
 
 @rule store64:
 . IDENT
@@ -21,7 +21,7 @@
 . JUMP encode_rex_w_mem
 . bits 137 8
 . JUMP encode_modrm_mem
-. fit 32
+. fit_signed_exact 32
 
 ; MOV r64, [base + index*scale + disp32]. index cannot be rsp.
 @rule loadx64:
@@ -37,7 +37,7 @@
 . JUMP encode_rex_w_index
 . bits 139 8
 . JUMP encode_modrm_index
-. fit 32
+. fit_signed_exact 32
 
 @rule storex64:
 . IDENT
@@ -52,7 +52,7 @@
 . JUMP encode_rex_w_index
 . bits 137 8
 . JUMP encode_modrm_index
-. fit 32
+. fit_signed_exact 32
 
 @rule lea64:
 . IDENT
@@ -63,7 +63,7 @@
 . JUMP encode_rex_w_mem
 . bits 141 8
 . JUMP encode_modrm_mem
-. fit 32
+. fit_signed_exact 32
 
 @rule leax64:
 . IDENT
@@ -78,4 +78,4 @@
 . JUMP encode_rex_w_index
 . bits 141 8
 . JUMP encode_modrm_index
-. fit 32
+. fit_signed_exact 32

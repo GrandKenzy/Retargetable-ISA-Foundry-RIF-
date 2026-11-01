@@ -40,7 +40,7 @@ variants, Python functions, and independent physical and virtual memory state.
 | Version | Date | Main focus | Notes |
 | --- | --- | --- | --- |
 | [`1.0.1`](changelog_1.0.1.md) | 2026-10-26 | Security hardening and resource controls | Current |
-| [`1.0.0`](changelog_1.0.0.md) | 2026-10-26 | Complete RIF compilation pipeline | Current |
+| [`1.0.0`](changelog_1.0.0.md) | 2026-10-26 | Complete RIF compilation pipeline | Superseded |
 
 ## How to read these notes
 

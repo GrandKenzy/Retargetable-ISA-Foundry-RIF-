@@ -42,8 +42,10 @@ relative address, `u64` payload size, `u32` alignment padding, and `u32`
 label size. The UTF-8 label bytes live directly after that entry's payload in
 the raw region.
 
-`convert_image` returns only immutable row-major `RGBA8888` bytes. It requires
-Pillow; dimensions are intentionally not part of the plugin result.
+`convert_image` returns immutable row-major `RGB888`, `RGBA8888`, or
+framebuffer-ready `BGRX8888` bytes. `BGRX8888` composites transparency over
+black and drops alpha because the target format has no alpha channel. It
+requires Pillow; dimensions are intentionally not part of the plugin result.
 
 `convert_audio` returns only immutable interleaved signed little-endian
 `PCM_S16LE` bytes from WAV, FLAC, or OGG containers. It requires `soundfile`

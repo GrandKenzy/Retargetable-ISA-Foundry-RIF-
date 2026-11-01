@@ -159,7 +159,7 @@
 . JUMP encode_rex_mem8
 . bits 139 8
 . JUMP encode_modrm_mem8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule store64_8:
 . IDENT
@@ -170,7 +170,7 @@
 . JUMP encode_rex_mem8
 . bits 137 8
 . JUMP encode_modrm_mem8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule lea64_8:
 . IDENT
@@ -181,7 +181,7 @@
 . JUMP encode_rex_mem8
 . bits 141 8
 . JUMP encode_modrm_mem8
-. fit_signed 8
+. fit_signed_exact 8
 
 ; Indexed no-displacement and disp8 forms. RSP remains excluded from the
 ; index table because SIB index=100 means no index in 64-bit mode.
@@ -276,7 +276,7 @@
 . JUMP encode_rex_index8
 . bits 139 8
 . JUMP encode_modrm_index8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule storex64_8:
 . IDENT
@@ -291,7 +291,7 @@
 . JUMP encode_rex_index8
 . bits 137 8
 . JUMP encode_modrm_index8
-. fit_signed 8
+. fit_signed_exact 8
 
 @rule leax64_8:
 . IDENT
@@ -306,4 +306,4 @@
 . JUMP encode_rex_index8
 . bits 141 8
 . JUMP encode_modrm_index8
-. fit_signed 8
+. fit_signed_exact 8

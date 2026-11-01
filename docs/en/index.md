@@ -1,6 +1,6 @@
 # RIF Documentation
 
-> **Version:** `1.0.0`
+> **Version:** `1.0.1`
 > **Runtime:** Python 3.10+ with Gram
 
 RIF is a retargetable instruction format and compilation framework. A RIF
@@ -46,6 +46,7 @@ files, inspects artifacts, and verifies output.
 - [03. Native Functions](./03-Compilation/03-native-functions.md)
 - [04. Inspection, Output Maps, and Contracts](./03-Compilation/04-inspection-output-maps-and-contracts.md)
 - [05. Verification, Oracles, and Property Testing](./03-Compilation/05-verification-and-oracles.md)
+- [06. PCP-I](./03-Compilation/06-pcp-i.md)
 
 ### [04. Execution](./04-Execution/index.md)
 

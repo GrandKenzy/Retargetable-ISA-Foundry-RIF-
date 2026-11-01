@@ -62,7 +62,7 @@ __
 . JUMP encode_rex_addr32_mem
 . bits 139 8
 . JUMP encode_modrm_addr32_mem
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule store64_67:
 . IDENT
@@ -74,7 +74,7 @@ __
 . JUMP encode_rex_addr32_mem
 . bits 137 8
 . JUMP encode_modrm_addr32_mem
-. fit_signed 32
+. fit_signed_exact 32
 
 ; LOCK is only declared for read-modify-write memory forms in this profile.
 @rule encode_rex_lock_mem:
@@ -97,7 +97,7 @@ __
 . bits $movsrc.lo 3
 . bits 4 3
 . JUMP encode_sib
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule lock_inc64:
 . IDENT
@@ -113,7 +113,7 @@ __
 . bits 0 3
 . bits 4 3
 . JUMP encode_sib
-. fit_signed 32
+. fit_signed_exact 32
 
 ; REP string forms. The consumer initializes RSI/RDI/RCX as required by the
 ; selected MIR program; these Rules only declare the emitted bytes.
@@ -151,7 +151,7 @@ __
 . JUMP encode_rex_w_mem
 . bits 139 8
 . JUMP encode_modrm_mem
-. fit_signed 32
+. fit_signed_exact 32
 
 @rule gs_store64:
 . IDENT
@@ -163,4 +163,4 @@ __
 . JUMP encode_rex_w_mem
 . bits 137 8
 . JUMP encode_modrm_mem
-. fit_signed 32
+. fit_signed_exact 32

@@ -15,7 +15,7 @@ from typing import Any, Callable
 from rif_limits import resolve_limits
 
 
-RULE_OPERATION_ABI_VERSION = "1.0"
+RULE_OPERATION_ABI_VERSION = "1.1"
 MAX_OPERATION_WIDTH = 64 << 20
 
 
@@ -149,12 +149,17 @@ def operation_c_header() -> str:
 
 #include <stdint.h>
 
-#define RIF_RULE_OPERATION_ABI_VERSION \"1.0\"
+#define RIF_RULE_OPERATION_ABI_VERSION \"1.1\"
 
 /* Return 0 on success and a non-zero validation error otherwise. */
 int rif_op_fit_unsigned(uint64_t value, uint32_t width, uint8_t truncate, uint64_t *out);
 int rif_op_fit_signed(int64_t value, uint32_t width, uint8_t truncate, uint64_t *out);
-int rif_op_encode_relocation(int64_t value, uint32_t width, uint8_t relative, uint64_t *out);
+/*
+ * The value is a uint64_t transport for both relocation domains:
+ * relative values are supplied as their two's-complement int64_t bit pattern,
+ * while absolute values use the full unsigned 64-bit domain.
+ */
+int rif_op_encode_relocation(uint64_t value, uint32_t width, uint8_t relative, uint64_t *out);
 
 #endif
 """
@@ -202,11 +207,10 @@ int rif_op_fit_signed(int64_t value, uint32_t width, uint8_t truncate, uint64_t 
     return 0;
 }
 
-int rif_op_encode_relocation(int64_t value, uint32_t width, uint8_t relative, uint64_t *out) {
+int rif_op_encode_relocation(uint64_t value, uint32_t width, uint8_t relative, uint64_t *out) {
     if (!out || !rif_valid_width(width)) return -1;
-    if (relative) return rif_op_fit_signed(value, width, 0, out);
-    if (value < 0) return -2;
-    return rif_op_fit_unsigned((uint64_t)value, width, 0, out);
+    if (relative) return rif_op_fit_signed((int64_t)value, width, 0, out);
+    return rif_op_fit_unsigned(value, width, 0, out);
 }
 '''
 

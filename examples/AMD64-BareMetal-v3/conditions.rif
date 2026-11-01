@@ -6,7 +6,7 @@
 . COMMA
 . bits 15 8
 . bits $conditions.jopcode 8
-. fit_signed 32
+. fit_signed_exact 32
 
 ; cmovrr cc, dst64, src64. x86 flags from prior operations.
 @rule cmovrr:

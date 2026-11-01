@@ -17,6 +17,7 @@ External MIR may contain reserved markers for binary artifacts managed by RIF:
 
 ```text
 ::RIF_PCPI SET "header.pcic"
+::RIF_PCPI FILL 0 "0102030405060708"
 ::RIF_PCPI PIT 0
 ::RIF_PCPI PIT 0 SECTION text
 ::RIF_STORE "images.bin" myImage 1 0
@@ -24,11 +25,16 @@ mov rax, 1
 ```
 
 `::RIF_PCPI SET` must be the first non-empty line. It loads a `.pcic` file and
-copies the complete container into the current section. `::RIF_PCPI PIT` emits
-no bytes; it queries the absolute address of the reserved payload, measured
-from offset `0` of the final file. The `SECTION text` form uses that section's
-actual file offset. Queries are returned through
-`MIRCompilation.pcpi_pit_addresses` and printed by the CLI.
+materializes its rendered payload into the current section. It does not emit
+the PCP-I header or pit table. `::RIF_PCPI FILL index "hex bytes"` replaces one
+declared pit with an exact-size hexadecimal value before the final bytes are
+committed. Every pit must have a fill. `::RIF_PCPI PIT` emits no bytes; it
+queries the absolute address of a filled pit in the rendered payload. The
+`SECTION text` form uses that section's actual file offset. Queries are
+returned through `MIRCompilation.pcpi_pit_addresses` and printed by the CLI.
+For the complete `.pci`/`.pcic` contract, pit semantics, and the difference
+between container and rendered-image addresses, see
+[PCP-I](./06-pcp-i.md).
 
 `::RIF_STORE`
 receives `ENDIANNESS` (`1` little, `2` big) and `BITORDER` (`0` LSB, `1` MSB),

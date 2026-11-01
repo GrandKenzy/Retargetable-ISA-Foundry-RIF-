@@ -28,7 +28,11 @@ fixups, parches e imagen final. El MIR externo no es el `CompiledRuleSet`.
 Para PCP-I, `rif.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
 `.pci` directamente y serializa el contenedor validado con `pcpi.py`. PCP-I es
 una salida especializada e independiente del frontend RIF; no ejecuta Rules
-ni añade una segunda gramática al lenguaje `.rif`.
+ni añade una segunda gramática al lenguaje `.rif`. En `@RAW`, `[N]` declara
+un pit alineado y `ZERO N` emite ceros estáticos sin crear un pit. El
+preprocesador MIR acepta `::RIF_PCPI FILL index "hex"` después de `SET` para
+reemplazar cada pit con tamaño exacto y de forma transaccional; `PIT` sigue
+siendo una consulta de dirección, no un relleno.
 
 ## Bloques genéricos
 
@@ -141,7 +145,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 - `MIR/external.py`: consumo de entradas MIR externas y validación del linker.
 - `MIR/preprocessor.py`: reconoce directivas cerradas de metaprogramación
   (`::RIF_PCPI` y `::RIF_STORE`) antes del despacho de Rules; `RIF_PCPI SET`
-  inserta contenedores `.pcic` y `RIF_PCPI PIT` calcula offsets absolutos,
+  materializa `PADDING + RAW + RPAD` sin el header ni la tabla `.pcic`,
+  `RIF_PCPI FILL` resuelve todos los pits y `RIF_PCPI PIT` calcula offsets absolutos,
   mientras `RIF_STORE` valida `ENDIANNESS`/`BITORDER`, extrae payloads raw
   etiquetados y los inserta en la sección actual.
 - `foot/`: material temporal resumido y machine-readable usado para alimentar
@@ -163,8 +168,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   hardening e integraciones que pueden requerir adaptación ante cambios de API.
 - `tests/`: lanzador compatible para que `vnma test` ejecute la suite esencial.
   `examples/`: targets y demostraciones completas, incluyendo el demo
-  agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs`, AMD64 bare metal, ELF64
-  y GBA. El target
+  agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs` y su variante QEMU,
+  AMD64 bare metal, ELF64 y GBA. El target
   `AMD64-BareMetal-v3` emite imágenes raw y no asume un sistema operativo,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio.
@@ -353,6 +358,42 @@ ofrece fuzzing determinista por seed para operandos y primitivas.
 `MIR.operations` es la frontera C/AOT para operaciones puras dentro de Rules.
 `operation_abi()`/`operation_abi_json()` describen la tabla cerrada y
 `operation_c_header()` y `operation_c_source()` devuelven las firmas e
-implementación C portables. La ABI actual es `1.0` y cubre fit unsigned, fit
-signed y encoding de relocaciones. El runtime Python usa esas mismas
-primitivas; no se serializan callbacks Python en `.pack`.
+implementación C portables. La ABI actual es `1.1` y cubre fit unsigned, fit
+signed y encoding de relocaciones. `rif_op_encode_relocation` usa `uint64_t`
+como transporte: los relativos se interpretan como patrones signed en
+complemento a dos y los absolutos conservan el dominio completo de 64 bits.
+El runtime Python usa esas mismas primitivas; no se serializan callbacks
+Python en `.pack`.
+
+Los targets AMD64 que declaran `entry text "_start"` también deben exponer una
+Rule `_start` con `. mark` antes de consumir el identificador. La configuración
+declara el entrypoint, mientras `mark` materializa el símbolo nativo que llega
+al mapa de salida y a las relocaciones.
+
+### MiniOSExample
+
+`examples/MiniOsExample/` es el primer checkpoint de un sistema operativo AMD64
+arrancable. `mini_os_iso_header.pci` usa PCP-I para declarar el área de sistema,
+los cuatro sectores de cabecera ISO/El Torito y cuatro pits para valores que
+dependen del layout final. `ZERO n` representa bytes estáticos cero y no crea
+un pit; `[n]` sigue siendo exclusivamente una región rellenable. El `.pcic`
+resultante es un contenedor PCP-I validado, no una ISO-9660 que QEMU pueda
+arrancar directamente: no contiene boot image, código, filesystem ni payload.
+La ISO final requerirá ensamblar ese layout con las salidas posteriores.
+`cursor_assets.store` demuestra la ruta de media externa y produce un
+`storage.bin` indexado con los cursores RGBA y BGRX etiquetados.
+
+### Friendly Syntax QEMU
+
+`examples/amd64-friendlysyntaxs/` es deliberadamente independiente de QEMU:
+no declara framebuffer, registros Bochs VBE ni un contrato de dispositivo. La
+variante `examples/amd64-friendlysyntaxs-qemu/` copia ese vocabulario y añade
+la dependencia `@LOAD "qemu/framebuffer.rif"`, además del bloque raíz
+`framebuffer`. La tabla `framebuffer_registers` y el bloque describen metadata
+extensible para las Rules de boot de QEMU std VGA/Bochs VBE a 640×480×32,
+`BGRX8888`, puertos índice/datos y PCI BAR0; no inicializan el dispositivo ni
+añaden código protected/long mode a PCP-I. La variante ya tiene un primer
+checkpoint de boot emitido por la Rule `boot_stage`: modo VBE `0x118` con
+ventana bancanda `A000:0000`, copia del cursor `BGRX8888` desde `RIF_STORE` y
+detención segura. El código sigue en real mode; PCI BAR0, LFB y long mode quedan
+como la siguiente etapa.

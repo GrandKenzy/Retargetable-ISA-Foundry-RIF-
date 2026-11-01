@@ -5,7 +5,7 @@ RIF informa los errores en la fase donde se detectan.
 ## Errores sintácticos
 
 Gram reporta delimitadores faltantes, tokens inválidos, filas incompletas y
-bloques `emitfr` mal formados. En tablas, revisa el `|` final y la fila de
+bloques `frame` mal formados. En tablas, revisa el `|` final y la fila de
 separación.
 
 ## Errores semánticos
@@ -18,7 +18,7 @@ de ejecutar el MIR.
 
 `RIFRuntimeError` cubre consumidores con token incorrecto, pop de datastack
 vacío, ausencia de una fila, inmediatos que no caben, rangos fuera de memoria,
-reservas o Rules desconocidas y retornos inválidos de Python.
+reservas o Rules desconocidas y retornos inválidos de funciones nativas.
 
 ## Trazas
 
@@ -37,5 +37,5 @@ vnma test
 ```
 
 La suite cubre integración con Gram, tablas, paquetes, compilación CLI y
-directa de MIR, funciones Python, memoria física y virtual, datastack y rutas
+directa de MIR, funciones nativas, memoria física y virtual, datastack y rutas
 de error.

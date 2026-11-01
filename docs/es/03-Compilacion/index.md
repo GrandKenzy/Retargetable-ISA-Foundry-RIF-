@@ -7,7 +7,7 @@ definición y usan el mismo dispatcher de MIR.
 | :--- | :--- |
 | [01. MIR externo](./01-mir-externo.md) | Compilación por CLI y API de archivos, texto o tokens. |
 | [02. Paquetes RIF](./02-paquetes-rif.md) | Contenido, precompilación y ventajas de `.pack`. |
-| [03. Funciones Python](./03-funciones-python.md) | Contrato de `funcs.py` y contexto de ejecución. |
+| [03. Funciones nativas](./03-funciones-nativas.md) | Contratos estáticos y función `#:calc`. |
 
 ## Dos fases
 

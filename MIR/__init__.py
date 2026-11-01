@@ -26,11 +26,13 @@ from .semantic import (
     resolve_rule,
 )
 from .runtime import ExecutionResult, RIFMachine, RIFRuntimeError, RuleTrace
-from .function_context import RIFFunctionContext
-from .functions import FunctionModule, RIFFunctionError, load_function_file, load_function_source
+from .functions import CalcError, ReqstsError, calc, reqsts
+from .buffer import BufferError, BufferResult, execute_buffer
+from .preprocessor import MIRLine, RIFMetaDirective, RIF_META_DIRECTIVES, preprocess_mir_lines
 from .external import (
     MIRCompilation,
     MIRInputError,
+    PCPIPitAddress,
     PreparedTarget,
     compile_mir,
     compile_mir_file,
@@ -39,8 +41,25 @@ from .external import (
     prepare_target,
     tokenize_mir,
 )
-from .artifacts import ArtifactError, BinaryValue, ScalarValue, apply_before, apply_inserts
+from .artifacts import (
+    ArtifactError,
+    BinaryValue,
+    InsertData,
+    PatchData,
+    ScalarValue,
+    apply_insert_directives,
+    apply_patch_directives,
+)
 from .output import AssemblyImage, AssemblySection
+from .storage import (
+    StorageBuilder,
+    StorageEntry,
+    StorageError,
+    StorageImage,
+    build_storage,
+    load_storage_file,
+    parse_storage,
+)
 from .pipeline import (
     Compilation,
     compile_definition,
@@ -85,13 +104,20 @@ __all__ = [
     "RuleTrace",
     "RIFMachine",
     "RIFRuntimeError",
-    "RIFFunctionContext",
-    "FunctionModule",
-    "RIFFunctionError",
-    "load_function_file",
-    "load_function_source",
+    "CalcError",
+    "ReqstsError",
+    "calc",
+    "reqsts",
+    "BufferError",
+    "BufferResult",
+    "execute_buffer",
+    "RIF_META_DIRECTIVES",
+    "MIRLine",
+    "RIFMetaDirective",
+    "preprocess_mir_lines",
     "MIRCompilation",
     "MIRInputError",
+    "PCPIPitAddress",
     "PreparedTarget",
     "tokenize_mir",
     "compile_mir",
@@ -101,11 +127,20 @@ __all__ = [
     "prepare_target",
     "ArtifactError",
     "BinaryValue",
+    "InsertData",
+    "PatchData",
     "ScalarValue",
-    "apply_inserts",
-    "apply_before",
+    "apply_insert_directives",
+    "apply_patch_directives",
     "AssemblyImage",
     "AssemblySection",
+    "StorageBuilder",
+    "StorageEntry",
+    "StorageError",
+    "StorageImage",
+    "build_storage",
+    "load_storage_file",
+    "parse_storage",
     "Compilation",
     "parse_source",
     "compile_source",

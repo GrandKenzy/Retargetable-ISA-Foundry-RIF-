@@ -7,6 +7,7 @@ from typing import Any
 
 from Frontend import globals
 from rif_limits import resolve_limits
+from .parsing import SourceParser
 
 
 MAX_SOURCE_BYTES = 16 << 20
@@ -48,6 +49,12 @@ def _requested_path(node: Any) -> str:
     return requested
 
 
+def is_config_load(node: Any) -> bool:
+    """Return whether a root load requests the dedicated control file."""
+
+    return _requested_path(node).replace("\\", "/") == "config.rif"
+
+
 def resolve_source(
     requested: str,
     source_path: str | Path | None,
@@ -75,6 +82,8 @@ def load_source(
     scope: str = "root",
     source_provider: Any | None = None,
     project_root: str | Path | None = None,
+    backend: str = "aot",
+    parser: SourceParser | None = None,
 ) -> None:
     """Carga y procesa un archivo RIF dentro del alcance solicitado."""
 
@@ -95,21 +104,24 @@ def load_source(
     if path is not None and not path.is_file():
         raise FileNotFoundError(f"No se encontró el archivo solicitado por @LOAD: {path}")
 
-    from Frontend import RIF_LANG_SESSION
     from . import process
 
+    source_parser = parser or SourceParser(backend=backend)
     globals.ACTIVE_SOURCES.append(path_key)
     try:
         if path is not None and path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La fuente RIF excede el límite de tamaño: {path}")
-        source = (
-            provider.source_text(path_key)
-            if provider is not None
-            else path.read_text(encoding="utf-8")
-        )
-        RIF_LANG_SESSION.load()
-        tokens = RIF_LANG_SESSION.tokenize(source, path_key)
-        ast = RIF_LANG_SESSION.parse(tokens, path_key)
+        if backend == "aot":
+            if path is None:
+                raise ValueError("El backend AOT no puede recibir una fuente virtual.")
+            ast = source_parser.parse_file(path)
+        else:
+            source = (
+                provider.source_text(path_key)
+                if provider is not None
+                else path.read_text(encoding="utf-8")
+            )
+            ast = source_parser.parse_text(source, path_key)
         process(
             ast,
             source_path=path_key,
@@ -117,6 +129,8 @@ def load_source(
             scope=scope,
             source_provider=provider,
             project_root=project_root,
+            backend=backend,
+            parser=source_parser,
         )
         globals.LOADED_SOURCES[path_key] = "load"
     finally:
@@ -126,4 +140,4 @@ def load_source(
             globals.ACTIVE_SOURCES.remove(path_key)
 
 
-__all__ = ["resolve_source", "load_source"]
+__all__ = ["resolve_source", "load_source", "is_config_load"]

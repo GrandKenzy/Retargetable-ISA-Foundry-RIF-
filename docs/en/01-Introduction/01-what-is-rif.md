@@ -63,5 +63,5 @@ and semantic resolution by loading its SQLite compilation database.
 
 RIF does not assume one processor, assembler syntax, or instruction width.
 The target author decides how tokens map to table rows, how fields are emitted,
-how reservations are patched, and how external Python functions participate in
+how reservations are patched, and how registered native functions participate in
 the process.

@@ -6,9 +6,9 @@ families are grouped below.
 ## Token Consumers
 
 ```rif
--> IDENT
--> KW "ret"
--> [NUMBER, STRING]
+. IDENT
+. KW "ret"
+. [NUMBER, STRING]
 ```
 
 `IDENT`, `NUMBER`, and other canonical `Token` names consume a matching token.
@@ -18,23 +18,22 @@ first matching token from its candidates.
 ## Rule Control
 
 ```rif
--> JMP mov
--> jmpif mov, true
--> jmpif mov, #call[should_jump]
--> CALL #call[emit_value]
--> break
--> error, "invalid instruction"
+. JUMP mov
+. JUMPIF mov, true
+. JUMPIF mov, #call[should_jump]
+. BREAK
+. ERROR, "invalid instruction"
 ```
 
-`JMP` invokes another Rule and returns when it finishes. `jmpif` invokes it only
-when its boolean condition is true. `CALL` invokes a Python function. `break`
-stops the current Rule flow.
+`JUMP` invokes another Rule and returns when it finishes. `JUMPIF` invokes it only
+when its boolean condition is true. `BREAK` stops the current Rule flow.
+`#call[...]` references can only resolve registered native functions.
 
 Token storage is separate from the datastack:
 
 ```rif
--> save "current"
--> load "current"
+. save "current"
+. load "current"
 ```
 
 `save` records the current token under a label. `load` requires the current
@@ -43,49 +42,49 @@ token to match that saved token and then consumes it.
 ## Emission
 
 ```rif
--> put 0000 0000
--> ebit 0 1 0 1 0 1 0 1
--> emmit 83847483
--> emitfr 0000 0
+. nibbles 0000 0000
+. emit 0 1 0 1 0 1 0 1
+. eword 83847483
+. frame 0000 0
 00000000
 0000
--> emitfrend
+. frameend
 ```
 
-`put` emits two four-bit fields. `ebit` emits eight one-bit fields. `emmit`
-uses `wordsize`. `emitfr` emits a multiline frame and accepts any `VALUE` in
+`nibbles` emits two four-bit fields. `emit` emits eight one-bit fields. `eword`
+uses `word_size`. `frame` emits a multiline frame and accepts any `VALUE` in
 its rows.
 
 ## Tables, Reservations, and Positions
 
 ```rif
--> reserve "slot" 16
--> ldres "slot" 0000000000000000
--> gtres "slot"
--> dlres "slot"
--> emmit &slot
--> emmit ::SIZE
--> emmit ::VSIZE
+. reserve "slot" 16
+. write_res "slot" 0000000000000000
+. emit_res "slot"
+. drop_res "slot"
+. eword &slot
+. eword ::SIZE
+. eword ::VSIZE
 ```
 
 `&slot` reads a reservation as a value. `reserve` creates a zero-filled named
-region, `ldres` patches it, `gtres` copies it into the current output, and
-`dlres` removes its name without clearing its previous bits.
+region, `write_res` patches it, `emit_res` copies it into the current output, and
+`drop_res` removes its name without clearing its previous bits.
 
 ## Immediate Fitting
 
 ```rif
--> fits 8
--> iffits 8
--> ifnfits 8
--> fits $registers.name[rax].bits
+. fit 8
+. fit_exact 8
+. fit_not 8
+. fit $registers.name[rax].bits
 ```
 
-These instructions operate on the current MIR token. `fits` emits the low bits
-when the value is too wide. `iffits` emits only when the value fits exactly.
-`ifnfits` consumes a value only when it does not fit.
+These instructions operate on the current MIR token. `fit` emits the low bits
+when the value is too wide. `fit_exact` emits only when the value fits exactly.
+`fit_not` consumes a value only when it does not fit.
 
-Widths can be values obtained from a table, a Python function, a reservation,
+Widths can be values obtained from a table, a native function, a reservation,
 or the datastack.
 
 ## Value Forms

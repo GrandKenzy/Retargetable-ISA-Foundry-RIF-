@@ -44,16 +44,16 @@ class MIRCompilerTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| opcode |\n"
-            "_\n"
+            "__\n"
             "| 7 |\n"
             "@end\n"
             "@rule sample:\n"
-            "-> $registers.opcode, IDENT\n"
-            "-> COMMA\n"
-            "-> [NUMBER, STRING]\n"
-            "-> put 0000 0000\n"
-            "-> emmit 42\n"
-            "-> jmpif other, true\n"
+            ". $registers.opcode, IDENT\n"
+            ". COMMA\n"
+            ". [NUMBER, STRING]\n"
+            ". nibbles 0000 0000\n"
+            ". eword 42\n"
+            ". JUMPIF other, true\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "main.rif"
@@ -64,7 +64,7 @@ class MIRCompilerTests(unittest.TestCase):
 
             self.assertEqual(
                 [instruction.opcode for instruction in rule.instructions],
-                ["table_matcher", "consumer", "store", "put", "emmit", "jmpif"],
+                ["table_matcher", "consumer", "store", "nibbles", "eword", "jumpif"],
             )
             self.assertEqual(rule.instructions[0].operands[0].kind, "table_access")
             self.assertEqual(rule.instructions[0].operands[0].value, ("registers", "opcode"))
@@ -75,9 +75,9 @@ class MIRCompilerTests(unittest.TestCase):
     def test_emitfr_is_represented_as_one_instruction(self) -> None:
         source = (
             "@rule frames:\n"
-            "-> emitfr 0000 0\n"
+            ". frame 0000 0\n"
             "00000000\n"
-            "-> emitfrend\n"
+            ". frameend\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "frames.rif"
@@ -85,7 +85,7 @@ class MIRCompilerTests(unittest.TestCase):
 
             rule = compile_rules().rules["frames"]
             self.assertEqual(len(rule.instructions), 1)
-            self.assertEqual(rule.instructions[0].opcode, "emitfr")
+            self.assertEqual(rule.instructions[0].opcode, "frame")
             self.assertEqual(rule.instructions[0].operands[0].kind, "frame")
             self.assertEqual(len(rule.instructions[0].operands[0].value), 2)
             self.assertEqual(len(rule.instructions[0].operands[0].value[0]), 2)
@@ -95,14 +95,14 @@ class MIRCompilerTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| opcode |\n"
-            "_\n"
+            "__\n"
             "| 7 |\n"
             "@end\n"
             "@rule other:\n"
-            "-> IDENT\n"
+            ". IDENT\n"
             "@rule sample:\n"
-            "-> $registers.opcode, IDENT\n"
-            "-> JMP other\n"
+            ". $registers.opcode, IDENT\n"
+            ". JUMP other\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "resolve.rif"
@@ -121,7 +121,7 @@ class MIRCompilerTests(unittest.TestCase):
     def test_resolve_reports_missing_symbols_and_invalid_token_codes(self) -> None:
         source = (
             "@rule sample:\n"
-            "-> 999\n"
+            ". 999\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "invalid.rif"
@@ -133,11 +133,11 @@ class MIRCompilerTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| opcode |\n"
-            "_\n"
+            "__\n"
             "| 7 |\n"
             "@end\n"
             "@rule sample:\n"
-            "-> $registers.missing, IDENT\n"
+            ". $registers.missing, IDENT\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "missing-column.rif"

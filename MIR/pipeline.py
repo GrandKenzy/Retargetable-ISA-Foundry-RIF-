@@ -8,6 +8,7 @@ from typing import Iterable
 
 from Frontend import RIF_LANG_SESSION, globals
 from Frontend.processor import process
+from Frontend.processor.parsing import SourceParser
 from pack import PackReader
 from rif_limits import COMPILATION_LOCK, resolve_limits
 
@@ -45,33 +46,44 @@ def _reset_context() -> None:
     globals.ACTIVE_SOURCES.clear()
     globals.VARIANT_STACK.clear()
     globals.SOURCE_PROVIDER = None
-    globals.INSERTS.clear()
-    globals.BEFORE.clear()
     globals.BLOCKS.clear()
 
 
-def parse_source(path: str | Path):
+def parse_source(
+    path: str | Path,
+    *,
+    backend: str = "aot",
+    parser: SourceParser | None = None,
+):
+    if backend not in {"python", "aot"}:
+        raise ValueError(f"Backend de RIF desconocido: {backend!r}.")
     with COMPILATION_LOCK:
         source_path = Path(path).expanduser().resolve()
         if source_path.suffix.lower() == ".pack":
             with PackReader(source_path) as package:
                 source = package.source_text()
                 source_name = package.virtual_path()
-                RIF_LANG_SESSION.load()
-                tokens = RIF_LANG_SESSION.tokenize(source, source_name)
-                ast = RIF_LANG_SESSION.parse(tokens, source_name)
+                # A source-only pack exposes ``pack://`` virtual paths.  The
+                # native Gram CLI intentionally accepts physical files only,
+                # so keep this narrow fallback explicit at the pack boundary.
+                pack_parser = (
+                    parser
+                    if backend == "python"
+                    and parser is not None
+                    and parser.backend == "python"
+                    else SourceParser(backend="python", session=RIF_LANG_SESSION)
+                )
+                ast = pack_parser.parse_text(source, source_name)
                 return ast, source_path
         if not source_path.is_file():
             raise FileNotFoundError(f"Archivo RIF no encontrado: {source_path}")
         if source_path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La fuente RIF excede el límite de tamaño: {source_path}")
-        source = source_path.read_text(encoding="utf-8")
-        RIF_LANG_SESSION.load()
-        tokens = RIF_LANG_SESSION.tokenize(source, str(source_path))
-        return RIF_LANG_SESSION.parse(tokens, str(source_path)), source_path
+        source_parser = parser or SourceParser(backend=backend, session=RIF_LANG_SESSION)
+        return source_parser.parse_file(source_path), source_path
 
 
-def compile_source(path: str | Path) -> CompiledRuleSet:
+def compile_source(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
     """Compile a RIF definition source (``.rif`` or ``.pack``).
 
     The returned object is the internal compiled Rule set. It is not the
@@ -81,14 +93,24 @@ def compile_source(path: str | Path) -> CompiledRuleSet:
         _reset_context()
         source_path = Path(path).expanduser().resolve()
         if source_path.suffix.lower() == ".pack":
-            return compile_pack(source_path)
-        ast, source_path = parse_source(path)
-        process(ast, source_path=source_path, project_root=source_path.parent)
+            return compile_pack(source_path, backend=backend)
+        source_parser = SourceParser(backend=backend, session=RIF_LANG_SESSION)
+        ast, source_path = parse_source(path, backend=backend, parser=source_parser)
+        process(
+            ast,
+            source_path=source_path,
+            project_root=source_path.parent,
+            backend=backend,
+            parser=source_parser,
+        )
         return compile_rules(resolve=True)
 
 
-def compile_pack(path: str | Path) -> CompiledRuleSet:
+def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
     """Compile a .pack entrypoint using its precomputed source index."""
+
+    if backend not in {"python", "aot"}:
+        raise ValueError(f"Backend de RIF desconocido: {backend!r}.")
 
     with COMPILATION_LOCK:
         _reset_context()
@@ -110,13 +132,21 @@ def compile_pack(path: str | Path) -> CompiledRuleSet:
             source_name = package.virtual_path()
             source = package.source_text()
             try:
-                RIF_LANG_SESSION.load()
-                tokens = RIF_LANG_SESSION.tokenize(source, source_name)
-                ast = RIF_LANG_SESSION.parse(tokens, source_name)
+                # Source-only packs are indexed through virtual ``pack://``
+                # paths.  They cannot be handed to Gram's native CLI, so the
+                # policy is an explicit Python frontend fallback for the
+                # complete pack traversal (root, @LOAD and variants).
+                pack_parser = SourceParser(
+                    backend="python",
+                    session=RIF_LANG_SESSION,
+                )
+                ast = pack_parser.parse_text(source, source_name)
                 process(
                     ast,
                     source_path=source_name,
                     source_provider=package,
+                    backend="python",
+                    parser=pack_parser,
                 )
                 return compile_rules(resolve=True)
             finally:
@@ -124,14 +154,14 @@ def compile_pack(path: str | Path) -> CompiledRuleSet:
                 compiler_module.SOURCE_TEXTS.update(previous_sources)
 
 
-def compile_definition(path: str | Path) -> CompiledRuleSet:
+def compile_definition(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
     """Explicit name for compiling a ``.rif``/``.pack`` target definition."""
 
-    return compile_source(path)
+    return compile_source(path, backend=backend)
 
 
-def compile_project(path: str | Path) -> Compilation:
-    program = compile_source(path)
+def compile_project(path: str | Path, *, backend: str = "aot") -> Compilation:
+    program = compile_source(path, backend=backend)
     if program.context.config is None:
         raise RuntimeError("El proyecto requiere @block config para crear una salida por secciones.")
     source_path = Path(path).expanduser().resolve()

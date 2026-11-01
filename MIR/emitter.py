@@ -94,7 +94,7 @@ class BitEmitter:
             ),
         )
 
-    def put(self, first: int | str | BitField, second: int | str | BitField) -> tuple[BitSpan, BitSpan]:
+    def nibbles(self, first: int | str | BitField, second: int | str | BitField) -> tuple[BitSpan, BitSpan]:
         left = field(first, 4)
         right = field(second, 4)
         spans = (
@@ -104,9 +104,9 @@ class BitEmitter:
         self._advance_virtual(left.width + right.width)
         return spans
 
-    def ebit(self, *values: int | str | BitField) -> tuple[BitSpan, ...]:
+    def emit(self, *values: int | str | BitField) -> tuple[BitSpan, ...]:
         if len(values) != 8:
-            raise ValueError("ebit requiere exactamente ocho campos de un bit.")
+            raise ValueError("emit requiere exactamente ocho campos de un bit.")
         normalized = tuple(field(value, 1) for value in values)
         spans = tuple(
             self.buffer.append_bits(item.value, 1) for item in normalized
@@ -114,11 +114,11 @@ class BitEmitter:
         self._advance_virtual(len(spans))
         return spans
 
-    def emmit(self, value: int | str | BitField) -> BitSpan:
+    def eword(self, value: int | str | BitField) -> BitSpan:
         item = field(value, self.wordsize)
-        return self.emit(value, item.width)
+        return self.bits(value, item.width)
 
-    def emit(self, value: int | str | BitField, width: int) -> BitSpan:
+    def bits(self, value: int | str | BitField, width: int) -> BitSpan:
         """Append one value using an explicit bit width."""
 
         item = field(value, width)
@@ -141,7 +141,7 @@ class BitEmitter:
     def read_bits(self, offset: int, width: int) -> int:
         """Read an existing physical field using the configured byte order."""
         if width <= 0:
-            raise ValueError("readbits requiere un ancho positivo.")
+            raise ValueError("read_bits requiere un ancho positivo.")
         if width % 8 == 0:
             return self.buffer.read_int(offset, width)
         return self.buffer.read_bits(offset, width)
@@ -149,18 +149,18 @@ class BitEmitter:
     def patch_bits(self, offset: int, width: int, value: int | str | BitField) -> None:
         """Rewrite an existing physical field without advancing either cursor."""
         if width <= 0:
-            raise ValueError("patchbits requiere un ancho positivo.")
+            raise ValueError("patch_bits requiere un ancho positivo.")
         item = field(value, width)
         if width % 8 == 0:
             self.buffer.write_int(offset, item.value, width)
         else:
             self.buffer.write_bits(offset, item.value, width)
 
-    def padding(self, width: int) -> BitSpan:
+    def pad(self, width: int) -> BitSpan:
         """Append explicit zero bits and return their span."""
 
         if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
-            raise ValueError("padding requiere un ancho entero mayor que cero.")
+            raise ValueError("pad requiere un ancho entero mayor que cero.")
         span = self.buffer.append_zeros(width)
         self._advance_virtual(width)
         return span
@@ -178,11 +178,11 @@ class BitEmitter:
             raise ValueError("El avance virtual no puede ser negativo.")
         self._virtual_position += width
 
-    def vpadding(self, width: int) -> None:
+    def vpad(self, width: int) -> None:
         """Advance only the virtual cursor."""
 
         if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
-            raise ValueError("vpadding requiere un ancho entero mayor que cero.")
+            raise ValueError("vpad requiere un ancho entero mayor que cero.")
         self._advance_virtual(width)
 
     def vreserve(self, name: str, width: int) -> VirtualRegion:
@@ -208,21 +208,21 @@ class BitEmitter:
         self._advance_virtual(width)
         return span
 
-    def ldres(self, name: str, value: int | str | BitField) -> None:
+    def write_res(self, name: str, value: int | str | BitField) -> None:
         if name not in self.buffer.regions and name in self._virtual_regions:
             raise ValueError(f"La reserva '{name}' solo existe en el espacio virtual.")
         span = self.buffer.query(name).span
         item = field(value, span.width)
         self.buffer.patch(span, item.value)
 
-    def gtres(self, name: str) -> BitSpan:
+    def emit_res(self, name: str) -> BitSpan:
         if name not in self.buffer.regions and name in self._virtual_regions:
             raise ValueError(f"La reserva '{name}' solo existe en el espacio virtual.")
         span = self.buffer.copy_region(name)
         self._advance_virtual(span.width)
         return span
 
-    def dlres(self, name: str) -> BitSpan | VirtualRegion:
+    def drop_res(self, name: str) -> BitSpan | VirtualRegion:
         if name in self.buffer.regions:
             span = self.buffer.drop_region(name)
             self._virtual_regions.pop(name, None)
@@ -241,17 +241,17 @@ class BitEmitter:
     def query(self, span_or_name: BitSpan | str) -> BitQuery:
         return self.buffer.query(span_or_name)
 
-    def emitfr(self, rows: Iterable[Sequence[int | str | BitField]]) -> tuple[BitSpan, ...]:
+    def frame(self, rows: Iterable[Sequence[int | str | BitField]]) -> tuple[BitSpan, ...]:
         """Emit a multiline frame atomically after validating every field."""
 
         normalized: list[tuple[BitField, ...]] = []
         for row in rows:
             current = tuple(field(value) for value in row)
             if not current:
-                raise ValueError("emitfr no admite filas vacías.")
+                raise ValueError("frame no admite filas vacías.")
             normalized.append(current)
         if not normalized:
-            raise ValueError("emitfr requiere al menos una fila.")
+            raise ValueError("frame requiere al menos una fila.")
 
         spans: list[BitSpan] = []
         with self.buffer.transaction():

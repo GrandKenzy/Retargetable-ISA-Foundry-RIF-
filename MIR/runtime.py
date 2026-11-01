@@ -9,8 +9,6 @@ from gram import lexer
 from rif_limits import resolve_limits
 
 from .emitter import BitEmitter, BitField
-from .function_context import RIFFunctionContext
-from .functions import FunctionModule, RIFFunctionError
 from .instructions import CompiledRuleSet, Instruction, Operand
 from .semantic import RuleRef, TableLookupRef, TableRef, TokenRef
 
@@ -72,7 +70,6 @@ class RIFMachine:
         program: CompiledRuleSet,
         *,
         emitter: BitEmitter | None = None,
-        function_module: FunctionModule | None = None,
         section_name: str | None = None,
     ) -> None:
         self.program = program
@@ -80,8 +77,6 @@ class RIFMachine:
         self.emitter = emitter or BitEmitter(
             wordsize=self.context.config.wordsize if self.context.config else 32
         )
-        self.function_module = function_module
-        self.function_context: RIFFunctionContext | None = None
         self.section_name = section_name
         self.tokens: tuple[lexer.TokenType, ...] = ()
         self.position = 0
@@ -93,7 +88,6 @@ class RIFMachine:
         )
         self.datastack: list[Any] = []
         self.selected_rows: dict[str, int] = {}
-        self.last_call: object = None
         self.rule_traces: list[RuleTrace] = []
         self.last_rule_trace: RuleTrace | None = None
         self.rule_addresses: dict[str, int] = {}
@@ -102,10 +96,17 @@ class RIFMachine:
         self._trace_stack: list[_RuleTraceState] = []
         self._rule_depth = 0
 
-    def bind_function_context(self, context: RIFFunctionContext) -> None:
-        """Bind the live context passed to ``funcs.py``."""
+    @property
+    def config(self) -> Any:
+        """Expose target configuration for external MIR result inspection."""
 
-        self.function_context = context
+        return self.context.config
+
+    @property
+    def virtual_position(self) -> int:
+        """Expose the active emitter's virtual position."""
+
+        return self.emitter.virtual_position
 
     def execute(
         self,
@@ -143,7 +144,6 @@ class RIFMachine:
         self.position = 0
         self.last_token = None
         self.stored_token = None
-        self.last_call = None
         self._execute_rule(rule_name)
         return ExecutionResult(
             rule=rule_name,
@@ -188,12 +188,14 @@ class RIFMachine:
     def _table_lookup_value(self, reference: TableLookupRef) -> Any:
         table = self.context.tables[reference.table]
         try:
-            row_index = table.index_for(reference.selector)[reference.key]
-        except KeyError as exc:
+            row_index = table.lookup_unique(reference.selector, reference.key)
+        except ValueError as exc:
+            raise RIFRuntimeError(str(exc)) from exc
+        if row_index is None:
             raise RIFRuntimeError(
                 f"La clave {reference.key!r} no existe en "
                 f"{reference.table}.{reference.selector}."
-            ) from exc
+            )
         return table.matrix[row_index][reference.index]
 
     def _value(self, operand: Operand, source: Instruction | None = None) -> Any:
@@ -235,8 +237,9 @@ class RIFMachine:
         if operand.kind == "reservation_access":
             return self.emitter.query(str(operand.value)).value
         if operand.kind == "call":
-            self.last_call = self._call_external(str(operand.value), source or operand)
-            return self.last_call
+            raise RIFRuntimeError(
+                f"No existe una función nativa registrada para #call[{operand.value}]."
+            )
         return operand.value
 
     def _current_alignment(self) -> int:
@@ -369,35 +372,11 @@ class RIFMachine:
         width = self._fit_width(operand, instruction)
         token = self._current()
         value = self._immediate_bits(token, width, truncate=not exact)
-        self.emitter.emit(value, width)
+        self.emitter.bits(value, width)
         if operand.kind == "data_pop":
             self.datastack.pop()
         self.position += 1
         self.last_token = token
-
-    def _call_external(self, name: str, source: Operand | Instruction) -> bool | str:
-        if self.function_module is None:
-            raise RIFRuntimeError(
-                f"La llamada Python '{name}' requiere un archivo funcs.py cargado."
-            )
-        context = self.function_context
-        if context is None:
-            context = RIFFunctionContext(
-                program=self.program,
-                machine=self,
-                image=None,
-                section=None,
-            )
-            self.function_context = context
-        try:
-            return self.function_module.invoke(name, context)
-        except RIFFunctionError as exc:
-            if isinstance(source, Instruction):
-                location = source.span.path or "<memoria>"
-                if source.span.line is not None:
-                    location += f":{source.span.line}:{source.span.column or 0}"
-                raise RIFRuntimeError(f"{location}: {exc}") from exc
-            raise RIFRuntimeError(str(exc)) from exc
 
     def _bit_field(
         self,
@@ -438,14 +417,10 @@ class RIFMachine:
         if operand.kind == "bool":
             return bool(operand.value)
         if operand.kind == "call":
-            self.last_call = self._call_external(str(operand.value), source or operand)
-            if not isinstance(self.last_call, bool):
-                raise RIFRuntimeError(
-                    f"La función Python '{operand.value}' debe devolver True o False "
-                    "cuando se usa como condición."
-                )
-            return self.last_call
-        raise RIFRuntimeError("La condición no es booleana ni una llamada externa.")
+            raise RIFRuntimeError(
+                f"No existe una función nativa registrada para #call[{operand.value}]."
+            )
+        raise RIFRuntimeError("La condición no es booleana ni una llamada nativa.")
 
     def _execute_rule(self, rule_name: str) -> None:
         if self._rule_depth >= MAX_RULE_CALL_DEPTH:
@@ -505,7 +480,7 @@ class RIFMachine:
                 )
             table = self.context.tables[table_ref.table]
             try:
-                index = table.index_for(table_ref.column).get(token.value)
+                index = table.lookup_unique(table_ref.column, token.value)
             except (TypeError, ValueError) as exc:
                 raise RIFRuntimeError(str(exc)) from exc
             if index is not None:
@@ -518,7 +493,7 @@ class RIFMachine:
                 f"{table_ref.table}.{table_ref.column}."
             )
 
-        if opcode == "dload":
+        if opcode == "dget":
             references = operands[0].resolved
             if not isinstance(references, tuple) or len(references) != 2 or not all(isinstance(ref, TableRef) for ref in references):
                 raise RIFRuntimeError("DLOAD no fue resuelto semánticamente.")
@@ -526,8 +501,8 @@ class RIFMachine:
             token = self._current()
             table = self.context.tables[selector.table]
             try:
-                row_index = table.index_for(selector.column).get(token.value)
-            except TypeError as exc:
+                row_index = table.lookup_unique(selector.column, token.value)
+            except (TypeError, ValueError) as exc:
                 raise RIFRuntimeError("El token actual no es indexable en la tabla.") from exc
             if row_index is None:
                 raise RIFRuntimeError(
@@ -539,7 +514,7 @@ class RIFMachine:
             self.last_token = token
             return
 
-        if opcode == "dsave":
+        if opcode == "dpush":
             self.datastack.append(self._value(operands[0], instruction))
             return
 
@@ -561,35 +536,35 @@ class RIFMachine:
             self.stored_token = token
             return
 
-        if opcode == "put":
-            self.emitter.put(
+        if opcode == "nibbles":
+            self.emitter.nibbles(
                 self._bit_field(operands[0], instruction),
                 self._bit_field(operands[1], instruction),
             )
             return
 
-        if opcode == "ebit":
-            self.emitter.ebit(
+        if opcode == "emit":
+            self.emitter.emit(
                 *(self._bit_field(operand, instruction) for operand in operands)
             )
             return
 
-        if opcode == "emmit":
+        if opcode == "eword":
             value = self._value(operands[0], instruction)
             if isinstance(value, bool) or not isinstance(value, (int, str, BitField)):
-                raise RIFRuntimeError("EMMIT requiere un valor numérico o un campo binario.")
-            self.emitter.emmit(value)
+                raise RIFRuntimeError("EWORD requiere un valor numérico o un campo binario.")
+            self.emitter.eword(value)
             return
 
-        if opcode == "fits":
+        if opcode == "fit":
             self._emit_fit(operands[0], instruction, exact=False)
             return
 
-        if opcode == "iffits":
+        if opcode == "fit_exact":
             self._emit_fit(operands[0], instruction, exact=True)
             return
 
-        if opcode == "ifnfits":
+        if opcode == "fit_not":
             width = self._fit_width(operands[0], instruction)
             token = self._current()
             if not self._immediate_fits(token, width):
@@ -598,47 +573,47 @@ class RIFMachine:
                 self.position += 1
                 self.last_token = token
                 return
-            raise RIFRuntimeError(f"El inmediato cabe en {width} bits; IFNFITS falló.")
+            raise RIFRuntimeError(f"El inmediato cabe en {width} bits; FIT_NOT falló.")
 
-        if opcode == "padding":
+        if opcode == "pad":
             width = int(operands[0].value)
-            self.emitter.padding(width)
+            self.emitter.pad(width)
             self._record_padding(width)
             return
 
-        if opcode == "alignement":
+        if opcode == "align":
             alignment = int(operands[0].value)
             remainder = self.emitter.buffer.bit_length % alignment
             width = 0 if remainder == 0 else alignment - remainder
             if width:
-                self.emitter.padding(width)
+                self.emitter.pad(width)
                 self._record_padding(width)
             return
 
-        if opcode == "vpadding":
+        if opcode == "vpad":
             width = int(operands[0].value)
-            self.emitter.vpadding(width)
+            self.emitter.vpad(width)
             self._record_virtual_padding(width)
             return
 
-        if opcode == "valignement":
+        if opcode == "valign":
             alignment = int(operands[0].value)
             width = (-self.emitter.virtual_position) % alignment
             if width:
-                self.emitter.vpadding(width)
+                self.emitter.vpad(width)
                 self._record_virtual_padding(width)
             return
 
-        if opcode in {"emitbits", "readbits", "patchbits"}:
+        if opcode in {"bits", "read_bits", "patch_bits"}:
             try:
-                if opcode == "emitbits":
+                if opcode == "bits":
                     value = self._value(operands[0], instruction)
                     width = self._bit_integer(operands[1], instruction, "ancho", positive=True)
-                    self.emitter.emit(value, width)
+                    self.emitter.bits(value, width)
                 else:
                     offset = self._bit_integer(operands[0], instruction, "offset", positive=False)
                     width = self._bit_integer(operands[1], instruction, "ancho", positive=True)
-                    if opcode == "readbits":
+                    if opcode == "read_bits":
                         self.datastack.append(self.emitter.read_bits(offset, width))
                     else:
                         self.emitter.patch_bits(offset, width, self._value(operands[2], instruction))
@@ -646,9 +621,9 @@ class RIFMachine:
                 raise RIFRuntimeError(str(exc)) from exc
             return
 
-        if opcode == "emitfr":
+        if opcode == "frame":
             rows = operands[0].value
-            self.emitter.emitfr(
+            self.emitter.frame(
                 tuple(
                     tuple(self._frame_field(operand, instruction) for operand in row)
                     for row in rows
@@ -665,26 +640,19 @@ class RIFMachine:
             self.last_token = token
             return
 
-        if opcode == "jmp":
+        if opcode == "jump":
             reference = operands[0].resolved
             if not isinstance(reference, RuleRef):
-                raise RIFRuntimeError("JMP no fue resuelto semánticamente.")
+                raise RIFRuntimeError("JUMP no fue resuelto semánticamente.")
             self._execute_rule(reference.name)
             return
 
-        if opcode == "jmpif":
+        if opcode == "jumpif":
             reference = operands[0].resolved
             if not isinstance(reference, RuleRef):
-                raise RIFRuntimeError("JMPIF no fue resuelto semánticamente.")
+                raise RIFRuntimeError("JUMPIF no fue resuelto semánticamente.")
             if self._condition(operands[1], instruction):
                 self._execute_rule(reference.name)
-            return
-
-        if opcode == "call":
-            operand = operands[0]
-            if operand.kind != "call":
-                raise RIFRuntimeError("CALL requiere una función #call.")
-            self.last_call = self._call_external(str(operand.value), instruction)
             return
 
         if opcode == "break":
@@ -701,19 +669,19 @@ class RIFMachine:
             self.emitter.vreserve(str(operands[0].value), int(operands[1].value))
             return
 
-        if opcode == "ldres":
-            self.emitter.ldres(
+        if opcode == "write_res":
+            self.emitter.write_res(
                 str(operands[0].value),
                 self._value(operands[1], instruction),
             )
             return
 
-        if opcode == "gtres":
-            self.emitter.gtres(str(operands[0].value))
+        if opcode == "emit_res":
+            self.emitter.emit_res(str(operands[0].value))
             return
 
-        if opcode == "dlres":
-            self.emitter.dlres(str(operands[0].value))
+        if opcode == "drop_res":
+            self.emitter.drop_res(str(operands[0].value))
             return
 
         if opcode == "save":

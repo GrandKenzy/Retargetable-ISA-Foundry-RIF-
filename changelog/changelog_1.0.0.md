@@ -15,9 +15,9 @@ retargetable `.rif` definition to a pure binary produced from external MIR.
 - External MIR compilation through the CLI and direct Python APIs.
 - Reproducible `.pack` archives with source manifests, load graphs, SHA-256
   verification, optional `funcs.py`, and precompiled SQLite target data.
-- Fixed-width emission with `put`, `ebit`, `emmit`, and multiline `emitfr`.
-- Arbitrary bit emission, reading, and rewriting with `emitbits`, `readbits`,
-  and `patchbits`.
+- Fixed-width emission with `nibbles`, `emit`, `eword`, and multiline `frame`.
+- Arbitrary bit emission, reading, and rewriting with `bits`, `read_bits`,
+  and `patch_bits`.
 - Physical and virtual cursors, padding, alignment, reservations, reservation
   queries, and per-Rule physical and virtual traces.
 - Independent `datastack` for temporary values and table-driven `dload`.

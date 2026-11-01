@@ -15,7 +15,7 @@ from .instructions import CompiledRule, CompiledRuleSet, Instruction, Operand, S
 from .semantic import RuleRef, TableLookupRef, TableRef, TokenRef
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 6
 
 
 def _token_from_name(name: str) -> lexer.Token:
@@ -58,9 +58,8 @@ def _encode(value: Any) -> Any:
     if isinstance(value, globals.LinkerData):
         return {
             "__type__": "linker",
-            "ext": value.ext,
-            "name": value.name,
-            "searching": value.searching,
+            "extension": value.extension,
+            "search_path": value.search_path,
         }
     if isinstance(value, globals.SupportData):
         return {"__type__": "support", "name": value.name, "path": value.path}
@@ -72,22 +71,6 @@ def _encode(value: Any) -> Any:
             "enter_rule": value.enter_rule,
             "exit_rule": value.exit_rule,
             "path": value.path,
-        }
-    if isinstance(value, globals.InsertData):
-        return {
-            "__type__": "insert",
-            "section": value.section,
-            "kind": value.kind,
-            "value": _encode(value.value),
-            "source_path": value.source_path,
-        }
-    if isinstance(value, globals.BeforePatchData):
-        return {
-            "__type__": "before_patch",
-            "offset": value.offset,
-            "width": value.width,
-            "expression": _encode(value.expression),
-            "source_path": value.source_path,
         }
     if isinstance(value, globals.BlockValueData):
         return {
@@ -155,9 +138,8 @@ def _decode(value: Any) -> Any:
         return RuleRef(str(value["name"]))
     if kind == "linker":
         return globals.LinkerData(
-            ext=str(value["ext"]),
-            name=str(value["name"]),
-            searching=value["searching"],
+            extension=str(value["extension"]),
+            search_path=value["search_path"],
         )
     if kind == "support":
         return globals.SupportData(name=str(value["name"]), path=str(value["path"]))
@@ -168,20 +150,6 @@ def _decode(value: Any) -> Any:
             enter_rule=str(value["enter_rule"]),
             exit_rule=str(value["exit_rule"]),
             path=str(value["path"]),
-        )
-    if kind == "insert":
-        return globals.InsertData(
-            section=str(value["section"]),
-            kind=str(value["kind"]),
-            value=_decode(value.get("value")),
-            source_path=value.get("source_path"),
-        )
-    if kind == "before_patch":
-        return globals.BeforePatchData(
-            offset=int(value["offset"]),
-            width=None if value.get("width") is None else int(value["width"]),
-            expression=_decode(value.get("expression")),
-            source_path=value.get("source_path"),
         )
     if kind == "block_value":
         return globals.BlockValueData(
@@ -239,32 +207,6 @@ def program_to_dict(
     program: CompiledRuleSet,
     source_root: str | Path | None = None,
 ) -> dict[str, Any]:
-    inserts = [
-        _encode(
-            globals.InsertData(
-                section=item.section,
-                kind=item.kind,
-                value=item.value,
-                source_path=_portable_path(item.source_path, source_root),
-            )
-        )
-        if isinstance(item, globals.InsertData)
-        else _encode(item)
-        for item in program.inserts
-    ]
-    before = [
-        _encode(
-            globals.BeforePatchData(
-                offset=item.offset,
-                width=item.width,
-                expression=item.expression,
-                source_path=_portable_path(item.source_path, source_root),
-            )
-        )
-        if isinstance(item, globals.BeforePatchData)
-        else _encode(item)
-        for item in program.before
-    ]
     return {
         "rules": {
             name: {
@@ -285,8 +227,6 @@ def program_to_dict(
             }
             for name, rule in program.rules.items()
         },
-        "inserts": inserts,
-        "before": before,
     }
 
 
@@ -312,11 +252,7 @@ def program_from_dict(data: dict[str, Any]) -> CompiledRuleSet:
             instructions=tuple(instructions),
             source_path=raw_rule.get("source_path"),
         )
-    return CompiledRuleSet(
-        rules,
-        inserts=tuple(_decode(item) for item in data.get("inserts", [])),
-        before=tuple(_decode(item) for item in data.get("before", [])),
-    )
+    return CompiledRuleSet(rules)
 
 
 def _config_to_dict(config: globals.ConfigData | None) -> dict[str, Any] | None:
@@ -560,8 +496,6 @@ def load_database(
         program = program_from_dict(json.loads(program_row[0]))
         return CompiledRuleSet(
             rules=program.rules,
-            inserts=program.inserts,
-            before=program.before,
             context=target_context,
         )
     finally:

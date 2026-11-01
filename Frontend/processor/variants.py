@@ -11,6 +11,7 @@ from pathlib import Path
 
 from Frontend import globals
 from rif_limits import resolve_limits
+from .parsing import SourceParser
 
 
 MAX_SOURCE_BYTES = 16 << 20
@@ -35,31 +36,35 @@ def resolve_variant(
     root_path: str | Path,
     project_root: str | Path | None = None,
 ) -> Path:
-    """Resuelve ``<name>.rif`` respetando ``searching`` del linker."""
+    """Resuelve ``<name>.rif`` respetando ``search_path`` del linker."""
 
     root = Path(root_path).expanduser()
     linker = globals.LINKER
-    searching: str | bool = ""
+    search_path: tuple[str, ...] | bool = ("",)
     if linker is not None:
-        searching = linker.searching
+        search_path = linker.search_path
 
-    if searching is False:
+    if search_path is False:
         raise RuntimeError(
             f"El linker deshabilita la carga automática; no se puede cargar la variante '{name}'."
         )
 
-    directory = _root_directory(root)
-    if isinstance(searching, str) and searching:
-        if Path(searching).is_absolute() or ".." in Path(searching).parts:
-            raise RuntimeError("searching solo acepta una carpeta relativa dentro del proyecto.")
-        directory = directory / searching
-    candidate = Path(canonical_path(directory / f"{name}.rif"))
     boundary = Path(project_root).expanduser().resolve(strict=False) if project_root else _root_directory(root).resolve(strict=False)
-    try:
-        candidate.relative_to(boundary)
-    except ValueError as exc:
-        raise RuntimeError("La variante intenta salir de la raíz del proyecto.") from exc
-    return candidate
+    base_directory = _root_directory(root)
+    candidates: list[Path] = []
+    for relative in search_path:
+        if Path(relative).is_absolute() or ".." in Path(relative).parts:
+            raise RuntimeError("search_path solo acepta carpetas relativas dentro del proyecto.")
+        directory = base_directory / relative if relative else base_directory
+        candidate = Path(canonical_path(directory / f"{name}.rif"))
+        try:
+            candidate.relative_to(boundary)
+        except ValueError as exc:
+            raise RuntimeError("La variante intenta salir de la raíz del proyecto.") from exc
+        candidates.append(candidate)
+        if candidate.is_file():
+            return candidate
+    return candidates[-1]
 
 
 def _load_variant(
@@ -67,12 +72,14 @@ def _load_variant(
     root_path: Path | str,
     source_provider=None,
     project_root: str | Path | None = None,
+    backend: str = "aot",
+    parser: SourceParser | None = None,
 ) -> None:
     """Carga recursivamente el archivo asociado a una variante."""
 
     if source_provider is not None:
-        searching = globals.LINKER.searching if globals.LINKER is not None else ""
-        path_key = source_provider.resolve_variant(variant.name, searching)
+        search_path = globals.LINKER.search_path if globals.LINKER is not None else ("",)
+        path_key = source_provider.resolve_variant(variant.name, search_path)
         path = None
     else:
         path = resolve_variant(variant.name, root_path, project_root)
@@ -90,21 +97,24 @@ def _load_variant(
 
     # Importaciones locales para evitar un ciclo: processor importa este
     # módulo y el cargador, a su vez, necesita el entrypoint del processor.
-    from Frontend import RIF_LANG_SESSION
     from . import process
 
+    source_parser = parser or SourceParser(backend=backend)
     globals.ACTIVE_SOURCES.append(path_key)
     try:
         if path is not None and path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La variante excede el límite de tamaño: {path}")
-        source = (
-            source_provider.source_text(path_key)
-            if source_provider is not None
-            else path.read_text(encoding="utf-8")
-        )
-        RIF_LANG_SESSION.load()
-        tokens = RIF_LANG_SESSION.tokenize(source, path_key)
-        ast = RIF_LANG_SESSION.parse(tokens, path_key)
+        if backend == "aot":
+            if path is None:
+                raise ValueError("El backend AOT no puede recibir una variante virtual.")
+            ast = source_parser.parse_file(path)
+        else:
+            source = (
+                source_provider.source_text(path_key)
+                if source_provider is not None
+                else path.read_text(encoding="utf-8")
+            )
+            ast = source_parser.parse_text(source, path_key)
         process(
             ast,
             source_path=path_key,
@@ -112,6 +122,8 @@ def _load_variant(
             scope="variant",
             source_provider=source_provider,
             project_root=project_root,
+            backend=backend,
+            parser=source_parser,
         )
         globals.LOADED_SOURCES[path_key] = variant.name
     finally:
@@ -141,6 +153,8 @@ def load_variants(
     root_path: str | Path,
     source_provider=None,
     project_root: str | Path | None = None,
+    backend: str = "aot",
+    parser: SourceParser | None = None,
 ) -> None:
     """Carga todos los archivos de variantes y valida sus reglas."""
 
@@ -155,6 +169,8 @@ def load_variants(
             root,
             source_provider=source_provider,
             project_root=project_root,
+            backend=backend,
+            parser=parser,
         )
     validate_variant_rules()
 

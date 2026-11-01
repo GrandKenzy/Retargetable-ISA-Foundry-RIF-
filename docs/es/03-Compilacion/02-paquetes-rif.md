@@ -16,16 +16,13 @@ Puede contener:
 manifest.json
 sources/main.rif
 sources/other.rif
-funcs.py                 (opcional)
-assets/...               (payloads de `.file` en inserts)
 compiled.sqlite          (si se precompila)
 ```
 
 El manifiesto registra formato, hashes de fuentes, grafo de `@LOAD`, orden de
-dependencias, funciones y base compilada.
-Los archivos referenciados por `.file` dentro de `@insert` se copian como
-assets opacos con su tamaño y hash SHA-256. No se ejecutan al crear el
-paquete.
+dependencias y la base compilada opcional. Las directivas del MIR externo no
+forman parte del grafo de fuentes; `::RIF_INSERT FILE` resuelve su ruta
+respecto al archivo MIR que se está compilando.
 
 ## Ventajas
 

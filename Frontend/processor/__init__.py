@@ -10,10 +10,11 @@ from .visitors.rule import visit as visit_rule
 from .visitors.stack import visit as visit_stack
 from .visitors.table import visit as visit_table
 from .visitors.variant import visit_support, visit_variant
-from .visitors.artifacts import visit_before, visit_insert
 from .visitors.block import visit as visit_block
-from .sources import load_source
+from Frontend.syntax.items.blocks import normalize_block
+from .sources import is_config_load, load_source
 from .variants import current_variant, enter_variant, exit_variant, load_variants as _load_variants
+from .parsing import SourceParser
 
 
 def process(
@@ -24,13 +25,21 @@ def process(
     scope: str = "root",
     source_provider: Any | None = None,
     project_root: str | Path | None = None,
+    backend: str = "aot",
+    parser: SourceParser | None = None,
 ) -> None:
     """Recorre y despacha cada nodo producido por el parser."""
     if result is None:
         return
 
-    nodes = list(result)
+    nodes = []
+    for node in result:
+        if getattr(node, "name", None) == "BLOCK" and not hasattr(node, "block_name"):
+            nodes.append(normalize_block(getattr(node, "nodes", ())))
+        else:
+            nodes.append(node)
     provider = source_provider if source_provider is not None else globals.SOURCE_PROVIDER
+    source_parser = parser or SourceParser(backend=backend)
     raw_source = str(source_path) if source_path is not None else ""
     if raw_source.startswith("pack://"):
         source_key = raw_source
@@ -62,11 +71,11 @@ def process(
             "root": {
                 "DEFINE", "SUPPORTS", "ASMVARIANT",
                 "TABLE", "STACK", "RULE", "LOAD_FILE",
-                "INSERT", "BEFORE",
                 "BLOCK",
             },
             "include": {"DEFINE", "TABLE", "RULE", "LOAD_FILE"},
             "variant": {"DEFINE", "RULE"},
+            "config": {"BLOCK"},
         }
         try:
             allowed_names = allowed[scope]
@@ -82,6 +91,20 @@ def process(
             raise RuntimeError(
                 f"El alcance '{scope}' no permite estas declaraciones: {names}."
             )
+
+        if scope == "config":
+            invalid_blocks = {
+                str(getattr(node, "block_name", "")).lower()
+                for node in nodes
+                if getattr(node, "name", type(node).__name__) == "BLOCK"
+                and str(getattr(node, "block_name", "")).lower() not in {"config", "linker"}
+            }
+            if invalid_blocks:
+                names = ", ".join(sorted(invalid_blocks))
+                raise RuntimeError(
+                    "config.rif solo puede declarar @block config o @block linker; "
+                    f"se encontró: {names}."
+                )
 
         # Los bloques genéricos, los labels y los soportes se registran antes
         # de resolver tablas u otras referencias, sin depender del orden.
@@ -112,14 +135,16 @@ def process(
                 load_source(
                     node,
                     source_key,
-                    scope="include",
+                    scope=(
+                        "config"
+                        if scope == "root" and is_config_load(node)
+                        else "include"
+                    ),
                     source_provider=provider,
                     project_root=resolved_root,
+                    backend=backend,
+                    parser=source_parser,
                 )
-            elif name == "INSERT":
-                visit_insert(node, source_path=source_key)
-            elif name == "BEFORE":
-                visit_before(node, source_path=source_key)
             else:
                 print("falta por procesar", name)
 
@@ -128,6 +153,8 @@ def process(
                 source_key,
                 source_provider=provider,
                 project_root=resolved_root,
+                backend=backend,
+                parser=source_parser,
             )
     finally:
         if owns_source and source_key in globals.ACTIVE_SOURCES:

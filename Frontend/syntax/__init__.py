@@ -2,33 +2,38 @@ from gram import combinators as cmb
 from gram import sessions
 
 
-RIF_LANG_SESSION = sessions.Session("RIF_LANG_SESSION", "Many")
+RIF_LANG_SESSION = sessions.Session(
+    "RIF_LANG_SESSION",
+    "Many",
+)
 RIF_LANG_SESSION.clear_global()
 RIF_LANG_SESSION.init()
+# Gram exposes this setting as ``ident_underscores``; -2 makes runs of two or
+# more standalone underscores arrive as the grouped Token.UNDERSCORES token.
+RIF_LANG_SESSION.ident_underscores = -2
 
 from . import keywords
 from .items.declarations import (
     CONSUMER,
-    CALL,
     BREAK,
     DEFINE,
     ERROR,
-    EBIT,
-    EMMIT,
-    PADDING,
-    ALIGNEMENT,
-    EMITFR,
-    EMITFREND,
-    JMP,
-    JMPIF,
+    EMIT,
+    EWORD,
+    PAD,
+    ALIGN,
+    FRAME,
+    FRAMEEND,
+    JUMP,
+    JUMPIF,
     KW,
     LOAD,
     LOAD_FILE,
     INSTRUCTION,
-    DLRES,
-    GTRES,
-    LDRES,
-    PUT,
+    DROP_RES,
+    EMIT_RES,
+    WRITE_RES,
+    NIBBLES,
     RESERVE,
     RULE,
     SAVE,
@@ -43,7 +48,6 @@ from .items.declarations import (
     ASMVARIANT,
 )
 from .items.table import TABLE
-from .items.artifacts import ARTIFACT_BLOCK
 from .items.blocks import BLOCK
 from .items.values import (
     ALIGNMENT_VALUE,
@@ -102,7 +106,6 @@ class ENTRYPOINT(cmb.RuleItem):
         cmb.Ref(DEFINE),
         cmb.Ref(RULE),
         cmb.Ref(STACK),
-        cmb.Ref(ARTIFACT_BLOCK),
         cmb.Ref(BLOCK),
     )
 
@@ -129,26 +132,25 @@ __all__ = [
     "TABLE_MATCHER",
     "CONSUMER",
     "STORE",
-    "PUT",
-    "EBIT",
-    "EMMIT",
-    "PADDING",
-    "ALIGNEMENT",
+    "NIBBLES",
+    "EMIT",
+    "EWORD",
+    "PAD",
+    "ALIGN",
     "KW",
-    "JMP",
+    "JUMP",
     "SAVE",
     "LOAD",
     "STACK",
     "RESERVE",
-    "LDRES",
-    "DLRES",
-    "GTRES",
-    "JMPIF",
+    "WRITE_RES",
+    "DROP_RES",
+    "EMIT_RES",
+    "JUMPIF",
     "BREAK",
     "ERROR",
-    "CALL",
-    "EMITFR",
-    "EMITFREND",
+    "FRAME",
+    "FRAMEEND",
     "TOKEN",
     "TABLE_ACCESS",
     "RESERVATION_ACCESS",
@@ -168,6 +170,5 @@ __all__ = [
     "RESWIDTH_VALUE",
     "VRESWIDTH_VALUE",
     "ENTRYPOINT",
-    "ARTIFACT_BLOCK",
     "BLOCK",
 ]

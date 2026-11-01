@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.syntax.items.instructions import normalize_instruction
 
 
 def _children(node: Any) -> tuple[Any, ...]:
@@ -29,9 +30,7 @@ def _instructions(node: Any) -> tuple[Any, ...]:
     children = _children(node)
     if len(children) < 6 or not isinstance(children[5], list):
         raise RuntimeError("@rule debe contener una lista de instrucciones.")
-    # Se conservan las listas originales: las instrucciones nodeable=False,
-    # como CONSUMER, no tienen ASTRef propio en la salida de Gram.
-    return tuple(children[5])
+    return tuple(normalize_instruction(instruction) for instruction in children[5])
 
 def visit(node: Any, source_path: str | None = None) -> None:
     """Registra una regla y deja su ejecución para una fase posterior."""

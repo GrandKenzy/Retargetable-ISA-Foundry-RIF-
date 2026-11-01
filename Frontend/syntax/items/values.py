@@ -1,15 +1,21 @@
 from gram import combinators as cmb
 
 
+_NAME = cmb.Alt(
+    cmb.MatchToken("IDENT"),
+    cmb.MatchGroup("keywords"),
+)
+
+
 class TABLE_ACCESS(cmb.RuleItem):
     nodeable = True
     description = "Acceso simple o indexado a una columna de tabla."
     entrypoint = cmb.Alt(
         cmb.Seq(
             cmb.MatchToken("DOLLAR"),
-            cmb.MatchToken("IDENT"),
+            _NAME,
             cmb.MatchToken("DOT"),
-            cmb.MatchToken("IDENT"),
+            _NAME,
             cmb.MatchToken("LBRACKET"),
             cmb.Alt(
                 cmb.MatchToken("IDENT"),
@@ -20,13 +26,13 @@ class TABLE_ACCESS(cmb.RuleItem):
             ),
             cmb.MatchToken("RBRACKET"),
             cmb.MatchToken("DOT"),
-            cmb.MatchToken("IDENT"),
+            _NAME,
         ),
         cmb.Seq(
             cmb.MatchToken("DOLLAR"),
-            cmb.MatchToken("IDENT"),
+            _NAME,
             cmb.MatchToken("DOT"),
-            cmb.MatchToken("IDENT"),
+            _NAME,
         ),
     )
 
@@ -42,12 +48,12 @@ class RESERVATION_ACCESS(cmb.RuleItem):
 
 class CALL_VALUE(cmb.RuleItem):
     nodeable = True
-    description = "Llamada sintáctica a una función externa."
+    description = "Referencia sintáctica a una función nativa."
     entrypoint = cmb.Seq(
         cmb.MatchToken("HASH"),
         cmb.MatchKeyword("call"),
         cmb.MatchToken("LBRACKET"),
-        cmb.MatchToken("IDENT"),
+        _NAME,
         cmb.MatchToken("RBRACKET"),
     )
 
@@ -88,20 +94,20 @@ class DDEPTH_VALUE(cmb.RuleItem):
     entrypoint = cmb.Seq(
         cmb.MatchToken("COLON"),
         cmb.MatchToken("COLON"),
-        cmb.MatchKeyword("DDEPTH"),
+        cmb.MatchSeqSymbol(symbols=["ddepth"], case_sensitive=True),
     )
 
 
 class DLOAD_VALUE(cmb.RuleItem):
     nodeable = True
     description = "Extrae el último valor del datastack."
-    entrypoint = cmb.MatchKeyword("dload")
+    entrypoint = cmb.MatchSeqSymbol(symbols=["dget"], case_sensitive=True)
 
 
 class DPEEK_VALUE(cmb.RuleItem):
     nodeable = True
     description = "Consulta el último valor del datastack sin extraerlo."
-    entrypoint = cmb.MatchKeyword("dpeek")
+    entrypoint = cmb.MatchSeqSymbol(symbols=["dpeek"], case_sensitive=True)
 
 
 def _reservation_value(name: str):

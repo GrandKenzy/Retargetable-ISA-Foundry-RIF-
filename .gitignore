@@ -4,7 +4,29 @@
 .vnma_meta/
 vnma_cache/
 __pycache__/
+.rif-cache/
 *.py[cod]
 .env
 /vnma.toml
 /skills.md
+
+# --- Artefactos locales de Codex y herramientas de Windows ---
+/.codex-attachments/
+/_handlecheck/
+
+# --- Salidas binarias generadas por RIF ---
+*.pack
+*.pcic
+*.gba
+/storage.bin
+/windows.pcpi
+/datos.store
+/labels.json
+
+# El ejemplo GBA necesita gba_header.bin como entrada; el resto son salidas.
+/examples/GBA-Bouncing-Ball/main.asm
+/examples/GBA-Bouncing-Ball/gba.pack
+/examples/GBA-Bouncing-Ball/labels.json
+/examples/GBA-Bouncing-Ball/rif_ball*.gba
+/examples/GBA-Bouncing-Ball/preview_*.png
+/examples/GBA-Bouncing-Ball/preview_*.gif

@@ -7,26 +7,26 @@ compilación MIR. Es independiente del stack de tokens de `@stack`.
 
 ```rif
 @rule prepare:
--> dsave 64
+. dpush 64
 
 @rule encode:
--> fits dload
+. fit dget
 ```
 
-`dsave VALUE` evalúa y apila. `dload` usado como `VALUE` extrae el valor
-superior. `dpeek` lo consulta sin extraerlo; `dpop` lo descarta y `::DDEPTH`
+`dpush VALUE` evalúa y apila. `dget` usado como `VALUE` extrae el valor
+superior. `dpeek` lo consulta sin extraerlo; `dpop` lo descarta y `::ddepth`
 devuelve la profundidad.
 
-`fits dload` valida el ancho y solo lo extrae después de un ajuste exitoso. Un
-`iffits` fallido conserva el ancho para que una Rule pueda recuperarlo.
+`fits dget` valida el ancho y solo lo extrae después de un ajuste exitoso. Un
+`fit_exact` fallido conserva el ancho para que una Rule pueda recuperarlo.
 
 ## Carga desde tablas
 
 ```rif
--> dload ::registers.names : bits
+. dget ::registers.names : bits
 ```
 
-La forma de instrucción de `dload`:
+La forma de instrucción de `dget`:
 
 1. Lee el valor del token actual.
 2. Lo busca en `registers.names`.
@@ -40,4 +40,5 @@ falla sin consumirlo ni modificar la pila.
 
 `RIFMachine.execute` inicia una ejecución aislada y limpia el datastack.
 `execute_line` conserva datastack, reservas y demás estado entre líneas MIR.
-Las funciones Python pueden leer la lista viva con `context.datastack`.
+Las funciones nativas futuras recibirán contratos explícitos; no existe un
+contexto Python dinámico con acceso directo al datastack.

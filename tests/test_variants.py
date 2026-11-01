@@ -51,9 +51,9 @@ class VariantProcessorTests(unittest.TestCase):
     def variant_rules(name: str) -> str:
         return (
             f"@rule ENTER_{name}:\n"
-            "-> $registers.name, IDENT\n"
+            ". $registers.name, IDENT\n"
             f"@rule EXIT_{name}:\n"
-            "-> $registers.name, IDENT\n"
+            ". $registers.name, IDENT\n"
         )
 
     def test_variant_file_is_loaded_with_shared_global_context(self) -> None:
@@ -64,7 +64,7 @@ class VariantProcessorTests(unittest.TestCase):
                 "@define root_label\n"
                 "@table registers\n"
                 "| name | opcode |\n"
-                "_\n"
+                "__\n"
                 "| mov | 1 |\n"
                 "@end\n"
                 + self.declaration("thumb"),
@@ -78,7 +78,7 @@ class VariantProcessorTests(unittest.TestCase):
             process(self.parse(root.read_text(encoding="utf-8"), root), root)
 
             self.assertEqual(rif_globals.DEFINES, {"root_label", "thumb_label"})
-            self.assertEqual(rif_globals.TABLES["registers"].matrix, [("mov", 1)])
+            self.assertEqual(rif_globals.TABLES["registers"].matrix, (("mov", 1),))
             self.assertEqual(
                 set(rif_globals.RULES), {"ENTER_thumb", "EXIT_thumb"}
             )
@@ -94,7 +94,7 @@ class VariantProcessorTests(unittest.TestCase):
             variant.write_text(
                 "@table forbidden\n"
                 "| name |\n"
-                "_\n"
+                "__\n"
                 "| 1 |\n"
                 "@end\n",
                 encoding="utf-8",
@@ -116,7 +116,7 @@ class VariantProcessorTests(unittest.TestCase):
             table.write_text(
                 "@table registers\n"
                 "| name | opcode |\n"
-                "_\n"
+                "__\n"
                 "| mov | 1 |\n"
                 "@end\n",
                 encoding="utf-8",
@@ -124,13 +124,13 @@ class VariantProcessorTests(unittest.TestCase):
             rules.write_text(
                 "@define loaded_word\n"
                 "@rule loaded_rule:\n"
-                "-> $registers.name, IDENT\n",
+                ". $registers.name, IDENT\n",
                 encoding="utf-8",
             )
 
             process(self.parse(root.read_text(encoding="utf-8"), root), root)
 
-            self.assertEqual(rif_globals.TABLES["registers"].matrix, [("mov", 1)])
+            self.assertEqual(rif_globals.TABLES["registers"].matrix, (("mov", 1),))
             self.assertEqual(rif_globals.DEFINES, {"loaded_word"})
             self.assertEqual(rif_globals.RULES["loaded_rule"].source_path, str(rules.resolve()))
             self.assertIn(str(table.resolve()), rif_globals.LOADED_SOURCES)
@@ -152,7 +152,7 @@ class VariantProcessorTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 process(self.parse(root.read_text(encoding="utf-8"), root), root)
 
-    def test_searching_folder_controls_variant_resolution(self) -> None:
+    def test_search_path_controls_variant_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "main.rif"
             folder = Path(directory) / "variants"
@@ -160,9 +160,9 @@ class VariantProcessorTests(unittest.TestCase):
             variant = folder / "thumb.rif"
             root.write_text(
                 "@block linker:\n"
-                'ext ".rif"\n'
-                'name "main"\n'
-                'searching "variants"\n'
+                'extension ".rif"\n'
+                ''
+                'search_path "variants"\n'
                 "@end\n"
                 + self.declaration("thumb"),
                 encoding="utf-8",
@@ -173,14 +173,40 @@ class VariantProcessorTests(unittest.TestCase):
 
             self.assertIn(str(variant.resolve()), rif_globals.LOADED_SOURCES)
 
-    def test_searching_false_rejects_automatic_loading(self) -> None:
+    def test_search_paths_use_declared_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "main.rif"
+            first = Path(directory) / "first"
+            second = Path(directory) / "second"
+            first.mkdir()
+            second.mkdir()
+            first_variant = first / "thumb.rif"
+            second_variant = second / "thumb.rif"
+            first_variant.write_text(self.variant_rules("thumb"), encoding="utf-8")
+            second_variant.write_text(self.variant_rules("thumb"), encoding="utf-8")
+            root.write_text(
+                "@block linker:\n"
+                'extension ".rif"\n'
+                'search_path "first"\n'
+                'search_path "second"\n'
+                "@end\n"
+                + self.declaration("thumb"),
+                encoding="utf-8",
+            )
+
+            process(self.parse(root.read_text(encoding="utf-8"), root), root)
+
+            self.assertIn(str(first_variant.resolve()), rif_globals.LOADED_SOURCES)
+            self.assertNotIn(str(second_variant.resolve()), rif_globals.LOADED_SOURCES)
+
+    def test_search_path_false_rejects_automatic_loading(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "main.rif"
             root.write_text(
                 "@block linker:\n"
-                'ext ".rif"\n'
-                'name "main"\n'
-                "searching false\n"
+                'extension ".rif"\n'
+                ''
+                "search_path false\n"
                 "@end\n"
                 + self.declaration("thumb"),
                 encoding="utf-8",
@@ -211,9 +237,8 @@ class VariantProcessorTests(unittest.TestCase):
             root.write_text(self.declaration("thumb"), encoding="utf-8")
             variant.write_text(
                 "@block linker:\n"
-                'ext ".rif"\n'
-                'name "nested"\n'
-                'searching ""\n'
+                'extension ".rif"\n'
+                'search_path ""\n'
                 "@end\n",
                 encoding="utf-8",
             )

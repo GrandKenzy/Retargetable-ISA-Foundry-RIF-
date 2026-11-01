@@ -16,16 +16,17 @@ example an ARM state and a Thumb state.
 ```
 
 The variant file is named `thumb.rif` and is resolved according to the linker
-searching directory. A variant file may contain only definitions and Rules:
+`search_path` directories, in declaration order. A variant file may contain
+only definitions and Rules:
 
 ```rif
 @define thumb_word
 
 @rule ENTER_thumb:
--> KW "thumb"
+. KW "thumb"
 
 @rule EXIT_thumb:
--> KW "endthumb"
+. KW "endthumb"
 ```
 
 The root tables, configuration, linker, and other global context remain shared.

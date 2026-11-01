@@ -23,10 +23,10 @@ You might define an instruction called `mov`, a field called `hamburguesa32`, a 
 For example, the following RIF operations manipulate bits without requiring any CPU knowledge:
 
 ```rif
--> emitbits 5 3       ; append the three bits 101
--> emitbits 10 13     ; append a 13-bit field containing 10
--> readbits 0 3       ; read three existing bits into the data stack
--> patchbits 0 3 2    ; overwrite the first three bits with 010
+. bits 5 3       ; append the three bits 101
+. bits 10 13     ; append a 13-bit field containing 10
+. read_bits 0 3       ; read three existing bits into the data stack
+. patch_bits 0 3 2    ; overwrite the first three bits with 010
 ```
 
 These are **bit operations**, not processor instructions. Whether the fields represent an opcode, a register, a color, a packet header, or something else is entirely up to your format.
@@ -51,10 +51,10 @@ RIF is designed to express the binary representation you want, not to force that
 | **Binary reads and rewrites** | Read existing bit ranges, patch allocated fields, and work with byte-oriented values |
 | **Configurable rules** | `.rif` definitions with tables, conditions, reusable rules, and target configuration |
 | **Physical and virtual layouts** | Sections, positioning, padding, alignment, reservations, and location queries |
-| **Binary inserts and final patches** | `@insert` for binary preludes and `@before` for final size/offset corrections |
+| **Assembler preprocessor** | `::RIF_INSERT` for binary preludes and `::RIF_PATCH` for final size/offset corrections |
 | **Reusable `.pack` files** | Package rule definitions, included sources, assets, and optionally precompiled SQLite data |
 | **External input processing** | Process a file or consume an existing token stream without repeating the external lexing step |
-| **Python extensibility** | Optional `funcs.py` callbacks for application-specific computations |
+| **Native functions** | Closed, deterministic functions designed for Python/C parity |
 
 A `.pack` defines how a particular input is interpreted. RIF's core does not ship with an intrinsic knowledge of AMD64, ARM, RISC-V, or any other processor.
 
@@ -96,12 +96,27 @@ RIF can produce raw binary data or construct a larger image with sections, inser
 
 - Python 3.10+
 - [Gram](https://github.com/GrandKenzy/Gram) for parsing RIF definitions
+- Pillow for local image conversion and `soundfile`/NumPy for local WAV, FLAC,
+  and OGG conversion (optional until the media plugins are used)
 
 This repository uses [VNMA](https://github.com/GrandKenzy/vnma) to manage project dependencies:
 
 ```powershell
 vnma install
 vnma sync-ide
+```
+
+To enable the local media plugins, install their optional dependencies:
+
+```powershell
+vnma install pillow
+vnma install soundfile
+```
+
+To compile a standalone `.store` file into indexed raw storage:
+
+```powershell
+vnma run rif.py --comp-store datos.store -o storage.bin
 ```
 
 For a clean clone, copy `vnma.toml.example` to `vnma.toml` before installing.
@@ -154,7 +169,8 @@ Here, `tokens` is an existing token stream compatible with the target's rules. U
 
 For direct bit inspection and manipulation, see the [memory and bit-buffer documentation](docs/en/04-Execution/01-bit-memory.md) and the `BitBuffer` API.
 
-> **Security:** Optional `funcs.py` extensions execute Python code. Only load `.rif` definitions or `.pack` files containing executable extensions from sources you trust.
+> **Security:** RIF no ejecuta código Python proporcionado por un target. Las
+> funciones nativas se registran explícitamente y no cargan módulos externos.
 
 ## Documentation
 

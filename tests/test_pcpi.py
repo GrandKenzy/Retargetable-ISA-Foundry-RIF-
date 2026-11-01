@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import struct
 import tempfile
 import unittest
 from pathlib import Path
 
 from pcpi import (
-    BITORDER_LSB,
+    BITORDER_MSB,
     ENDIAN_LITTLE,
     PCPIError,
     PCPIPit,
@@ -17,69 +16,38 @@ from pcpi_compiler import compile_pcpi_source, compile_pcpi_source_file
 from rif import main as rif_main
 
 
-HEADER = struct.Struct("<BQIBBI")
-PIT = struct.Struct("<HH")
-
-
 SOURCE = '''\
-@block config:
-sectiondef ".section"
-make section "text"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "text"
-defaultsection "text"
-wordsize 8
-addresssize 64
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
-@end
+MAGIC "pcpi"
+VERSION 1
+ENDIANNESS 1
+BITORDER 1
+SIGNATURE "Grand Kenzy Tools"
+PADDING 0
 
-@rule pcpi:
--> emitfr "01111111" "01000100"
--> emitfrend
--> reserve "entry" 16
+@RAW
+7F 44
+[2]
+00 01
+@END
 '''
 
 
-def make_binary_pcpi(
-    image: bytes = b"\x00\x00\x00\x00\x00\x00",
-    padding: bytes = b"\x00\x00",
-    pits: tuple[tuple[int, int], ...] = ((0, 2), (4, 2)),
-    *,
-    version: int = 1,
-) -> bytes:
-    header = HEADER.pack(
-        version,
-        len(image),
-        len(padding),
-        BITORDER_LSB,
-        ENDIAN_LITTLE,
-        len(pits),
-    )
-    return header + padding + image + b"".join(PIT.pack(*pit) for pit in pits)
-
-
 class PCPITests(unittest.TestCase):
-    def test_rif_source_emits_image_and_reservation_pit(self) -> None:
+    def test_declarative_source_emits_raw_and_aligned_pit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "header.pci"
             source.write_text(SOURCE, encoding="utf-8")
 
             result = compile_pcpi_source(source)
 
-            self.assertEqual(result.entry_rule, "pcpi")
-            self.assertEqual(result.image.image, b"\x7fD\x00\x00")
-            self.assertEqual(result.image.pits, (PCPIPit(2, 2, "entry"),))
+            self.assertEqual(result.source, source.resolve())
+            self.assertEqual(result.image.signature, b"Grand Kenzy Tools")
+            self.assertEqual(result.image.endianness, ENDIAN_LITTLE)
+            self.assertEqual(result.image.bitorder, BITORDER_MSB)
+            self.assertEqual(result.image.image, b"\x7fD" + b"\0" * 6 + b"\0\0" + b"\0\1")
+            self.assertEqual(result.image.image_size, 12)
+            self.assertEqual(result.image.pits, (PCPIPit(8, 2, 6),))
+            self.assertEqual(len(result.image.rpad), 4)
 
     def test_cli_compiles_text_source_to_derived_pcic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -89,35 +57,75 @@ class PCPITests(unittest.TestCase):
             self.assertEqual(rif_main(["--comp-pcpi", str(source)]), 0)
             output = source.with_suffix(".pcic")
             self.assertTrue(output.is_file())
-            self.assertEqual(load_pcpi_file(output).image, b"\x7fD\x00\x00")
+            self.assertEqual(load_pcpi_file(output).image_size, 12)
 
-    def test_source_compiler_accepts_explicit_entry_and_output(self) -> None:
+    def test_source_compiler_accepts_explicit_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "header.pci"
-            output = Path(directory) / "build" / "header.pci"
+            output = Path(directory) / "build" / "header.pcic"
             source.write_text(SOURCE, encoding="utf-8")
 
-            result = compile_pcpi_source_file(source, output, entry_rule="pcpi")
+            result = compile_pcpi_source_file(source, output)
 
             self.assertEqual(result, output.resolve())
             self.assertTrue(output.is_file())
 
-    def test_binary_validator_remains_strict_backend(self) -> None:
-        compiled = parse_pcpi(make_binary_pcpi())
-
-        self.assertEqual(compiled.pits, (PCPIPit(0, 2), PCPIPit(4, 2)))
-        self.assertEqual(compiled.fill(0, b"AB"), b"AB\x00\x00\x00\x00")
-        with self.assertRaisesRegex(PCPIError, "solaparse"):
-            parse_pcpi(make_binary_pcpi(pits=((0, 3), (2, 2))))
-
-    def test_rejects_non_byte_aligned_pit(self) -> None:
-        source = SOURCE.replace('reserve "entry" 16', 'reserve "entry" 12')
+    def test_fill_requires_exact_pit_size(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "bad.pci"
-            path.write_text(source, encoding="utf-8")
+            source = Path(directory) / "header.pci"
+            source.write_text(SOURCE, encoding="utf-8")
+            image = compile_pcpi_source(source).image
 
-            with self.assertRaisesRegex(PCPIError, "alineado"):
-                compile_pcpi_source(path)
+            self.assertEqual(image.fill(0, b"AB")[8:10], b"AB")
+            with self.assertRaisesRegex(PCPIError, "requiere 2 bytes"):
+                image.fill(0, b"A")
+
+    def test_binary_validator_rejects_overlapping_pits(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "header.pci"
+            source.write_text(SOURCE, encoding="utf-8")
+            compiled = compile_pcpi_source(source).image
+            malformed = compiled.__class__(
+                version=compiled.version,
+                signature=compiled.signature,
+                image_size=compiled.image_size,
+                padding=compiled.padding,
+                rpad=compiled.rpad,
+                bitorder=compiled.bitorder,
+                endianness=compiled.endianness,
+                image=compiled.image,
+                pits=(PCPIPit(8, 4, 6), PCPIPit(8, 2)),
+            )
+
+            with self.assertRaisesRegex(PCPIError, "solaparse"):
+                parse_pcpi(malformed.to_bytes())
+
+    def test_rejects_invalid_source_byte_and_trailing_content(self) -> None:
+        bad_byte = SOURCE.replace("7F 44", "7F 4G")
+        trailing = SOURCE + "\nAF\n"
+        with tempfile.TemporaryDirectory() as directory:
+            bad_path = Path(directory) / "bad-byte.pci"
+            bad_path.write_text(bad_byte, encoding="utf-8")
+            with self.assertRaisesRegex(PCPIError, "Byte o pit"):
+                compile_pcpi_source(bad_path)
+
+            trailing_path = Path(directory) / "trailing.pci"
+            trailing_path.write_text(trailing, encoding="utf-8")
+            with self.assertRaisesRegex(PCPIError, "después de @END"):
+                compile_pcpi_source(trailing_path)
+
+    def test_rejects_empty_signature_and_bad_endianness(self) -> None:
+        invalid_signature = SOURCE.replace('SIGNATURE "Grand Kenzy Tools"', 'SIGNATURE ""')
+        invalid_endianness = SOURCE.replace("ENDIANNESS 1", "ENDIANNESS 3")
+        with tempfile.TemporaryDirectory() as directory:
+            for name, text, message in (
+                ("signature.pci", invalid_signature, "SIGNATURE"),
+                ("endianness.pci", invalid_endianness, "ENDIANNESS"),
+            ):
+                path = Path(directory) / name
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(PCPIError, message):
+                    compile_pcpi_source(path)
 
 
 if __name__ == "__main__":

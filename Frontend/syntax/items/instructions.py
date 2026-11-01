@@ -1,4 +1,4 @@
-"""Line-oriented instruction consumption for RIF Rule bodies."""
+"""Declarative line-oriented instruction syntax for RIF rules."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from ..keywords import INSTRUCTION_OPCODES
 
 @dataclass(frozen=True)
 class RawInstruction:
-    """One logical RIF instruction captured without recursive combinators."""
+    """One logical RIF instruction preserved for semantic processing."""
 
     opcode: str
     lines: tuple[tuple[lexer.TokenType, ...], ...]
@@ -27,95 +27,115 @@ class RawInstruction:
         return self.tokens[0] if self.tokens else None
 
 
-class InstructionConsumer(cmb.Combinator):
-    """Consume one complete instruction, stopping only at line boundaries."""
+_FRAME_END = cmb.Seq(
+    cmb.MatchToken(lexer.Token.DOT),
+    cmb.MatchSeqSymbol(symbols=["frameend"], case_sensitive=True),
+    cmb.MatchToken(lexer.Token.NEWLINE),
+)
 
-    _KEYWORDS = INSTRUCTION_OPCODES
 
-    @staticmethod
-    def _consume_line(parser: Any) -> tuple[lexer.TokenType, ...] | None:
-        line: list[lexer.TokenType] = []
-        while not parser.is_eof():
-            token = parser.peek()
-            if token is None:
-                return None
-            line.append(parser.consume())
-            if token.token == lexer.Token.NEWLINE:
-                return tuple(line)
-        return None
+def _split_lines(tokens: tuple[lexer.TokenType, ...]) -> tuple[tuple[lexer.TokenType, ...], ...]:
+    lines: list[tuple[lexer.TokenType, ...]] = []
+    line: list[lexer.TokenType] = []
+    for token in tokens:
+        line.append(token)
+        if token.token == lexer.Token.NEWLINE:
+            lines.append(tuple(line))
+            line = []
+    if line:
+        lines.append(tuple(line))
+    return tuple(lines)
 
-    @staticmethod
-    def _is_frame_end(parser: Any) -> bool:
-        first = parser.peek()
-        second = parser.peek_dist(1)
-        return bool(
-            first is not None
-            and second is not None
-            and first.token == lexer.Token.ARROW
-            and second.token == lexer.Token.KEYWORD
-            and second.value == "emitfrend"
-        )
 
-    def parse(self, analyzer: Any) -> RawInstruction | None:
-        parser = analyzer.parser
-        checkpoint = parser.savepoint("RIF-INSTRUCTION-CONSUMER")
-        first = parser.peek()
-        if first is None or first.token != lexer.Token.ARROW:
-            return None
+def _token(node: Any) -> lexer.TokenType | None:
+    if isinstance(node, lexer.TokenType):
+        return node
+    if isinstance(node, (list, tuple)) and len(node) == 1:
+        return _token(node[0])
+    value = getattr(node, "token", None)
+    return value if isinstance(value, lexer.TokenType) else None
 
-        first_line = self._consume_line(parser)
-        if not first_line or len(first_line) < 2:
-            parser.restore(checkpoint)
-            return None
 
-        body = first_line[1:-1]  # remove ARROW and NEWLINE
-        if not body:
-            parser.restore(checkpoint)
-            return None
+def _opcode(lines: tuple[tuple[lexer.TokenType, ...], ...]) -> str:
+    if not lines or len(lines[0]) < 2:
+        raise RuntimeError("Una instrucción RIF requiere un opcode.")
+    body = lines[0][1:]
+    if body and body[-1].token == lexer.Token.NEWLINE:
+        body = body[:-1]
+    if not body:
+        raise RuntimeError("Una instrucción RIF requiere un opcode.")
 
-        if body[0].token == lexer.Token.DOLLAR:
-            opcode = "table_matcher"
-        elif body[0].token == lexer.Token.LBRACKET:
-            opcode = "store"
-        elif body[0].token == lexer.Token.KEYWORD:
-            opcode = self._KEYWORDS.get(str(body[0].value))
-            if opcode is None:
-                if lexer.Token.from_string(str(body[0].value)) is None:
-                    parser.restore(checkpoint)
-                    return None
-                opcode = "consumer"
-        elif body[0].token in {lexer.Token.NUMBER, lexer.Token.DECIMAL, lexer.Token.IDENT}:
-            opcode = "consumer"
-        else:
-            parser.restore(checkpoint)
-            return None
+    first = body[0]
+    if first.token == lexer.Token.DOLLAR:
+        return "table_matcher"
+    if first.token == lexer.Token.LBRACKET:
+        return "store"
+    opcode = INSTRUCTION_OPCODES.get(str(first.value))
+    if opcode is not None:
+        return opcode
+    if first.token == lexer.Token.KEYWORD:
+        if lexer.Token.from_string(str(first.value)) is not None:
+            return "consumer"
+    elif first.token in {lexer.Token.NUMBER, lexer.Token.DECIMAL, lexer.Token.IDENT}:
+        return "consumer"
+    raise RuntimeError(f"Opcode de instrucción no reconocido: {first.value!r}.")
 
-        lines = [first_line]
-        if opcode == "emitfr":
-            while True:
-                if parser.is_eof() or self._is_frame_end(parser):
-                    break
-                line = self._consume_line(parser)
-                if not line or all(token.token == lexer.Token.NEWLINE for token in line):
-                    parser.restore(checkpoint)
-                    return None
-                lines.append(line)
-            if not self._is_frame_end(parser):
-                parser.restore(checkpoint)
-                return None
-            end_line = self._consume_line(parser)
-            if not end_line:
-                parser.restore(checkpoint)
-                return None
-            lines.append(end_line)
 
-        return RawInstruction(opcode=opcode, lines=tuple(lines))
+def normalize_instruction(nodes: Any) -> RawInstruction:
+    """Convert the declarative Gram result into the semantic RawInstruction."""
+
+    if isinstance(nodes, RawInstruction):
+        return nodes
+    if not isinstance(nodes, (list, tuple)):
+        raise RuntimeError("La instrucción declarativa tiene una forma inválida.")
+
+    raw = next((node for node in nodes if isinstance(node, cmb.RawNode)), None)
+    if raw is None:
+        raise RuntimeError("La instrucción declarativa no contiene CaptureRaw.")
+    prefix = tuple(token for node in nodes if (token := _token(node)) is not None)
+    lines = _split_lines(prefix + tuple(raw.tokens))
+    if not lines:
+        raise RuntimeError("La instrucción declarativa está vacía.")
+
+    if len(prefix) > 1 and prefix[1].value == "frame":
+        captured = tuple(raw.tokens)
+        if captured[:-3] and captured[-4].token != lexer.Token.NEWLINE:
+            raise RuntimeError("frameend debe comenzar en una línea nueva.")
+        if any(
+            len(line) == 1 and line[0].token == lexer.Token.NEWLINE
+            for line in lines[1:-1]
+        ):
+            raise RuntimeError("frame no admite líneas vacías en el frame.")
+
+    return RawInstruction(opcode=_opcode(lines), lines=lines)
+
+
+_INSTRUCTION_START = cmb.Alt(
+    cmb.MatchToken(lexer.Token.DOLLAR),
+    cmb.MatchToken(lexer.Token.LBRACKET),
+    cmb.MatchGroup("keywords"),
+    cmb.MatchGroup("token_names"),
+    cmb.MatchToken(lexer.Token.NUMBER),
+    cmb.MatchToken(lexer.Token.DECIMAL),
+    cmb.MatchToken(lexer.Token.IDENT),
+)
 
 
 class INSTRUCTION(cmb.RuleItem):
     nodeable = False
-    description = "Consume una instrucción RIF completa por líneas."
-    entrypoint = InstructionConsumer()
+    description = "Captura una instrucción RIF mediante CaptureRaw."
+    entrypoint = cmb.Alt(
+        cmb.Seq(
+            cmb.MatchToken(lexer.Token.DOT),
+            cmb.MatchSeqSymbol(symbols=["frame"], case_sensitive=True),
+            cmb.CaptureRaw(_FRAME_END, consume_target=True),
+        ),
+        cmb.Seq(
+            cmb.MatchToken(lexer.Token.DOT),
+            _INSTRUCTION_START,
+            cmb.CaptureRaw(cmb.MatchToken(lexer.Token.NEWLINE), consume_target=True),
+        ),
+    )
 
 
-__all__ = ["RawInstruction", "InstructionConsumer", "INSTRUCTION"]
+__all__ = ["RawInstruction", "INSTRUCTION", "normalize_instruction"]

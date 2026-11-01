@@ -12,26 +12,24 @@ from MIR import BitEmitter, MIRSemanticError, RIFMachine, RIFRuntimeError, compi
 
 CONFIG_SOURCE = """\
 @block config:
-sectiondef ".section"
-make section "text"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "text"
-defaultsection "text"
-sectionalign "text" 8
-wordsize 8
-addresssize 8
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
+    format section ".section"
+    section text ""
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    align text 8
+    word_size 8
+    address_size 8
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
 @end
 """
 
@@ -74,12 +72,12 @@ class RuntimeTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| name | bits |\n"
-            "_\n"
+            "__\n"
             '| "mov" | "1010" |\n'
             "@end\n"
             "@rule sample:\n"
-            "-> $registers.name, IDENT\n"
-            "-> put $registers.bits 0000\n"
+            ". $registers.name, IDENT\n"
+            ". nibbles $registers.bits 0000\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "main.rif")
@@ -91,7 +89,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(machine.selected_rows["registers"], 0)
 
     def test_store_consumes_the_first_matching_token(self) -> None:
-        source = "@rule sample:\n-> [NUMBER, STRING]\n"
+        source = "@rule sample:\n. [NUMBER, STRING]\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "main.rif")
             machine = RIFMachine(program)
@@ -102,7 +100,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(result.stored_token.value, "hello")
 
     def test_emmit_uses_the_emitter_word_size(self) -> None:
-        source = "@rule sample:\n-> emmit 4660\n"
+        source = "@rule sample:\n. eword 4660\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "main.rif")
             machine = RIFMachine(program, emitter=BitEmitter(wordsize=16))
@@ -113,10 +111,10 @@ class RuntimeTests(unittest.TestCase):
     def test_dynamic_reservations_rewrite_copy_and_remove_names(self) -> None:
         source = (
             '@rule sample:\n'
-            '-> reserve "slot" 8\n'
-            '-> ldres "slot" "10101010"\n'
-            '-> gtres "slot"\n'
-            '-> dlres "slot"\n'
+            '. reserve "slot" 8\n'
+            '. write_res "slot" "10101010"\n'
+            '. emit_res "slot"\n'
+            '. drop_res "slot"\n'
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "main.rif")
@@ -129,13 +127,13 @@ class RuntimeTests(unittest.TestCase):
     def test_emitfr_keeps_rows_and_jmpif_can_use_boolean(self) -> None:
         source = (
             "@rule target:\n"
-            "-> emmit 1\n"
+            ". eword 1\n"
             "@rule sample:\n"
-            "-> emitfr 0000 0\n"
+            ". frame 0000 0\n"
             "00000000\n"
             "0000\n"
-            "-> emitfrend\n"
-            "-> jmpif target, true\n"
+            ". frameend\n"
+            ". JUMPIF target, true\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "main.rif")
@@ -149,12 +147,12 @@ class RuntimeTests(unittest.TestCase):
     def test_padding_alignment_and_position_values_are_traced(self) -> None:
         source = CONFIG_SOURCE + (
             "@rule sample:\n"
-            "-> emmit 00000000\n"
-            "-> padding 3\n"
-            "-> alignement 8\n"
-            "-> emmit ::SIZE\n"
-            "-> emmit ::VSIZE\n"
-            "-> emmit ::ALIGNMENT\n"
+            ". eword 00000000\n"
+            ". pad 3\n"
+            ". align 8\n"
+            ". eword ::SIZE\n"
+            ". eword ::VSIZE\n"
+            ". eword ::ALIGNMENT\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "positions.rif")
@@ -170,13 +168,13 @@ class RuntimeTests(unittest.TestCase):
     def test_reservation_and_label_distances_are_values(self) -> None:
         source = (
             "@rule sample:\n"
-            '-> reserve "slot" 8\n'
-            "-> emmit 00000000\n"
-            '-> emmit resdir "slot"\n'
-            '-> emmit resdist "slot"\n'
-            '-> emmit dist "sample"\n'
-            '-> emmit vdist "sample"\n'
-            '-> emmit resvdir "slot"\n'
+            '. reserve "slot" 8\n'
+            ". eword 00000000\n"
+            '. eword resdir "slot"\n'
+            '. eword resdist "slot"\n'
+            '. eword dist "sample"\n'
+            '. eword vdist "sample"\n'
+            '. eword resvdir "slot"\n'
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "addresses.rif")
@@ -189,11 +187,11 @@ class RuntimeTests(unittest.TestCase):
     def test_nested_rule_traces_keep_child_and_parent_spans(self) -> None:
         source = (
             "@rule child:\n"
-            "-> emmit 1\n"
-            "-> padding 2\n"
+            ". eword 1\n"
+            ". pad 2\n"
             "@rule parent:\n"
-            "-> emmit 2\n"
-            "-> JMP child\n"
+            ". eword 2\n"
+            ". JUMP child\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "nested.rif")
@@ -207,15 +205,15 @@ class RuntimeTests(unittest.TestCase):
             )
 
     def test_padding_and_alignment_require_positive_sizes(self) -> None:
-        for opcode in ("padding", "alignement"):
-            source = f"@rule sample:\n-> {opcode} 0\n"
+        for opcode in ("pad", "align"):
+            source = f"@rule sample:\n. {opcode} 0\n"
             with self.subTest(opcode=opcode), tempfile.TemporaryDirectory() as directory:
                 with self.assertRaises(MIRSemanticError):
                     self.compile(source, Path(directory) / "invalid.rif")
             reset_globals()
 
     def test_fits_uses_the_current_mir_token_and_truncates_low_bits(self) -> None:
-        source = "@rule sample:\n-> fits 8\n"
+        source = "@rule sample:\n. fit 8\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "fits.rif")
             machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
@@ -232,11 +230,11 @@ class RuntimeTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| names | bits |\n"
-            "_\n"
+            "__\n"
             "| rax | 16 |\n"
             "@end\n"
             "@rule sample:\n"
-            "-> fits $registers.names[rax].bits\n"
+            ". fit $registers.names[rax].bits\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "indexed-fits.rif")
@@ -247,9 +245,9 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(result.buffer, b"\x02\x05")
 
     def test_iffits_is_exact_and_does_not_mutate_on_failure(self) -> None:
-        source = "@rule sample:\n-> iffits 8\n"
+        source = "@rule sample:\n. fit_exact 8\n"
         with tempfile.TemporaryDirectory() as directory:
-            program = self.compile(source, Path(directory) / "iffits.rif")
+            program = self.compile(source, Path(directory) / "fit-exact.rif")
             machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
             result = machine.execute("sample", self.tokenize("255"))
             self.assertEqual(result.position, 1)
@@ -262,9 +260,9 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(machine.emitter.buffer.bit_length, 0)
 
     def test_ifnfits_asserts_and_consumes_without_emitting(self) -> None:
-        source = "@rule sample:\n-> ifnfits 8\n"
+        source = "@rule sample:\n. fit_not 8\n"
         with tempfile.TemporaryDirectory() as directory:
-            program = self.compile(source, Path(directory) / "ifnfits.rif")
+            program = self.compile(source, Path(directory) / "fit_not.rif")
             machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
             result = machine.execute("sample", self.tokenize("256"))
             self.assertEqual(result.position, 1)
@@ -278,10 +276,10 @@ class RuntimeTests(unittest.TestCase):
     def test_virtual_padding_and_reservation_do_not_write_physical_bits(self) -> None:
         source = (
             "@rule sample:\n"
-            "-> emmit 1\n"
-            "-> vpadding 4\n"
-            '-> vreserve "virtual" 8\n'
-            "-> padding 2\n"
+            ". eword 1\n"
+            ". vpad 4\n"
+            '. vreserve "virtual" 8\n'
+            ". pad 2\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "virtual.rif")
@@ -298,10 +296,10 @@ class RuntimeTests(unittest.TestCase):
     def test_datastack_push_pop_peek_and_depth(self) -> None:
         source = (
             "@rule sample:\n"
-            "-> dsave 8\n"
-            "-> emmit ::DDEPTH\n"
-            "-> emmit dpeek\n"
-            "-> emmit dload\n"
+            ". dpush 8\n"
+            ". eword ::ddepth\n"
+            ". eword dpeek\n"
+            ". eword dget\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "datastack.rif")
@@ -314,18 +312,18 @@ class RuntimeTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| names | bits |\n"
-            "_\n"
+            "__\n"
             "| rax | 8 |\n"
-            "_\n"
+            "__\n"
             "| rbx | 8 |\n"
             "@end\n"
             "@rule sample:\n"
-            "-> dload ::registers.names : bits\n"
-            "-> fits dload\n"
+            ". dget ::registers.names : bits\n"
+            ". fit dget\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "capture.rif")
-            self.assertEqual(program.context.tables["registers"].indexes.keys(), {"names"})
+            self.assertEqual(program.context.tables["registers"].indexes.keys(), {"names", "bits"})
             machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
             result = machine.execute("sample", self.tokenize("rax 258"))
             self.assertEqual(result.position, 2)
@@ -343,20 +341,20 @@ class RuntimeTests(unittest.TestCase):
         source = (
             "@table registers\n"
             "| names | bits |\n"
-            "_\n"
+            "__\n"
             "| rax | 8 |\n"
-            "_\n"
+            "__\n"
             "| rax | 16 |\n"
             "@end\n"
             "@rule sample:\n"
-            "-> dload ::registers.names : bits\n"
+            ". dget ::registers.names : bits\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(MIRSemanticError, "clave duplicada"):
                 self.compile(source, Path(directory) / "duplicate-key.rif")
 
     def test_datastack_pop_requires_a_value(self) -> None:
-        source = "@rule sample:\n-> dpop\n"
+        source = "@rule sample:\n. dpop\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "empty-stack.rif")
             with self.assertRaisesRegex(RIFRuntimeError, "datastack"):
@@ -365,11 +363,11 @@ class RuntimeTests(unittest.TestCase):
     def test_datastack_survives_lines_and_fit_failure_does_not_pop(self) -> None:
         source = (
             "@rule push:\n"
-            "-> dsave 8\n"
+            ". dpush 8\n"
             "@rule fit:\n"
-            "-> fits dload\n"
+            ". fit dget\n"
             "@rule exact:\n"
-            "-> iffits dload\n"
+            ". fit_exact dget\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "lines.rif")
@@ -388,14 +386,14 @@ class RuntimeTests(unittest.TestCase):
     def test_bit_ranges_and_reservation_widths_control_output(self) -> None:
         source = (
             "@rule sample:\n"
-            '-> reserve "slot" 8\n'
-            '-> patchbits resdir "slot" reswidth "slot" 170\n'
-            "-> readbits 0 8\n"
-            "-> emitbits dload 8\n"
-            "-> vpadding 1\n"
-            "-> valignement 8\n"
-            '-> vreserve "virtual" 8\n'
-            '-> emitbits vreswidth "virtual" 8\n'
+            '. reserve "slot" 8\n'
+            '. patch_bits resdir "slot" reswidth "slot" 170\n'
+            ". read_bits 0 8\n"
+            ". bits dget 8\n"
+            ". vpad 1\n"
+            ". valign 8\n"
+            '. vreserve "virtual" 8\n'
+            '. bits vreswidth "virtual" 8\n'
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "ranges.rif")
@@ -408,7 +406,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(machine.datastack, [])
 
     def test_bit_range_patch_rejects_out_of_bounds(self) -> None:
-        source = "@rule sample:\n-> emitbits 255 8\n-> patchbits 7 2 3\n"
+        source = "@rule sample:\n. bits 255 8\n. patch_bits 7 2 3\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "bad-range.rif")
             machine = RIFMachine(program)
@@ -417,7 +415,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(machine.emitter.buffer.to_bytes(), b"\xff")
 
         reset_globals()
-        byte_source = "@rule sample:\n-> emitbits 255 8\n-> patchbits 0 16 4660\n"
+        byte_source = "@rule sample:\n. bits 255 8\n. patch_bits 0 16 4660\n"
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(byte_source, Path(directory) / "bad-byte-range.rif")
             machine = RIFMachine(program)
@@ -428,14 +426,14 @@ class RuntimeTests(unittest.TestCase):
     def test_physical_reservation_has_independent_virtual_address(self) -> None:
         source = (
             "@rule sample:\n"
-            "-> vpadding 5\n"
-            '-> reserve "slot" 8\n'
-            '-> emitbits resdir "slot" 8\n'
-            '-> emitbits resvdir "slot" 8\n'
-            '-> emitbits vdist "slot" 8\n'
-            '-> emitbits resvdist "slot" 8\n'
-            '-> emmit reswidth "slot"\n'
-            '-> emmit vreswidth "slot"\n'
+            ". vpad 5\n"
+            '. reserve "slot" 8\n'
+            '. bits resdir "slot" 8\n'
+            '. bits resvdir "slot" 8\n'
+            '. bits vdist "slot" 8\n'
+            '. bits resvdist "slot" 8\n'
+            '. eword reswidth "slot"\n'
+            '. eword vreswidth "slot"\n'
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "virtual-address.rif")
@@ -448,10 +446,10 @@ class RuntimeTests(unittest.TestCase):
     def test_byte_aligned_bit_ranges_respect_endianness(self) -> None:
         source = (
             "@rule sample:\n"
-            "-> emitbits 4660 16\n"
-            "-> readbits 0 16\n"
-            "-> patchbits 0 16 22136\n"
-            "-> emitbits dload 16\n"
+            ". bits 4660 16\n"
+            ". read_bits 0 16\n"
+            ". patch_bits 0 16 22136\n"
+            ". bits dget 16\n"
         )
         with tempfile.TemporaryDirectory() as directory:
             program = self.compile(source, Path(directory) / "byte-order.rif")

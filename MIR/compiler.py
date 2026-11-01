@@ -13,6 +13,7 @@ from .instructions import CompiledRule, CompiledRuleSet, Instruction, Operand, S
 
 
 _VALUE_KINDS = {"NUMBER", "DECIMAL", "IDENT", "STRING", "BOOL"}
+_NAME_KINDS = {"IDENT", "KEYWORD"}
 _POSITION_KINDS = {
     "SIZE": "size",
     "VSIZE": "vsize",
@@ -133,7 +134,7 @@ def _value_operand(node: Any, source_path: str | None) -> Operand:
         leaves = tuple(
             current
             for current in _walk(table[0])
-            if _token_kind(current) in _VALUE_KINDS
+            if _token_kind(current) in {"IDENT", "KEYWORD", "NUMBER", "DECIMAL", "STRING", "BOOL"}
         )
         if len(leaves) == 2:
             return Operand("table_access", (_token_value(leaves[0]), _token_value(leaves[1])))
@@ -212,14 +213,14 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
         if not arrays:
             return ()
         return tuple(_token_operand(item, source_path) for item in _named(arrays[0], "TOKEN"))
-    if name in {"PUT", "EBIT", "EMMIT", "LDRES"}:
+    if name in {"NIBBLES", "EMIT", "EWORD", "WRITE_RES"}:
         values = _named(node, "VALUE")
         operands = [_value_operand(value, source_path) for value in values]
-        if name == "LDRES":
+        if name == "WRITE_RES":
             strings = tuple(current for current in _walk(node) if _token_kind(current) == "STRING")
             return (Operand("string", _token_value(strings[0]), _source_lexeme(strings[0], source_path)), *operands)
         return tuple(operands)
-    if name == "JMPIF":
+    if name == "JUMPIF":
         identifiers = tuple(current for current in _walk(node) if _token_kind(current) == "IDENT")
         conditions = tuple(
             _value_operand(current, source_path)
@@ -227,9 +228,7 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
             if _token_kind(current) == "BOOL"
         ) + tuple(_value_operand(current, source_path) for current in _named(node, "CALL_VALUE"))
         return (Operand("rule", _token_value(identifiers[0])), *conditions)
-    if name == "CALL":
-        return tuple(_value_operand(current, source_path) for current in _named(node, "CALL_VALUE"))
-    if name in {"KW", "SAVE", "LOAD", "RESERVE", "DLRES", "GTRES", "ERROR"}:
+    if name in {"KW", "SAVE", "LOAD", "RESERVE", "DROP_RES", "EMIT_RES", "ERROR"}:
         strings = tuple(current for current in _walk(node) if _token_kind(current) == "STRING")
         operands = [Operand("string", _token_value(item), _source_lexeme(item, source_path)) for item in strings]
         if name == "RESERVE":
@@ -239,10 +238,10 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
                 if _token_kind(current) in {"NUMBER", "DECIMAL"}
             )
         return tuple(operands)
-    if name == "JMP":
+    if name == "JUMP":
         identifiers = tuple(current for current in _walk(node) if _token_kind(current) == "IDENT")
         return tuple(Operand("rule", _token_value(item)) for item in identifiers)
-    if name == "EMITFR":
+    if name == "FRAME":
         children = _children(node)
         rows: list[tuple[Operand, ...]] = []
         if len(children) > 2:
@@ -287,32 +286,33 @@ def _raw_value(tokens: tuple[Any, ...], index: int, source_path: str | None) -> 
     token = tokens[index]
     kind = getattr(getattr(token, "token", None), "name", None)
     if kind == "COLON":
+        position_name = str(tokens[index + 2].value) if index + 2 < len(tokens) else ""
+        if position_name == "ddepth":
+            position_name = "DDEPTH"
         if (
             index + 2 >= len(tokens)
             or tokens[index + 1].token.name != "COLON"
-            or tokens[index + 2].token.name != "KEYWORD"
+            or position_name not in _POSITION_KINDS
         ):
             raise RuntimeError("VALUE de posición incompleto.")
-        operand_kind = _POSITION_KINDS.get(str(tokens[index + 2].value))
-        if operand_kind is None:
-            raise RuntimeError("VALUE de posición desconocido.")
+        operand_kind = _POSITION_KINDS[position_name]
         return Operand(operand_kind, None), index + 3
-    if kind == "KEYWORD":
+    if kind in {"KEYWORD", "IDENT"}:
         operand_kind = _NAMED_VALUE_KINDS.get(str(tokens[index].value))
         if operand_kind is not None:
             if index + 1 >= len(tokens) or tokens[index + 1].token.name != "STRING":
                 raise RuntimeError(f"{tokens[index].value} requiere un nombre string.")
             return Operand(operand_kind, tokens[index + 1].value), index + 2
-        if tokens[index].value in {"dload", "dpeek"}:
-            return Operand("data_pop" if tokens[index].value == "dload" else "data_peek", None), index + 1
+        if tokens[index].value in {"dget", "dpeek"}:
+            return Operand("data_pop" if tokens[index].value == "dget" else "data_peek", None), index + 1
     if kind == "DOLLAR":
-        if index + 3 >= len(tokens) or tokens[index + 1].token.name != "IDENT" or tokens[index + 2].token.name != "DOT" or tokens[index + 3].token.name != "IDENT":
+        if index + 3 >= len(tokens) or tokens[index + 1].token.name not in _NAME_KINDS or tokens[index + 2].token.name != "DOT" or tokens[index + 3].token.name not in _NAME_KINDS:
             raise RuntimeError("TABLE_ACCESS está incompleto.")
         if index + 8 < len(tokens) and (
             tokens[index + 4].token.name == "LBRACKET"
             and tokens[index + 6].token.name == "RBRACKET"
             and tokens[index + 7].token.name == "DOT"
-            and tokens[index + 8].token.name == "IDENT"
+            and tokens[index + 8].token.name in _NAME_KINDS
         ):
             key = tokens[index + 5]
             if key.token.name not in _VALUE_KINDS:
@@ -334,7 +334,7 @@ def _raw_value(tokens: tuple[Any, ...], index: int, source_path: str | None) -> 
             index + 4,
         )
     if kind == "AND":
-        if index + 1 >= len(tokens) or tokens[index + 1].token.name != "IDENT":
+        if index + 1 >= len(tokens) or tokens[index + 1].token.name not in _NAME_KINDS:
             raise RuntimeError("RESERVATION_ACCESS está incompleto.")
         return Operand("reservation_access", tokens[index + 1].value), index + 2
     if kind == "HASH":
@@ -369,11 +369,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             raise RuntimeError("CONSUMER acepta exactamente una referencia TOKEN.")
         operands = (_raw_token_reference(body[0], source_path),)
     elif opcode == "table_matcher":
-        expected = ("DOLLAR", "IDENT", "DOT", "IDENT", "COMMA")
-        if (
-            len(body) != 6
-            or tuple(token.token.name for token in body[:5]) != expected
-        ):
+        if len(body) != 6 or body[0].token.name != "DOLLAR" or body[1].token.name not in _NAME_KINDS or body[2].token.name != "DOT" or body[3].token.name not in _NAME_KINDS or body[4].token.name != "COMMA":
             raise RuntimeError(
                 "TABLE_MATCHER requiere '$tabla.columna, TOKEN' sin elementos extra."
             )
@@ -396,14 +392,13 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
         if not candidates or expect_value:
             raise RuntimeError("STORE contiene una lista incompleta.")
         operands = tuple(candidates)
-    elif opcode == "emitfr":
+    elif opcode == "frame":
         end_body = node.lines[-1][1:-1]
         if (
             len(end_body) != 1
-            or end_body[0].token.name != "KEYWORD"
-            or end_body[0].value != "emitfrend"
+            or end_body[0].value != "frameend"
         ):
-            raise RuntimeError("EMITFR debe terminar con '-> emitfrend' sin elementos extra.")
+            raise RuntimeError("FRAME debe terminar con '. frameend' sin elementos extra.")
         rows = []
         first_values = tuple(token for token in body[1:] if token.token.name not in {"COMMA"})
         rows.append(_raw_values(first_values, source_path))
@@ -412,34 +407,33 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             if values:
                 rows.append(_raw_values(values, source_path))
         operands = (Operand("frame", tuple(rows)),)
-    elif opcode == "dload":
+    elif opcode == "dget":
         rest = body[1:]
-        expected = ("COLON", "COLON", "IDENT", "DOT", "IDENT", "COLON", "IDENT")
-        if tuple(token.token.name for token in rest) != expected:
-            raise RuntimeError("DLOAD requiere ::tabla.columna : campo.")
+        if len(rest) != 7 or rest[0].token.name != "COLON" or rest[1].token.name != "COLON" or rest[2].token.name not in _NAME_KINDS or rest[3].token.name != "DOT" or rest[4].token.name not in _NAME_KINDS or rest[5].token.name != "COLON" or rest[6].token.name not in _NAME_KINDS:
+            raise RuntimeError("DGET requiere ::tabla.columna : campo.")
         operands = (Operand("table_capture", (rest[2].value, rest[4].value, rest[6].value)),)
     else:
         rest = tuple(body[1:])
         if opcode in {
-            "put",
-            "ebit",
-            "emmit",
-            "ldres",
-            "padding",
-            "alignement",
-            "fits",
-            "iffits",
-            "ifnfits",
-            "vpadding",
-            "dsave",
-            "emitbits",
-            "readbits",
-            "patchbits",
-            "valignement",
+            "nibbles",
+            "emit",
+            "eword",
+            "write_res",
+            "pad",
+            "align",
+            "fit",
+            "fit_exact",
+            "fit_not",
+            "vpad",
+            "dpush",
+            "bits",
+            "read_bits",
+            "patch_bits",
+            "valign",
         }:
-            if opcode == "ldres":
+            if opcode == "write_res":
                 if not rest or rest[0].token.name != "STRING":
-                    raise RuntimeError("LDRES requiere el nombre de una reserva.")
+                    raise RuntimeError("WRITE_RES requiere el nombre de una reserva.")
                 first_string = rest[0]
                 value_tokens = rest[1:]
                 operands = (
@@ -459,24 +453,17 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             operands = (
                 Operand("string", token.value, _source_lexeme(token, source_path)),
             )
-        elif opcode == "jmp":
+        elif opcode == "jump":
             if len(rest) != 1 or rest[0].token.name != "IDENT":
-                raise RuntimeError("JMP requiere exactamente una Rule IDENT.")
+                raise RuntimeError("JUMP requiere exactamente una Rule IDENT.")
             operands = (Operand("rule", rest[0].value),)
-        elif opcode == "jmpif":
+        elif opcode == "jumpif":
             if len(rest) < 3 or rest[0].token.name != "IDENT" or rest[1].token.name != "COMMA":
-                raise RuntimeError("JMPIF requiere 'Rule, BOOL|#call[nombre]'.")
+                raise RuntimeError("JUMPIF requiere 'Rule, BOOL|#call[nombre]'.")
             condition, consumed = _raw_value(rest, 2, source_path)
             if consumed != len(rest):
-                raise RuntimeError("JMPIF contiene elementos extra después de la condición.")
+                raise RuntimeError("JUMPIF contiene elementos extra después de la condición.")
             operands = (Operand("rule", rest[0].value), condition)
-        elif opcode == "call":
-            if not rest:
-                raise RuntimeError("CALL requiere #call[nombre].")
-            call_operand, consumed = _raw_value(rest, 0, source_path)
-            if consumed != len(rest) or call_operand.kind != "call":
-                raise RuntimeError("CALL requiere exactamente #call[nombre].")
-            operands = (call_operand,)
         elif opcode in {"reserve", "vreserve"}:
             if not rest or rest[0].token.name != "STRING":
                 raise RuntimeError(f"{opcode.upper()} requiere nombre string y tamaño.")
@@ -484,7 +471,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
                 Operand("string", rest[0].value, _source_lexeme(rest[0], source_path)),
                 *_raw_values(rest[1:], source_path),
             )
-        elif opcode in {"dlres", "gtres"}:
+        elif opcode in {"drop_res", "emit_res"}:
             if len(rest) != 1 or rest[0].token.name != "STRING":
                 raise RuntimeError(f"{opcode.upper()} requiere exactamente un nombre STRING.")
             operands = (Operand("string", rest[0].value, _source_lexeme(rest[0], source_path)),)
@@ -541,8 +528,6 @@ def compile_rules(
     compiled = {rule.name: compile_rule(rule) for rule in selected}
     program = CompiledRuleSet(
         compiled,
-        inserts=tuple(globals.INSERTS),
-        before=tuple(globals.BEFORE),
         context=globals.snapshot_target_context(),
     )
     if resolve:

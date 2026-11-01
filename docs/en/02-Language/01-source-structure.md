@@ -1,8 +1,9 @@
 # Source Structure
 
-The root file is conventionally named `main.rif`. It may declare target-wide
-objects in any order; the processor registers configuration, linker settings,
-defines, and supports before resolving tables and Rules.
+The root file is conventionally named `main.rif` and is the target's control
+center. It may declare objects in any order; the processor registers
+configuration, linker settings, defines, and supports before resolving tables
+and Rules.
 
 ## Comments and Newlines
 
@@ -16,8 +17,8 @@ for Rules, so these two forms have the same structural meaning:
 
 ```rif
 @rule mov:
--> IDENT
--> emmit 1
+. IDENT
+. eword 1
 ```
 
 ## Root-Only Declarations
@@ -29,6 +30,11 @@ Included files loaded with `@LOAD` may contain only `@define`, `@table`,
 `@rule`, and more `@LOAD` directives. Variant files loaded through
 `@ASMVARIANT` may contain only `@define` and `@rule`.
 
+Configuration can only be materialized by the root. If it is split into
+`config.rif`, only `main.rif` may load that exact file directly, and the file
+may contain only `@block config` and `@block linker`. An included file cannot
+load it, and declaring `config` or `linker` more than once is an error.
+
 This scope rule prevents a loaded file from silently replacing the target's
 memory layout or linker policy.
 
@@ -38,9 +44,9 @@ The generic block form for declaring structured data is:
 
 ```rif
 @block config:
-sectiondef ".section"
-make section "text"
-wordsize 8
+    format section ".section"
+    section text ""
+    word_size 8
 @end
 ```
 
@@ -71,12 +77,14 @@ Rules are named instruction procedures:
 
 ```rif
 @rule mov:
--> IDENT
--> put 0000 0000
+. IDENT
+. nibbles 0000 0000
 ```
 
-An external MIR line beginning with `mov` dispatches to this Rule. The Rule
-consumes tokens, emits fields, calls other Rules, and updates runtime state.
+An external MIR line beginning with `mov` dispatches to this Rule. Every Rule
+instruction begins with a dot; arrows are no longer part of the syntax. The
+Rule consumes tokens, emits fields, calls other Rules, and updates runtime
+state.
 
 ## Stack Declaration
 

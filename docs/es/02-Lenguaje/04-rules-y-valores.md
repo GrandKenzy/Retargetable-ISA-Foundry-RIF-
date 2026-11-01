@@ -5,9 +5,9 @@ El cuerpo de una Rule es una secuencia de instrucciones, una por línea.
 ## Consumidores de tokens
 
 ```rif
--> IDENT
--> KW "ret"
--> [NUMBER, STRING]
+. IDENT
+. KW "ret"
+. [NUMBER, STRING]
 ```
 
 Los nombres canónicos como `IDENT` y `NUMBER` consumen el token esperado. `KW`
@@ -17,22 +17,22 @@ token candidato que coincida.
 ## Control de Rules
 
 ```rif
--> JMP mov
--> jmpif mov, true
--> jmpif mov, #call[should_jump]
--> CALL #call[emit_value]
--> break
--> error, "instrucción inválida"
+. JUMP mov
+. JUMPIF mov, true
+. JUMPIF mov, #call[should_jump]
+. BREAK
+. ERROR, "instrucción inválida"
 ```
 
-`JMP` llama otra Rule y regresa al terminar. `jmpif` la llama solo si la
-condición es verdadera. `CALL` invoca Python y `break` termina el flujo actual.
+`JUMP` llama otra Rule y regresa al terminar. `JUMPIF` la llama solo si la
+condición es verdadera. `BREAK` termina el flujo actual. Las referencias
+`#call[...]` solo podrán resolver funciones nativas registradas.
 
 El almacenamiento de tokens es distinto del datastack:
 
 ```rif
--> save "current"
--> load "current"
+. save "current"
+. load "current"
 ```
 
 `save` guarda el token actual bajo un label. `load` exige que el token actual
@@ -41,46 +41,46 @@ coincida con el guardado y después lo consume.
 ## Emisión
 
 ```rif
--> put 0000 0001
--> ebit 1 0 1 0 1 0 1 0
--> emmit 4660
--> emitfr 0000 0
+. nibbles 0000 0001
+. emit 1 0 1 0 1 0 1 0
+. eword 4660
+. frame 0000 0
 00000000
 0000
--> emitfrend
+. frameend
 ```
 
-`put` emite dos campos de cuatro bits; `ebit`, ocho campos de un bit; `emmit`,
-una palabra de `wordsize`; y `emitfr`, un frame multilinea con cualquier
+`nibbles` emite dos campos de cuatro bits; `emit`, ocho campos de un bit; `eword`,
+una palabra de `word_size`; y `frame`, un frame multilinea con cualquier
 `VALUE`.
 
 ## Tablas, reservas y posiciones
 
 ```rif
--> reserve "slot" 16
--> ldres "slot" 0000000011111111
--> gtres "slot"
--> dlres "slot"
--> emmit &slot
--> emmit ::SIZE
--> emmit ::VSIZE
+. reserve "slot" 16
+. write_res "slot" 0000000011111111
+. emit_res "slot"
+. drop_res "slot"
+. eword &slot
+. eword ::SIZE
+. eword ::VSIZE
 ```
 
-`&slot` lee una reserva. `reserve` crea bits en cero, `ldres` los parchea,
-`gtres` copia la reserva al cursor y `dlres` quita su nombre sin limpiar los
+`&slot` lee una reserva. `reserve` crea bits en cero, `write_res` los parchea,
+`emit_res` copia la reserva al cursor y `drop_res` quita su nombre sin limpiar los
 bits ya emitidos.
 
 ## Ajuste de inmediatos
 
 ```rif
--> fits 8
--> iffits 8
--> ifnfits 8
--> fits $registers.name[rax].bits
+. fit 8
+. fit_exact 8
+. fit_not 8
+. fit $registers.name[rax].bits
 ```
 
-Estas instrucciones usan el token MIR actual. `fits` conserva los bits bajos
-si el valor es demasiado grande. `iffits` falla si no cabe. `ifnfits` consume
+Estas instrucciones usan el token MIR actual. `fit` conserva los bits bajos
+si el valor es demasiado grande. `fit_exact` falla si no cabe. `fit_not` consume
 solo cuando no cabe.
 
 ## Formas de `VALUE`

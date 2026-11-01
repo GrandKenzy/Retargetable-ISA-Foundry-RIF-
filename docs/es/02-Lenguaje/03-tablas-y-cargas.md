@@ -13,15 +13,16 @@ ________________________
 @end
 ```
 
-La separación puede tener cualquier cantidad de `_`. Se requiere una
+La separación debe tener dos o más `_` consecutivos. Se requiere una
 separación entre filas y cada fila debe terminar en `|` antes del salto de
-línea.
+línea; con `ident_underscores = -2`, Gram la entrega como
+`Token.UNDERSCORES`.
 
 ## Acceso a tablas
 
 ```rif
--> $registers.name, IDENT
--> put $registers.opcode 0000
+. $registers.name, IDENT
+. nibbles $registers.opcode 0000
 ```
 
 La primera instrucción compara el token actual con `name` y selecciona la fila.
@@ -30,11 +31,13 @@ Los accesos posteriores leen datos de esa fila.
 El acceso indexado estático no consume un token MIR:
 
 ```rif
--> fits $registers.name[rax].bits
+. fit $registers.name[rax].bits
 ```
 
-La columna selectora debe tener claves únicas cuando se usa como índice. Las
-demás columnas pueden repetir valores. El índice se construye al primer uso.
+RIF materializa la tabla como una matriz inmutable y construye índices
+constantes para todas sus columnas. Las columnas auxiliares pueden repetir
+valores; una columna solo debe ser única cuando se usa para seleccionar una
+fila.
 
 ## Cargar fuentes
 
@@ -51,4 +54,4 @@ y Rules, pero no configuración raíz.
 
 Al crear un `.pack`, las fuentes cargadas quedan en el manifiesto junto con su
 orden de dependencias. Un paquete precompilado guarda las filas en SQLite. Al
-abrirse, RIF reconstruye la matriz y los índices perezosos.
+abrirse, RIF reconstruye la matriz inmutable y sus índices.

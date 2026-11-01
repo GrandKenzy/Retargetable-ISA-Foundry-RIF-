@@ -36,11 +36,11 @@ external loads.
 ### [03. Compilation](./03-Compilation/index.md)
 
 How RIF compiles target definitions, processes external MIR, creates `.pack`
-files, and calls Python extension functions.
+files, and calls registered native functions.
 
 - [01. External MIR](./03-Compilation/01-external-mir.md)
 - [02. RIF Packages](./03-Compilation/02-rif-packages.md)
-- [03. Python Functions](./03-Compilation/03-python-functions.md)
+- [03. Native Functions](./03-Compilation/03-native-functions.md)
 
 ### [04. Execution](./04-Execution/index.md)
 

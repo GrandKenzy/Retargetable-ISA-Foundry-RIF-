@@ -48,8 +48,6 @@ class CompiledRuleSet:
     """Resolved Rules produced from a ``.rif`` definition or ``.pack``."""
 
     rules: dict[str, CompiledRule]
-    inserts: tuple[Any, ...] = ()
-    before: tuple[Any, ...] = ()
     context: globals.TargetContext = field(default_factory=globals.TargetContext)
 
 

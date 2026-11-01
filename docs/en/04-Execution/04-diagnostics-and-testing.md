@@ -7,7 +7,7 @@ RIF reports errors at the phase where they are detected.
 Gram reports malformed RIF syntax, missing delimiters, invalid token forms,
 and incomplete Rule lines. Newline-sensitive failures usually indicate a
 missing newline, a missing final `|` in a table row, or a malformed multiline
-`emitfr` block.
+`frame` block.
 
 ## Semantic Errors
 
@@ -26,7 +26,7 @@ definition, before external MIR is executed.
 - an immediate that cannot fit;
 - an out-of-range bit read or patch;
 - an unknown reservation or Rule;
-- an invalid Python function result.
+- an invalid native function result.
 
 ## Rule Traces
 
@@ -49,5 +49,5 @@ vnma test
 ```
 
 The test suite covers parser integration, table stress, packages, direct and
-CLI MIR compilation, Python functions, physical and virtual memory, datastack
+CLI MIR compilation, native functions, physical and virtual memory, datastack
 behavior, and failure paths.

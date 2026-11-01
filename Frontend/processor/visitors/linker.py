@@ -20,36 +20,47 @@ def visit(block: globals.BlockData) -> None:
     if globals.LINKER is not None:
         raise RuntimeError("Solo puede declararse un bloque @block linker por programa.")
 
-    values: dict[str, str | bool] = {}
+    extension: str | None = None
+    search_paths: list[str] = []
+    search_disabled = False
     for entry in block.entries:
-        if entry.name not in {"ext", "name", "searching"}:
+        if entry.name not in {"extension", "search_path"}:
             raise RuntimeError(f"Entrada de @block linker desconocida: {entry.name}.")
-        if entry.name in values:
-            raise RuntimeError(f"La entrada '{entry.name}' solo puede aparecer una vez.")
-        values[entry.name] = _value(entry)
+        value = _value(entry)
+        if entry.name == "extension":
+            if extension is not None:
+                raise RuntimeError("La entrada 'extension' solo puede aparecer una vez.")
+            if not isinstance(value, str) or not value:
+                raise RuntimeError("extension debe ser un string no vacío.")
+            extension = value
+            continue
+        if value is True:
+            raise RuntimeError("search_path acepta carpetas, \"\" o false; true no es válido.")
+        if value is False:
+            if search_disabled:
+                raise RuntimeError("La entrada 'search_path' solo puede aparecer una vez como false.")
+            if search_paths:
+                raise RuntimeError("search_path false no puede combinarse con carpetas.")
+            search_disabled = True
+            continue
+        if search_disabled:
+            raise RuntimeError("search_path no puede combinarse con false.")
+        search_paths.append(value)
 
-    missing = [field for field in ("ext", "name", "searching") if field not in values]
+    missing = []
+    if extension is None:
+        missing.append("extension")
+    if not search_paths and not search_disabled:
+        missing.append("search_path")
     if missing:
         raise RuntimeError(
             "Faltan entradas obligatorias en @block linker: " + ", ".join(missing)
         )
-
-    ext = values["ext"]
-    name = values["name"]
-    searching = values["searching"]
-    if not isinstance(ext, str) or not ext:
-        raise RuntimeError("ext debe ser un string no vacío.")
-    if not isinstance(name, str) or not name:
-        raise RuntimeError("name debe ser un string no vacío.")
-    if searching is True:
-        raise RuntimeError("searching acepta una carpeta, \"\" o false; true no es válido.")
-    if not isinstance(searching, (str, bool)):
-        raise RuntimeError("searching debe ser un string o false.")
+    assert extension is not None
 
     globals.LINKER = globals.LinkerData(
-        ext=ext,
-        name=name,
-        searching=searching,
+        extension=extension,
+        search_path=False if search_disabled else tuple(search_paths),
     )
 
 

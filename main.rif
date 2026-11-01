@@ -1,39 +1,33 @@
 ; Proyecto demostrativo de RIF
 
 @block config:
-sectiondef ".section"
-make section "data"
-make section "text"
-make section "bss"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "data"
-defaultsection "text"
-sectionflags "text" "rx"
-sectionflags "data" "rw"
-sectionflags "bss" "rw"
-sectionalign "text" 4
-sectionalign "data" 4
-sectionalign "bss" 4
-wordsize 32
-addresssize 32
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
+    format section ".section"
+    section data "rw"
+    section text "rx"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    align text 4
+    align data 4
+    align bss 4
+    word_size 32
+    address_size 32
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
 @end
 
 @block linker:
-ext ".asm"
-name "main"
-searching ""
+    extension ".asm"
+    search_path ""
 @end
 
 @stack 50
@@ -51,31 +45,27 @@ ________________________________________
 @define mov
 @define add
 @define ret
-@define mifuncion
 
 @rule mov:
--> $registers.opcode, IDENT
--> KW "mov"
--> IDENT
--> [NUMBER, STRING]
--> put 0000 $registers.bits
--> put &buffer 0000
--> ebit 0 0 0 0 0 0 0 0
--> ebit $registers.bits 0 0 0 0 0 0 0
--> emmit 83847483
--> emmit $registers.value
--> emmit #call[mifuncion]
--> CALL #call[mifuncion]
--> jmpif add, true
--> jmpif add, #call[mifuncion]
--> save "current"
--> load "current"
--> reserve "buffer" 16
--> ldres "buffer" $registers.value
--> ldres "buffer" &buffer
--> gtres "buffer"
--> dlres "buffer"
--> emitfr 0000 $registers.bits #call[mifuncion]
+. $registers.opcode, IDENT
+. KW "mov"
+. IDENT
+. [NUMBER, STRING]
+. nibbles 0000 $registers.bits
+. nibbles &buffer 0000
+. emit 0 0 0 0 0 0 0 0
+. emit $registers.bits 0 0 0 0 0 0 0
+. eword 83847483
+. eword $registers.value
+. JUMPIF add, true
+. save "current"
+. load "current"
+. reserve "buffer" 16
+. write_res "buffer" $registers.value
+. write_res "buffer" &buffer
+. emit_res "buffer"
+. drop_res "buffer"
+. frame 0000 $registers.bits 0
 0
 &buffer
 00000000
@@ -84,17 +74,16 @@ ________________________________________
 0000
 0000000
 0000
--> emitfrend
--> JMP add
--> break
+. frameend
+. JUMP add
+. BREAK
 @rule add:
--> $registers.opcode, NUMBER
--> KW "add"
--> put 0000 0000
--> CALL #call[mifuncion]
--> error, "No se pudo resolver add"
--> break
+. $registers.opcode, NUMBER
+. KW "add"
+. nibbles 0000 0000
+. ERROR, "No se pudo resolver add"
+. BREAK
 @rule ret:
--> KW "ret"
--> emmit 83847483
--> break
+. KW "ret"
+. eword 83847483
+. BREAK

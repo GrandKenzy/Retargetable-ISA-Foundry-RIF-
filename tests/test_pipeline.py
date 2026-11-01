@@ -44,7 +44,7 @@ class PipelineTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1] / "main.rif"
         compilation = compile_project(root)
         emitter = compilation.image.emitter("text")
-        emitter.put("1010", "0101")
+        emitter.nibbles("1010", "0101")
 
         output = compilation.image.render()
 
@@ -61,7 +61,7 @@ class PipelineTests(unittest.TestCase):
             main.write_text('@LOAD "rules.rif"\n', encoding="utf-8")
             rules.write_text(
                 "@rule sample:\n"
-                "-> put 0000 0000\n",
+                ". nibbles 0000 0000\n",
                 encoding="utf-8",
             )
             package = create_pack(main)

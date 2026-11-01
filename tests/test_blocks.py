@@ -10,39 +10,65 @@ from pack import create_pack
 
 CONFIG_BLOCK = '''\
 @block config:
-sectiondef ".section"
-make section "text"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "text"
-defaultsection "text"
-wordsize 8
-addresssize 64
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
-bitorder "msb"
+    format section ".section"
+    section text ""
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    word_size 8
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+    bit_order "msb"
 @end
 
 @block metadata:
-kind "pcpi" "source"
-version 1
+    kind "pcpi" "source"
+    version 1
 @end
 
 @rule sample:
--> emmit 1
+. eword 1
 '''
 
 
 class GenericBlockTests(unittest.TestCase):
+    def test_compact_config_uses_defaults(self) -> None:
+        source = (
+            "@block config:\n"
+            'format section ".section"\n'
+            'section text "rx"\n'
+            'entry text "_start"\n'
+            "default text\n"
+            "word_size 32\n"
+            "address_size 32\n"
+            "byte_order little\n"
+            "@end\n"
+            "@rule nop:\n"
+            ". eword 0\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "compact.rif"
+            path.write_text(source, encoding="utf-8")
+
+            program = compile_source(path)
+
+        config = program.context.config
+        self.assertEqual(config.sections, ("text",))
+        self.assertEqual(config.sectionflags, {"text": "rx"})
+        self.assertEqual(config.sectionend, ":")
+        self.assertEqual(config.comment, ";")
+        self.assertEqual(config.bitorder, "msb")
+        self.assertEqual(config.allowemptysections, False)
+
     def test_generic_config_and_unknown_blocks_are_materialized(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "generic.rif"
@@ -75,8 +101,8 @@ class GenericBlockTests(unittest.TestCase):
 
     def test_generic_block_rejects_legacy_dot_prefix(self) -> None:
         source = CONFIG_BLOCK.replace(
-            'sectiondef ".section"',
-            '.sectiondef ".section"',
+            'format section ".section"',
+            '.format ".section"',
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "invalid.rif"

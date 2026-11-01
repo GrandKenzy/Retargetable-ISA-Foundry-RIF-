@@ -1,4 +1,5 @@
 from gram import combinators as cmb
+from gram import lexer
 
 from .values import VALUE
 
@@ -17,7 +18,10 @@ class HEADER(cmb.RuleItem):
         cmb.Some(
             cmb.Seq(
                 cmb.MatchToken("OR"),
-                cmb.MatchToken("IDENT"),
+                cmb.Alt(
+                    cmb.MatchToken("IDENT"),
+                    cmb.MatchGroup("keywords"),
+                ),
             )
         ),
         cmb.MatchToken("OR"),
@@ -36,7 +40,7 @@ class ROW(cmb.RuleItem):
 
 class SEPARATOR(cmb.RuleItem):
     nodeable = False
-    entrypoint = cmb.Many(cmb.MatchSeqSymbol(pattern="_+"))
+    entrypoint = cmb.MatchToken(lexer.Token.UNDERSCORES)
 
 
 class COLUMNS(cmb.RuleItem):
@@ -63,6 +67,7 @@ class TABLE(cmb.RuleItem):
         cmb.Ref(COLUMNS),
         cmb.MatchToken("AT"),
         cmb.MatchKeyword("end"),
+        cmb.MatchToken("NEWLINE"),
     )
 
 

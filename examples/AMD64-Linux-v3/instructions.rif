@@ -1,0 +1,55 @@
+; Linux amd64: basic instructions and immediate moves.
+@rule mov:
+. IDENT
+. $registers.name, IDENT
+. COMMA
+. bits $registers.rex 8
+. bits 199 8
+. bits $registers.modrm 8
+. fit 32
+
+@rule movabs:
+. IDENT
+. $registers.name, IDENT
+. COMMA
+. bits $registers.rex 8
+. bits $registers.opcode 8
+. fit 64
+
+@rule syscall:
+. IDENT
+. bits 15 8
+. bits 5 8
+
+@rule ret:
+. IDENT
+. bits 195 8
+
+@rule nop:
+. IDENT
+. bits 144 8
+
+@rule int3:
+. IDENT
+. bits 204 8
+
+@rule leave:
+. IDENT
+. bits 201 8
+
+@rule cqo:
+. IDENT
+. bits 72 8
+. bits 153 8
+
+@rule _start:
+. IDENT
+
+; Separate instruction to expose table->datastack->rule flow.
+@rule regcode_call:
+. IDENT
+. JUMP regcode_operand
+
+@rule regcode_operand:
+. dget ::registers.name : code
+. bits dget 8

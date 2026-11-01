@@ -1,0 +1,47 @@
+; Linux x86-64 (AMD64), ELF64 executable target.
+; Register encodings use the x86-64 GPR index (0..15).
+; Produces a Linux ELF64 executable with RX text and RW data PT_LOAD segments.
+@block config:
+    format section ".section"
+    section text "rx"
+    section data "rw"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    align data 4096
+    vaddr data 4198400
+    vaddr text 4194304
+    word_size 64
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+    bit_order "msb"
+@end
+
+@block linker:
+    extension ".asm"
+    search_path ""
+@end
+
+@LOAD "registers.rif"
+@LOAD "instructions.rif"
+@LOAD "encoding.rif"
+@LOAD "arithmetic.rif"
+@LOAD "memory.rif"
+@LOAD "control.rif"
+@LOAD "conditions.rif"
+@LOAD "width32.rif"
+@LOAD "relocations.rif"
+
+; GPR64 table: code is architectural register number.
+; rex = REX.W with B extension; modrm = 11 000 r/m (C7 /0).
+; opcode = B8+rd for MOV r64, imm64.

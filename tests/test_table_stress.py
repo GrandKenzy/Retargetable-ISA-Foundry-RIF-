@@ -4,6 +4,7 @@ import time
 import unittest
 
 from Frontend import RIF_LANG_SESSION
+from gram import lexer
 
 
 def build_table(rows: int, columns: int) -> str:
@@ -11,7 +12,7 @@ def build_table(rows: int, columns: int) -> str:
     lines = ["@table stress", header]
 
     for row_index in range(rows):
-        separator_width = 1 + (row_index * 97) % 4096
+        separator_width = 2 + (row_index * 97) % 4096
         lines.append("_" * separator_width)
 
         values: list[str] = []
@@ -33,6 +34,16 @@ def build_table(rows: int, columns: int) -> str:
 
 
 class TableStressTests(unittest.TestCase):
+    def test_table_separators_are_grouped_underscore_tokens(self) -> None:
+        tokens = RIF_LANG_SESSION.tokenize(
+            "@table grouped\n| name |\n________\n| value |\n@end\n",
+            "grouped.rif",
+        )
+        separators = [token for token in tokens if token.value == "________"]
+
+        self.assertEqual(len(separators), 1)
+        self.assertIs(separators[0].token, lexer.Token.UNDERSCORES)
+
     def test_large_mixed_table_repeatedly(self) -> None:
         source = build_table(rows=25, columns=16)
 
@@ -51,7 +62,7 @@ class TableStressTests(unittest.TestCase):
             [
                 "@table separators",
                 "| id | value |",
-                "_",
+                "__",
                 '| 1 | "short" |',
                 "_" * 4096,
                 '| 2 | "wide separator" |',

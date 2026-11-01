@@ -17,16 +17,13 @@ The package includes:
 manifest.json
 sources/main.rif
 sources/other.rif
-funcs.py                 (optional)
-assets/...               (optional `.file` insert payloads)
 compiled.sqlite          (when precompiled)
 ```
 
 The manifest records the package format, source hashes, `@LOAD` graph,
-dependency order, optional functions, and optional compiled database.
-Files referenced by `@insert` `.file` directives are copied as opaque assets
-with their own size and SHA-256 entries. They are deliberately not executed
-while creating the package.
+dependency order, and the optional compiled database. External MIR directives
+are not part of the package source graph; `::RIF_INSERT FILE` resolves its path
+relative to the MIR file being compiled.
 
 ## Why Use a Package?
 

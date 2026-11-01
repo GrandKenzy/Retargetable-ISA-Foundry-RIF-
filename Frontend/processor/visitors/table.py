@@ -53,7 +53,7 @@ def _headers(header: Any) -> tuple[str, ...]:
     names = tuple(
         value
         for current in _walk(header)
-        if _token_kind(current) == "IDENT"
+        if _token_kind(current) in {"IDENT", "KEYWORD"}
         for value in (_token_value(current),)
     )
     if not names:

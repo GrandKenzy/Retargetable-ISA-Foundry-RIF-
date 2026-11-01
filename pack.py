@@ -1,8 +1,8 @@
 """Formato y creación de paquetes fuente ``.pack`` de RIF.
 
 Un paquete ``.pack`` es un ZIP reproducible que contiene todos los archivos
-``.rif`` del directorio del proyecto bajo ``sources/``, un ``funcs.py``
-opcional, un manifiesto JSON y, cuando se crea con ``precompile=True``, una
+``.rif`` del directorio del proyecto bajo ``sources/``, un manifiesto JSON y,
+cuando se crea con ``precompile=True``, una
 base SQLite con el MIR y el contexto ya resueltos.
 """
 
@@ -24,7 +24,7 @@ from rif_limits import resolve_limits
 
 
 PACK_FORMAT = "RIF_PACK"
-PACK_FORMAT_VERSION = 4
+PACK_FORMAT_VERSION = 5
 MANIFEST_NAME = "manifest.json"
 SOURCE_PREFIX = "sources/"
 MAX_MANIFEST_SIZE = 1 << 20
@@ -60,7 +60,6 @@ class PackManifest:
     load_graph: dict[str, tuple[str, ...]]
     dependency_order: tuple[str, ...]
     content_sha256: str
-    functions: PackEntry | None = None
     compiled: PackEntry | None = None
     assets: tuple[PackEntry, ...] = ()
     origins: dict[str, str] = field(default_factory=dict)
@@ -87,15 +86,6 @@ class PackManifest:
             },
             "dependency_order": list(self.dependency_order),
             "content_sha256": self.content_sha256,
-            "functions": (
-                {
-                    "path": self.functions.path,
-                    "size": self.functions.size,
-                    "sha256": self.functions.sha256,
-                }
-                if self.functions is not None
-                else None
-            ),
             "compiled": (
                 {
                     "path": self.compiled.path,
@@ -187,24 +177,6 @@ class PackManifest:
                 raise ValueError("El manifiesto contiene metadata compilada inválida.")
             compiled = PackEntry(compiled_path, compiled_size, compiled_sha256)
 
-        raw_functions = data.get("functions")
-        functions = None
-        if raw_functions is not None:
-            if not isinstance(raw_functions, dict):
-                raise ValueError("El manifiesto contiene metadata de funcs.py inválida.")
-            function_path = raw_functions.get("path")
-            function_size = raw_functions.get("size")
-            function_sha256 = raw_functions.get("sha256")
-            if (
-                not isinstance(function_path, str)
-                or not isinstance(function_size, int)
-                or function_size < 0
-                or not isinstance(function_sha256, str)
-                or len(function_sha256) != 64
-            ):
-                raise ValueError("El manifiesto contiene metadata de funcs.py inválida.")
-            functions = PackEntry(function_path, function_size, function_sha256)
-
         raw_assets = data.get("assets", [])
         if not isinstance(raw_assets, list):
             raise ValueError("El manifiesto contiene metadata de assets inválida.")
@@ -246,7 +218,6 @@ class PackManifest:
             load_graph=load_graph,
             dependency_order=tuple(raw_order),
             content_sha256=content_sha256,
-            functions=functions,
             compiled=compiled,
             assets=tuple(assets),
             origins=dict(raw_origins),
@@ -429,7 +400,6 @@ def _collect_assets(
 def _content_fingerprint(
     entrypoint: str,
     files: tuple[PackEntry, ...],
-    functions: PackEntry | None,
     assets: tuple[PackEntry, ...],
 ) -> str:
     """Bind a compiled cache to every source and opaque input it represents."""
@@ -445,15 +415,6 @@ def _content_fingerprint(
             }
             for entry in files
         ],
-        "functions": (
-            {
-                "path": functions.path,
-                "size": functions.size,
-                "sha256": functions.sha256,
-            }
-            if functions is not None
-            else None
-        ),
         "assets": [
             {"path": entry.path, "size": entry.size, "sha256": entry.sha256}
             for entry in assets
@@ -472,7 +433,6 @@ def _manifest_for(
     entrypoint: Path,
     files: tuple[tuple[str, Path], ...],
     compiled_data: bytes | None = None,
-    function_data: bytes | None = None,
     asset_data: dict[str, bytes] | None = None,
     origins: dict[str, str] | None = None,
 ) -> PackManifest:
@@ -490,15 +450,6 @@ def _manifest_for(
             )
         )
     entrypoint_key = f"{SOURCE_PREFIX}{entrypoint.relative_to(entrypoint.parent).as_posix()}"
-    function_entry = (
-        PackEntry(
-            path="funcs.py",
-            size=len(function_data),
-            sha256=_sha256(function_data),
-        )
-        if function_data is not None
-        else None
-    )
     asset_entries = tuple(
         PackEntry(
             path=f"assets/{relative}",
@@ -516,9 +467,8 @@ def _manifest_for(
         load_graph=load_graph,
         dependency_order=dependency_order,
         content_sha256=_content_fingerprint(
-            entrypoint_key, file_entries, function_entry, asset_entries
+            entrypoint_key, file_entries, asset_entries
         ),
-        functions=function_entry,
         compiled=(
             PackEntry(
                 path="compiled/program.sqlite3",
@@ -558,8 +508,6 @@ def _build_compiled_database(entrypoint: Path, source_fingerprint: str) -> bytes
         "LOADED_SOURCES",
         "ACTIVE_SOURCES",
         "VARIANT_STACK",
-        "INSERTS",
-        "BEFORE",
     )
     previous = {
         "STACK": rif_globals.STACK,
@@ -584,8 +532,6 @@ def _build_compiled_database(entrypoint: Path, source_fingerprint: str) -> bytes
         rif_globals.LOADED_SOURCES = {}
         rif_globals.ACTIVE_SOURCES = []
         rif_globals.VARIANT_STACK = []
-        rif_globals.INSERTS = []
-        rif_globals.BEFORE = []
         compiler_module.SOURCE_TEXTS.clear()
         program = compile_source(entrypoint)
         return build_database(
@@ -636,21 +582,8 @@ def create_pack(
     total_limit = limits.cap(MAX_TOTAL_UNCOMPRESSED)
     files = _project_files(entrypoint)
     asset_data = _collect_assets(files, entrypoint.parent)
-    function_path = entrypoint.parent / "funcs.py"
-    function_data = None
-    if function_path.is_file():
-        resolved_function = function_path.resolve(strict=True)
-        try:
-            resolved_function.relative_to(entrypoint.parent.resolve())
-        except ValueError as exc:
-            raise ValueError("funcs.py está fuera del proyecto.") from exc
-        if resolved_function.stat().st_size > source_limit:
-            raise ValueError("funcs.py excede el límite de tamaño configurado.")
-        function_data = resolved_function.read_bytes()
     source_total = sum(path.stat().st_size for _, path in files)
     total_size = source_total + sum(len(data) for data in asset_data.values())
-    if function_data is not None:
-        total_size += len(function_data)
     if total_size > total_limit:
         raise ValueError("El contenido del paquete excede el límite configurado.")
     origins = {
@@ -663,13 +596,10 @@ def create_pack(
             for relative in asset_data
         }
     )
-    if function_data is not None:
-        origins["funcs.py"] = str(function_path.resolve())
     input_manifest = _manifest_for(
         entrypoint,
         files,
         None,
-        function_data,
         asset_data,
         origins,
     )
@@ -682,14 +612,11 @@ def create_pack(
         entrypoint,
         files,
         compiled_data,
-        function_data,
         asset_data,
         origins,
     )
     target = _canonical_path(output) if output is not None else entrypoint.with_suffix(".pack")
     protected = {entrypoint, *(path for _, path in files)}
-    if function_path.is_file():
-        protected.add(function_path.resolve(strict=True))
     protected.update((entrypoint.parent / key).resolve(strict=False) for key in asset_data)
     if target in protected:
         raise ValueError(f"La salida .pack no puede sobrescribir una entrada: {target}")
@@ -721,8 +648,6 @@ def create_pack(
             archive.writestr(_zip_info(MANIFEST_NAME), manifest_bytes)
             if compiled_data is not None:
                 archive.writestr(_zip_info("compiled/program.sqlite3"), compiled_data)
-            if function_data is not None:
-                archive.writestr(_zip_info("funcs.py"), function_data)
             for relative, path in files:
                 archive.writestr(
                     _zip_info(f"{SOURCE_PREFIX}{relative}"),
@@ -812,8 +737,6 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
         declared = {MANIFEST_NAME, *source_names, *asset_names}
         if manifest.compiled is not None:
             declared.add(manifest.compiled.path)
-        if manifest.functions is not None:
-            declared.add(manifest.functions.path)
         if any(path not in declared for path in manifest.origins):
             raise ValueError("El manifiesto contiene orígenes no declarados.")
         if set(names) != declared:
@@ -853,16 +776,6 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
             if any(positions[dependency] >= positions[source] for dependency in dependencies):
                 raise ValueError("El orden de dependencias del paquete es inválido.")
 
-        if manifest.functions is not None:
-            functions = manifest.functions
-            if functions.path != "funcs.py" or functions.size > resolve_limits().cap(MAX_SOURCE_SIZE):
-                raise ValueError("Metadata de funcs.py inválida en el paquete.")
-            data = _read_member(archive, functions.path, maximum=limits.cap(MAX_SOURCE_SIZE))
-            if len(data) != functions.size or (
-                verify and _sha256(data) != functions.sha256
-            ):
-                raise ValueError("Hash inválido para funcs.py.")
-
         for asset in manifest.assets:
             normalized = PurePosixPath(asset.path)
             if (
@@ -879,7 +792,6 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
         expected_fingerprint = _content_fingerprint(
             manifest.entrypoint,
             manifest.files,
-            manifest.functions,
             manifest.assets,
         )
         if expected_fingerprint != manifest.content_sha256:
@@ -962,17 +874,24 @@ class PackReader:
             )
         return self.virtual_path(key)
 
-    def resolve_variant(self, name: str, searching: str = "") -> str:
-        directory = PurePosixPath(SOURCE_PREFIX)
-        if searching:
-            searching_path = PurePosixPath(searching.replace("\\", "/"))
-            if Path(searching).is_absolute() or searching_path.is_absolute() or ".." in searching_path.parts:
-                raise ValueError("searching solo acepta una carpeta relativa dentro del paquete.")
-            directory /= PurePosixPath(searching.replace("\\", "/"))
-        key = (directory / f"{name}.rif").as_posix()
-        if key not in self._known_sources:
-            raise FileNotFoundError(f"Variante no incluida en el paquete: {name}")
-        return self.virtual_path(key)
+    def resolve_variant(
+        self,
+        name: str,
+        search_paths: tuple[str, ...] | bool = ("",),
+    ) -> str:
+        if search_paths is False:
+            raise ValueError("search_path false deshabilita la carga de variantes.")
+        for relative in search_paths:
+            searching_path = PurePosixPath(relative.replace("\\", "/"))
+            if Path(relative).is_absolute() or searching_path.is_absolute() or ".." in searching_path.parts:
+                raise ValueError("search_path solo acepta carpetas relativas dentro del paquete.")
+            directory = PurePosixPath(SOURCE_PREFIX)
+            if relative:
+                directory /= searching_path
+            key = (directory / f"{name}.rif").as_posix()
+            if key in self._known_sources:
+                return self.virtual_path(key)
+        raise FileNotFoundError(f"Variante no incluida en el paquete: {name}")
 
     def source_bytes(self, source: str | Path | None = None) -> bytes:
         """Read one source directly from the package archive."""
@@ -1003,21 +922,6 @@ class PackReader:
             maximum=resolve_limits().cap(MAX_COMPILED_SIZE),
         )
 
-    def function_bytes(self) -> bytes | None:
-        """Read the optional root-level ``funcs.py`` from the package."""
-
-        if self.manifest.functions is None:
-            return None
-        return _read_member(
-            self._archive,
-            self.manifest.functions.path,
-            maximum=resolve_limits().cap(MAX_SOURCE_SIZE),
-        )
-
-    def function_source(self) -> str | None:
-        data = self.function_bytes()
-        return data.decode("utf-8") if data is not None else None
-
     def assets(self) -> dict[str, bytes]:
         """Return opaque insert assets keyed by project-relative path."""
 
@@ -1027,9 +931,6 @@ class PackReader:
             )
             for path in sorted(self._known_assets)
         }
-
-    def virtual_function_path(self) -> str:
-        return f"pack://{self.path.as_posix()}::funcs.py"
 
     @property
     def origins(self) -> dict[str, str]:

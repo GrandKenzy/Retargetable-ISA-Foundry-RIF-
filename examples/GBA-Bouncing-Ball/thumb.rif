@@ -1,0 +1,20 @@
+; Experimentally loaded via @ASMVARIANT SWITCH. Thumb code is real ARM7TDMI code.
+@define thumb_present
+
+@rule ENTER_thumb:
+. IDENT
+
+@rule EXIT_thumb:
+. IDENT
+
+@rule thumb_mov_imm:
+. IDENT
+. $thumb_regs.name, IDENT
+. COMMA
+. fit_exact 8
+. bits $thumb_regs.opcode_high 8
+
+@rule thumb_bx_lr:
+. IDENT
+. bits 112 8
+. bits 71 8

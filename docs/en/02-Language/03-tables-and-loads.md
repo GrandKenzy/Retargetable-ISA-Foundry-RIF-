@@ -13,16 +13,18 @@ ________________________
 @end
 ```
 
-The underscore separator may contain any number of `_` characters. A separator
-is required between rows, and each row must end with `|` before its newline.
+The separator must contain at least two consecutive `_` characters. A
+separator is required between rows, and each row must end with `|` before its
+newline. With `ident_underscores = -2`, Gram emits it as
+`Token.UNDERSCORES`.
 
 ## Table Access
 
 The selected row can provide a value to an instruction:
 
 ```rif
--> $registers.name, IDENT
--> put $registers.opcode 0000
+. $registers.name, IDENT
+. nibbles $registers.opcode 0000
 ```
 
 The first form matches the current token against the `name` column and selects
@@ -31,12 +33,12 @@ that row. Later accesses to `$registers.bits` read from the selected row.
 Static indexed access selects a row without consuming a MIR token:
 
 ```rif
--> fits $registers.name[rax].bits
+. fit $registers.name[rax].bits
 ```
 
-The selector column must have unique values when it is used as an index. Other
-columns may contain duplicates. The index is built lazily on first use, so a
-large table does not pay to index columns that are never queried.
+RIF materializes the table as an immutable matrix and builds constant-time
+indexes for every column. Auxiliary columns may contain duplicates; a column
+must be unique only when it is used to select a row.
 
 ## Loading Additional Sources
 
@@ -55,5 +57,5 @@ Rules, but it cannot redefine root configuration or linker settings.
 
 When a `.pack` is created, loaded source files are recorded in the package
 manifest and their dependency order is resolved ahead of execution. Precompiled
-packages store table rows in SQLite. The runtime recreates the matrix and lazy
-indexes when the package is opened.
+packages store table rows in SQLite. The runtime recreates the immutable matrix
+and its indexes when the package is opened.

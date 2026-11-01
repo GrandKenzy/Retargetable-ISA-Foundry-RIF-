@@ -37,11 +37,11 @@ cargas externas.
 
 ### [03. Compilación](./03-Compilacion/index.md)
 
-Compilación de MIR, paquetes `.pack` y funciones Python.
+Compilación de MIR, paquetes `.pack` y funciones nativas.
 
 - [01. MIR externo](./03-Compilacion/01-mir-externo.md)
 - [02. Paquetes RIF](./03-Compilacion/02-paquetes-rif.md)
-- [03. Funciones Python](./03-Compilacion/03-funciones-python.md)
+- [03. Funciones nativas](./03-Compilacion/03-funciones-nativas.md)
 
 ### [04. Ejecución](./04-Ejecucion/index.md)
 

@@ -7,7 +7,7 @@ same target definition and use the same MIR dispatcher.
 | :--- | :--- |
 | [01. External MIR](./01-external-mir.md) | CLI and direct API compilation of MIR files or token streams. |
 | [02. RIF Packages](./02-rif-packages.md) | `.pack` contents, precompilation, and package advantages. |
-| [03. Python Functions](./03-python-functions.md) | The `funcs.py` handler contract and runtime context. |
+| [03. Native Functions](./03-native-functions.md) | Static contracts and the `#:calc` function. |
 
 ## Two Compilation Stages
 

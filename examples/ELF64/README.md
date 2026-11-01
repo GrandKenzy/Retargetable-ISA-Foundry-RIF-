@@ -2,7 +2,7 @@
 
 This target produces a minimal executable ELF64 image for Linux x86-64. It
 uses an inline ELF/program-header template, emits the code through normal RIF
-Rules, and patches dynamic header fields in `@before` after all MIR lines are
+Rules, and patches dynamic header fields with `::RIF_PATCH` after all MIR lines are
 complete.
 
 Compile it from the repository root:

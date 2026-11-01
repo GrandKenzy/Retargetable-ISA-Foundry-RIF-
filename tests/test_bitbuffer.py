@@ -75,31 +75,31 @@ class BitBufferTests(unittest.TestCase):
 class BitEmitterTests(unittest.TestCase):
     def test_emitters_use_fixed_widths_and_reservations(self) -> None:
         emitter = BitEmitter(wordsize=16)
-        emitter.put("1010", "0101")
-        emitter.ebit(1, 0, 1, 0, 0, 1, 0, 1)
-        emitter.emmit(0x1234)
+        emitter.nibbles("1010", "0101")
+        emitter.emit(1, 0, 1, 0, 0, 1, 0, 1)
+        emitter.eword(0x1234)
         emitter.reserve("patch", 8)
-        emitter.ldres("patch", "11001100")
-        copied = emitter.gtres("patch")
+        emitter.write_res("patch", "11001100")
+        copied = emitter.emit_res("patch")
 
         self.assertEqual(emitter.buffer.to_bytes(), b"\xA5\xA5\x34\x12\xCC\xCC")
         self.assertEqual(emitter.query("patch").value, 0xCC)
         self.assertEqual(emitter.query(copied).value, 0xCC)
-        emitter.dlres("patch")
+        emitter.drop_res("patch")
         self.assertEqual(emitter.query(copied).value, 0xCC)
 
     def test_emitfr_validates_before_emitting(self) -> None:
         emitter = BitEmitter()
-        emitter.emitfr((("0000", "0"), ("0000",)))
+        emitter.frame((("0000", "0"), ("0000",)))
         before = emitter.buffer.to_bytes()
 
         with self.assertRaises(ValueError):
-            emitter.emitfr((("0000", "2"),))
+            emitter.frame((("0000", "2"),))
         self.assertEqual(emitter.buffer.to_bytes(), before)
 
     def test_fields_preserve_leading_zeroes(self) -> None:
         emitter = BitEmitter()
-        emitter.put("0000", "0010")
+        emitter.nibbles("0000", "0010")
         self.assertEqual(emitter.buffer.to_bytes(), b"\x02")
         self.assertIsInstance(BitField(0, 4), BitField)
 

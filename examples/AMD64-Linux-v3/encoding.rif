@@ -1,0 +1,62 @@
+; Reusable encoders. movdst selects REG; movsrc selects R/M.
+; REX.W=1, R=destination high bit, X=0, B=source high bit.
+@rule encode_rex_w_rr:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits 0 1
+. bits $movsrc.hi 1
+
+; Encode mod=11 and reg from selected rows. Deliberately exercise
+; datastack across nested JMP: dpush src.low then consume in subrule.
+@rule encode_modrm_rr:
+. dpush $movsrc.lo
+. bits 3 2
+. bits $movdst.lo 3
+. JUMP encode_rm_low
+
+@rule encode_rm_low:
+. bits dget 3
+
+; Memory: base+disp32, mod=10, always emit SIB (works for all bases).
+; Both load/store use destination in REG and base in R/M.
+@rule encode_rex_w_mem:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits 0 1
+. bits $membase.hi 1
+
+@rule encode_modrm_mem:
+. bits 2 2
+. bits $movdst.lo 3
+. bits 4 3
+. JUMP encode_sib
+
+@rule encode_sib:
+; scale=00, index=100 (none), base=register low 3 bits
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+; General SIB with base + index * scale + disp32.
+@rule encode_rex_w_index:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits $memindex.hi 1
+. bits $membase.hi 1
+
+@rule encode_modrm_index:
+. bits 2 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits $memscale.code 2
+. bits $memindex.lo 3
+. bits $membase.lo 3
+
+; REX.B-only prefix (REX 40 or 41). 0x40 is valid, albeit redundant.
+@rule encode_rex_stack:
+. bits 4 4
+. bits 0 3
+. bits $stackreg.hi 1

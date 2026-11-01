@@ -127,7 +127,8 @@ def _resolve_table_lookup(
             f"la columna '{column_name}' no existe en la tabla '{table_name}'.",
         ) from exc
     try:
-        row_index = table.index_for(selector).get(key)
+        table.require_unique(selector)
+        row_index = table.lookup_unique(selector, key)
     except (TypeError, ValueError) as exc:
         raise _error(instruction, str(exc)) from exc
     if row_index is None:
@@ -164,7 +165,7 @@ def _resolve_table_capture(
         instruction, Operand("table_access", (table_name, column)), context
     ).resolved
     try:
-        context.tables[table_name].index_for(selector)
+        context.tables[table_name].require_unique(selector)
     except ValueError as exc:
         raise _error(instruction, str(exc)) from exc
     return replace(operand, resolved=(selector_ref, value_ref))
@@ -216,36 +217,35 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "table_matcher": (2, 2),
     "consumer": (1, 1),
     "store": (1, None),
-    "put": (2, 2),
-    "ebit": (8, 8),
-    "emmit": (1, 1),
-    "padding": (1, 1),
-    "alignement": (1, 1),
+    "nibbles": (2, 2),
+    "emit": (8, 8),
+    "eword": (1, 1),
+    "pad": (1, 1),
+    "align": (1, 1),
     "kw": (1, 1),
-    "jmp": (1, 1),
+    "jump": (1, 1),
     "save": (1, 1),
     "load": (1, 1),
     "reserve": (2, 2),
-    "ldres": (2, 2),
-    "dlres": (1, 1),
-    "gtres": (1, 1),
-    "jmpif": (2, 2),
+    "write_res": (2, 2),
+    "drop_res": (1, 1),
+    "emit_res": (1, 1),
+    "jumpif": (2, 2),
     "break": (0, 0),
     "error": (1, 1),
-    "call": (1, 1),
-    "emitfr": (1, 1),
-    "fits": (1, 1),
-    "iffits": (1, 1),
-    "ifnfits": (1, 1),
-    "vpadding": (1, 1),
+    "frame": (1, 1),
+    "fit": (1, 1),
+    "fit_exact": (1, 1),
+    "fit_not": (1, 1),
+    "vpad": (1, 1),
     "vreserve": (2, 2),
-    "dsave": (1, 1),
-    "dload": (1, 1),
+    "dpush": (1, 1),
+    "dget": (1, 1),
     "dpop": (0, 0),
-    "emitbits": (2, 2),
-    "readbits": (2, 2),
-    "patchbits": (3, 3),
-    "valignement": (1, 1),
+    "bits": (2, 2),
+    "read_bits": (2, 2),
+    "patch_bits": (3, 3),
+    "valign": (1, 1),
 }
 
 
@@ -272,18 +272,18 @@ def _validate_instruction(
         table_ref = operands[0].resolved
         if isinstance(table_ref, TableRef):
             try:
-                context.tables[table_ref.table].index_for(table_ref.column)
+                context.tables[table_ref.table].require_unique(table_ref.column)
             except ValueError as exc:
                 raise _error(instruction, str(exc)) from exc
-    elif instruction.opcode == "put":
+    elif instruction.opcode == "nibbles":
         for operand in operands:
             if operand.kind == "number" and operand.width not in {None, 4}:
-                raise _error(instruction, "cada campo de put debe tener exactamente 4 bits.")
-    elif instruction.opcode == "ebit":
+                raise _error(instruction, "cada campo de nibbles debe tener exactamente 4 bits.")
+    elif instruction.opcode == "emit":
         for operand in operands:
             if operand.kind == "number" and operand.value not in {0, 1}:
-                raise _error(instruction, "cada campo de ebit debe ser 0 o 1.")
-    elif instruction.opcode == "emmit":
+                raise _error(instruction, "cada campo de emit debe ser 0 o 1.")
+    elif instruction.opcode == "eword":
         operand = operands[0]
         if operand.kind == "number" and context.config is not None:
             if context.config.wordsize > resolve_limits().cap(256 << 20) * 8:
@@ -291,20 +291,20 @@ def _validate_instruction(
             if operand.value >= (1 << context.config.wordsize):
                 raise _error(
                     instruction,
-                    f"el valor de emmit no cabe en wordsize={context.config.wordsize}.",
+                    f"el valor de eword no cabe en wordsize={context.config.wordsize}.",
                 )
-    elif instruction.opcode == "jmpif":
+    elif instruction.opcode == "jumpif":
         if operands[1].kind not in {"bool", "call"}:
             raise _error(instruction, "JMPIF requiere BOOL o #call como condición.")
     elif instruction.opcode in {"reserve", "vreserve"}:
         size = operands[1]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:
             raise _error(instruction, f"{instruction.opcode.upper()} requiere un tamaño entero mayor que cero.")
-    elif instruction.opcode == "vpadding":
+    elif instruction.opcode == "vpad":
         size = operands[0]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:
-            raise _error(instruction, "VPADDING requiere un tamaño entero mayor que cero.")
-    elif instruction.opcode in {"fits", "iffits", "ifnfits"}:
+            raise _error(instruction, "VPAD requiere un tamaño entero mayor que cero.")
+    elif instruction.opcode in {"fit", "fit_exact", "fit_not"}:
         space = operands[0]
         if space.kind in {"number", "decimal"}:
             if not isinstance(space.value, int) or space.value <= 0 or space.value % 2:
@@ -314,20 +314,20 @@ def _validate_instruction(
             "data_pop", "data_peek", "data_depth", "reservation_width", "reservation_vwidth",
         }:
             raise _error(instruction, "FIT requiere un ancho numérico o un acceso de tabla.")
-    elif instruction.opcode in {"padding", "alignement", "valignement"}:
+    elif instruction.opcode in {"pad", "align", "valign"}:
         size = operands[0]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:
             raise _error(
                 instruction,
                 f"{instruction.opcode.upper()} requiere un tamaño entero mayor que cero.",
             )
-    elif instruction.opcode in {"emitbits", "readbits", "patchbits"}:
+    elif instruction.opcode in {"bits", "read_bits", "patch_bits"}:
         checked = operands[1]
         if checked.kind in {"number", "decimal"} and (
             not isinstance(checked.value, int) or checked.value <= 0
         ):
             raise _error(instruction, "El ancho de bits debe ser un entero positivo.")
-        if instruction.opcode in {"readbits", "patchbits"}:
+        if instruction.opcode in {"read_bits", "patch_bits"}:
             offset = operands[0]
             if offset.kind in {"number", "decimal"} and (
                 not isinstance(offset.value, int) or offset.value < 0
@@ -362,8 +362,6 @@ def resolve_program(program: CompiledRuleSet) -> CompiledRuleSet:
             name: resolve_rule(rule, program.context, rule_names)
             for name, rule in program.rules.items()
         },
-        inserts=program.inserts,
-        before=program.before,
         context=program.context,
     )
 

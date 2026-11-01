@@ -13,34 +13,31 @@ from rif import main as rif_main
 
 TARGET = '''\
 @block config:
-sectiondef ".section"
-make section "text"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "text"
-defaultsection "text"
-wordsize 8
-addresssize 8
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
+    format section ".section"
+    section text ""
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    word_size 8
+    address_size 8
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
 @end
 @block linker:
-ext ".asm"
-name "main"
-searching ""
+    extension ".asm"
+    search_path ""
 @end
 @rule mov:
--> IDENT
--> emmit 1
+. IDENT
+. eword 1
 '''
 
 

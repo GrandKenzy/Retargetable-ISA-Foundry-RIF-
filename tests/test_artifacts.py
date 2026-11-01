@@ -1,112 +1,96 @@
 from __future__ import annotations
 
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
 
-from Frontend import RIF_LANG_SESSION
-from MIR import compile_mir_source
+from Frontend.aot import AOTError
+from MIR import MIRInputError, compile_definition, compile_mir_source
+from MIR.artifacts import ArtifactError, evaluate_expression
+from MIR.functions import CalcError, calc
 
 
 TARGET = '''\
 @block config:
-sectiondef ".section"
-make section "text"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "text"
-defaultsection "text"
-wordsize 8
-addresssize 64
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
+    format section ".section"
+    section text ""
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    word_size 8
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
 @end
 
 @block linker:
-ext ".asm"
-name "main"
-searching ""
-@end
-
-@insert:
-.bytes "aa"
-@end
-
-@before:
-.rplc 0, 1, 187
+    extension ".asm"
+    search_path ""
 @end
 
 @rule mov:
--> IDENT
+. IDENT
+. eword 1
 '''
 
 
 class ArtifactSyntaxTests(unittest.TestCase):
-    def test_insert_and_before_blocks_are_captured(self) -> None:
-        source = (
-            "@insert:\n"
-            '.section "text"\n'
-            '.bytes "7f454c46"\n'
-            '.binary "00000000"\n'
-            '.file "payload.bin"\n'
-            '.call #call[make_payload]\n'
-            "@end\n"
-            "@before:\n"
-            ".rplc 24, 8, #:calc(4194304 + #:qlsize(0, \"_start\"))\n"
-            ".rplc 96, #:qssize(0, \"text\")\n"
-            "@end\n"
-        )
-        RIF_LANG_SESSION.load()
-        tokens = RIF_LANG_SESSION.tokenize(source, "artifacts.rif")
-        ast = RIF_LANG_SESSION.parse(tokens, "artifacts.rif")
+    def test_legacy_rif_artifact_blocks_are_not_grammar(self) -> None:
+        source = TARGET + '@insert:\n.bytes "aa"\n@end\n'
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(source, encoding="utf-8")
+            with self.assertRaises(AOTError):
+                compile_definition(target, backend="aot")
 
-        self.assertEqual([node.name for node in ast], ["INSERT", "BEFORE"])
-        self.assertEqual(len(ast[0].lines), 5)
-        self.assertEqual(len(ast[1].lines), 2)
-
-    def test_insert_runs_before_mir_and_before_patches_final_image(self) -> None:
+    def test_insert_and_patch_are_assembler_side_directives(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "main.rif"
             target.write_text(TARGET, encoding="utf-8")
-            RIF_LANG_SESSION.load()
-            parsed = RIF_LANG_SESSION.parse(
-                RIF_LANG_SESSION.tokenize(TARGET, str(target)), str(target)
+            program = compile_definition(target)
+            result = compile_mir_source(
+                program,
+                '::RIF_INSERT BYTES "aa" SECTION text\n'
+                '::RIF_PATCH 0, 1, 187\n'
+                "mov\n",
+                name=str(Path(directory) / "program.asm"),
             )
-            self.assertIn("INSERT", [node.name for node in parsed])
-            result = compile_mir_source(target, "mov\n")
-            self.assertEqual(len(result.program.inserts), 1)
-            self.assertEqual(result.binary, b"\xbb")
+
+            self.assertEqual(result.binary, b"\xbb\x01")
+            self.assertEqual(result.executions[0].position, 1)
+            self.assertFalse(hasattr(result.program, "inserts"))
+            self.assertFalse(hasattr(result.program, "before"))
 
     def test_native_queries_cover_physical_and_virtual_layout(self) -> None:
         source = (
-            TARGET.replace('.bytes "aa"', '.bytes "aabbccdd"')
-            .replace('endianness "little"', 'endianness "little"\nsectionvaddr "text" 4096')
+            TARGET.replace('byte_order "little"', 'byte_order "little"\n    vaddr text 4096')
             .replace(
-                '@before:\n.rplc 0, 1, 187\n@end',
-                '@before:\n'
-                '.rplc 0, 1, #:qssize(0, "text")\n'
-                '.rplc 1, 1, #:qlsize(0, "mov")\n'
-                '.rplc 2, 2, #:qvsize(0, "mov")\n'
-                '.rplc 4, 1, #:calc(#:qvssize(0, "text") - 4096)\n'
-                '.rplc 0, 1, #:query(4, 1)\n'
-                '@end',
+                '@rule mov:\n. IDENT\n. eword 1\n',
+                '@rule mov:\n. IDENT\n. eword 5\n',
             )
-            .replace('-> IDENT\n', '-> IDENT\n-> emmit 5\n')
         )
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "main.rif"
             target.write_text(source, encoding="utf-8")
-
-            result = compile_mir_source(target, "mov\n")
+            program = compile_definition(target)
+            result = compile_mir_source(
+                program,
+                '::RIF_INSERT BYTES "aabbccdd" SECTION text\n'
+                '::RIF_PATCH 0, 1, #:qssize(0, "text")\n'
+                '::RIF_PATCH 1, 1, #:qlsize(0, "mov")\n'
+                '::RIF_PATCH 2, 2, #:qvsize(0, "mov")\n'
+                '::RIF_PATCH 4, 1, #:calc(#:qvssize(0, "text") - 4096)\n'
+                '::RIF_PATCH 0, 1, #:query(4, 1)\n'
+                "mov\n",
+            )
 
             self.assertEqual(result.binary, b"\x05\x04\x04\x10\x05")
             self.assertEqual(result.image.section_offset("text"), 0)
@@ -115,25 +99,66 @@ class ArtifactSyntaxTests(unittest.TestCase):
             self.assertEqual(result.image.file_bytes(), result.binary)
             self.assertEqual(result.section_binary, result.binary)
 
-    def test_insert_call_can_return_a_binary_payload(self) -> None:
-        source = TARGET.replace('.bytes "aa"', '.call #call[make_payload]').replace(
-            '@before:\n.rplc 0, 1, 187\n@end\n\n', ''
-        )
+    def test_insert_rejects_unsupported_operation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            target = root / "main.rif"
-            target.write_text(source, encoding="utf-8")
-            (root / "funcs.py").write_text(
-                'def handler(name, context):\n'
-                '    assert name == "make_payload"\n'
-                '    assert context.image is not None\n'
-                '    return b"\\xde\\xad"\n',
-                encoding="utf-8",
+            target = Path(directory) / "main.rif"
+            target.write_text(TARGET, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BYTES, BINARY o FILE"):
+                compile_mir_source(
+                    target,
+                    '::RIF_INSERT CALL "make_payload"\n',
+                )
+
+    def test_patch_rejects_external_call_expression(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(TARGET, encoding="utf-8")
+            with self.assertRaisesRegex(MIRInputError, "no permite #call"):
+                compile_mir_source(
+                    target,
+                    "::RIF_PATCH 0, 1, #call[not_allowed]\nmov\n",
+                )
+
+    def test_runtime_rejects_compiled_external_call_expression(self) -> None:
+        with self.assertRaisesRegex(ArtifactError, "no está permitido"):
+            evaluate_expression(
+                {"kind": "call", "name": "not_allowed"},
+                image=None,
+                machine=None,
+                working=b"",
             )
 
-            result = compile_mir_source(target, "")
 
-            self.assertEqual(result.binary, b"\xde\xad")
+class CalcFunctionTests(unittest.TestCase):
+    def test_calc_addition_and_subtraction_preserve_widest_width(self) -> None:
+        self.assertEqual(calc("+", 4096, 2, 128, 4), (4224, 4))
+        self.assertEqual(calc("-", 10, 8, 3, 16), (7, 16))
+
+    def test_calc_rejects_unknown_operator_and_invalid_width(self) -> None:
+        with self.assertRaises(CalcError):
+            calc("*", 1, 1, 2, 1)
+        with self.assertRaises(CalcError):
+            calc("+", 1, 0, 2, 1)
+
+    def test_calc_rejects_signed_int64_overflow(self) -> None:
+        with self.assertRaises(CalcError):
+            calc("+", (1 << 63) - 1, 1, 1, 1)
+
+    def test_nested_calc_expression_and_negative_patch_are_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(TARGET, encoding="utf-8")
+            result = compile_mir_source(
+                target,
+                "::RIF_PATCH 0, 1, #:calc(1 + (2 - 3))\nmov\n",
+            )
+            self.assertEqual(result.binary, b"\x00")
+
+            with self.assertRaisesRegex(ArtifactError, "no cabe"):
+                compile_mir_source(
+                    target,
+                    "::RIF_PATCH 0, 1, #:calc(0 - 1)\nmov\n",
+                )
 
 
 if __name__ == "__main__":

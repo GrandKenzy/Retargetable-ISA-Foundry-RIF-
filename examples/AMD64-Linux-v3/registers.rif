@@ -1,0 +1,443 @@
+@table registers
+| name | code | rex | modrm | opcode |
+__
+| rax | 0 | 72 | 192 | 184 |
+__
+| rcx | 1 | 72 | 193 | 185 |
+__
+| rdx | 2 | 72 | 194 | 186 |
+__
+| rbx | 3 | 72 | 195 | 187 |
+__
+| rsp | 4 | 72 | 196 | 188 |
+__
+| rbp | 5 | 72 | 197 | 189 |
+__
+| rsi | 6 | 72 | 198 | 190 |
+__
+| rdi | 7 | 72 | 199 | 191 |
+__
+| r8 | 8 | 73 | 192 | 184 |
+__
+| r9 | 9 | 73 | 193 | 185 |
+__
+| r10 | 10 | 73 | 194 | 186 |
+__
+| r11 | 11 | 73 | 195 | 187 |
+__
+| r12 | 12 | 73 | 196 | 188 |
+__
+| r13 | 13 | 73 | 197 | 189 |
+__
+| r14 | 14 | 73 | 198 | 190 |
+__
+| r15 | 15 | 73 | 199 | 191 |
+@end
+
+; Register families for future rules. These are metadata, not MOV encoders.
+@table gpr_aliases
+| r64 | r32 | r16 | r8 |
+__
+| rax | eax | ax | al |
+__
+| rcx | ecx | cx | cl |
+__
+| rdx | edx | dx | dl |
+__
+| rbx | ebx | bx | bl |
+__
+| rsp | esp | sp | spl |
+__
+| rbp | ebp | bp | bpl |
+__
+| rsi | esi | si | sil |
+__
+| rdi | edi | di | dil |
+__
+| r8 | r8d | r8w | r8b |
+__
+| r9 | r9d | r9w | r9b |
+__
+| r10 | r10d | r10w | r10b |
+__
+| r11 | r11d | r11w | r11b |
+__
+| r12 | r12d | r12w | r12b |
+__
+| r13 | r13d | r13w | r13b |
+__
+| r14 | r14d | r14w | r14b |
+__
+| r15 | r15d | r15w | r15b |
+@end
+
+; SIMD register names; AVX-512 availability is CPU-dependent.
+@table simd_registers
+| xmm | ymm | zmm | code |
+__
+| xmm0 | ymm0 | zmm0 | 0 |
+__
+| xmm1 | ymm1 | zmm1 | 1 |
+__
+| xmm2 | ymm2 | zmm2 | 2 |
+__
+| xmm3 | ymm3 | zmm3 | 3 |
+__
+| xmm4 | ymm4 | zmm4 | 4 |
+__
+| xmm5 | ymm5 | zmm5 | 5 |
+__
+| xmm6 | ymm6 | zmm6 | 6 |
+__
+| xmm7 | ymm7 | zmm7 | 7 |
+__
+| xmm8 | ymm8 | zmm8 | 8 |
+__
+| xmm9 | ymm9 | zmm9 | 9 |
+__
+| xmm10 | ymm10 | zmm10 | 10 |
+__
+| xmm11 | ymm11 | zmm11 | 11 |
+__
+| xmm12 | ymm12 | zmm12 | 12 |
+__
+| xmm13 | ymm13 | zmm13 | 13 |
+__
+| xmm14 | ymm14 | zmm14 | 14 |
+__
+| xmm15 | ymm15 | zmm15 | 15 |
+__
+| xmm16 | ymm16 | zmm16 | 16 |
+__
+| xmm17 | ymm17 | zmm17 | 17 |
+__
+| xmm18 | ymm18 | zmm18 | 18 |
+__
+| xmm19 | ymm19 | zmm19 | 19 |
+__
+| xmm20 | ymm20 | zmm20 | 20 |
+__
+| xmm21 | ymm21 | zmm21 | 21 |
+__
+| xmm22 | ymm22 | zmm22 | 22 |
+__
+| xmm23 | ymm23 | zmm23 | 23 |
+__
+| xmm24 | ymm24 | zmm24 | 24 |
+__
+| xmm25 | ymm25 | zmm25 | 25 |
+__
+| xmm26 | ymm26 | zmm26 | 26 |
+__
+| xmm27 | ymm27 | zmm27 | 27 |
+__
+| xmm28 | ymm28 | zmm28 | 28 |
+__
+| xmm29 | ymm29 | zmm29 | 29 |
+__
+| xmm30 | ymm30 | zmm30 | 30 |
+__
+| xmm31 | ymm31 | zmm31 | 31 |
+@end
+
+
+; Independent selections for destination and source of register-register MOV.
+@table movdst
+| name | lo | hi |
+__
+| rax | 0 | 0 |
+__
+| rcx | 1 | 0 |
+__
+| rdx | 2 | 0 |
+__
+| rbx | 3 | 0 |
+__
+| rsp | 4 | 0 |
+__
+| rbp | 5 | 0 |
+__
+| rsi | 6 | 0 |
+__
+| rdi | 7 | 0 |
+__
+| r8 | 0 | 1 |
+__
+| r9 | 1 | 1 |
+__
+| r10 | 2 | 1 |
+__
+| r11 | 3 | 1 |
+__
+| r12 | 4 | 1 |
+__
+| r13 | 5 | 1 |
+__
+| r14 | 6 | 1 |
+__
+| r15 | 7 | 1 |
+@end
+@table movsrc
+| name | lo | hi |
+__
+| rax | 0 | 0 |
+__
+| rcx | 1 | 0 |
+__
+| rdx | 2 | 0 |
+__
+| rbx | 3 | 0 |
+__
+| rsp | 4 | 0 |
+__
+| rbp | 5 | 0 |
+__
+| rsi | 6 | 0 |
+__
+| rdi | 7 | 0 |
+__
+| r8 | 0 | 1 |
+__
+| r9 | 1 | 1 |
+__
+| r10 | 2 | 1 |
+__
+| r11 | 3 | 1 |
+__
+| r12 | 4 | 1 |
+__
+| r13 | 5 | 1 |
+__
+| r14 | 6 | 1 |
+__
+| r15 | 7 | 1 |
+@end
+
+; Base registers for explicit disp32 memory addressing.
+@table membase
+| name | lo | hi | sib |
+__
+| rax | 0 | 0 | 0 |
+__
+| rcx | 1 | 0 | 0 |
+__
+| rdx | 2 | 0 | 0 |
+__
+| rbx | 3 | 0 | 0 |
+__
+| rsp | 4 | 0 | 1 |
+__
+| rbp | 5 | 0 | 0 |
+__
+| rsi | 6 | 0 | 0 |
+__
+| rdi | 7 | 0 | 0 |
+__
+| r8 | 0 | 1 | 0 |
+__
+| r9 | 1 | 1 | 0 |
+__
+| r10 | 2 | 1 | 0 |
+__
+| r11 | 3 | 1 | 0 |
+__
+| r12 | 4 | 1 | 1 |
+__
+| r13 | 5 | 1 | 0 |
+__
+| r14 | 6 | 1 | 0 |
+__
+| r15 | 7 | 1 | 0 |
+@end
+
+; Indexed address register selector; rsp excluded (SIB index=4 means none), r12 allowed with REX.X.
+@table memindex
+| name | lo | hi |
+__
+| rax | 0 | 0 |
+__
+| rcx | 1 | 0 |
+__
+| rdx | 2 | 0 |
+__
+| rbx | 3 | 0 |
+__
+| rbp | 5 | 0 |
+__
+| rsi | 6 | 0 |
+__
+| rdi | 7 | 0 |
+__
+| r8 | 0 | 1 |
+__
+| r9 | 1 | 1 |
+__
+| r10 | 2 | 1 |
+__
+| r11 | 3 | 1 |
+__
+| r12 | 4 | 1 |
+__
+| r13 | 5 | 1 |
+__
+| r14 | 6 | 1 |
+__
+| r15 | 7 | 1 |
+@end
+
+@table memscale
+| factor | code |
+__
+| 1 | 0 |
+__
+| 2 | 1 |
+__
+| 4 | 2 |
+__
+| 8 | 3 |
+@end
+
+@table stackreg
+| name | lo | hi | pushop | popop |
+__
+| rax | 0 | 0 | 80 | 88 |
+__
+| rcx | 1 | 0 | 81 | 89 |
+__
+| rdx | 2 | 0 | 82 | 90 |
+__
+| rbx | 3 | 0 | 83 | 91 |
+__
+| rsp | 4 | 0 | 84 | 92 |
+__
+| rbp | 5 | 0 | 85 | 93 |
+__
+| rsi | 6 | 0 | 86 | 94 |
+__
+| rdi | 7 | 0 | 87 | 95 |
+__
+| r8 | 0 | 1 | 80 | 88 |
+__
+| r9 | 1 | 1 | 81 | 89 |
+__
+| r10 | 2 | 1 | 82 | 90 |
+__
+| r11 | 3 | 1 | 83 | 91 |
+__
+| r12 | 4 | 1 | 84 | 92 |
+__
+| r13 | 5 | 1 | 85 | 93 |
+__
+| r14 | 6 | 1 | 86 | 94 |
+__
+| r15 | 7 | 1 | 87 | 95 |
+@end
+
+; 32-bit GPR names with independent dest and source selections.
+@table dst32
+| name | lo | hi | movop |
+__
+| eax | 0 | 0 | 184 |
+__
+| ecx | 1 | 0 | 185 |
+__
+| edx | 2 | 0 | 186 |
+__
+| ebx | 3 | 0 | 187 |
+__
+| esp | 4 | 0 | 188 |
+__
+| ebp | 5 | 0 | 189 |
+__
+| esi | 6 | 0 | 190 |
+__
+| edi | 7 | 0 | 191 |
+__
+| r8d | 0 | 1 | 184 |
+__
+| r9d | 1 | 1 | 185 |
+__
+| r10d | 2 | 1 | 186 |
+__
+| r11d | 3 | 1 | 187 |
+__
+| r12d | 4 | 1 | 188 |
+__
+| r13d | 5 | 1 | 189 |
+__
+| r14d | 6 | 1 | 190 |
+__
+| r15d | 7 | 1 | 191 |
+@end
+@table src32
+| name | lo | hi | movop |
+__
+| eax | 0 | 0 | 184 |
+__
+| ecx | 1 | 0 | 185 |
+__
+| edx | 2 | 0 | 186 |
+__
+| ebx | 3 | 0 | 187 |
+__
+| esp | 4 | 0 | 188 |
+__
+| ebp | 5 | 0 | 189 |
+__
+| esi | 6 | 0 | 190 |
+__
+| edi | 7 | 0 | 191 |
+__
+| r8d | 0 | 1 | 184 |
+__
+| r9d | 1 | 1 | 185 |
+__
+| r10d | 2 | 1 | 186 |
+__
+| r11d | 3 | 1 | 187 |
+__
+| r12d | 4 | 1 | 188 |
+__
+| r13d | 5 | 1 | 189 |
+__
+| r14d | 6 | 1 | 190 |
+__
+| r15d | 7 | 1 | 191 |
+@end
+
+; x86 condition code low nibble (Jcc/CMOVcc/SETcc opcode families).
+@table conditions
+| name | jopcode | cmovop | setop |
+__
+| o | 128 | 64 | 144 |
+__
+| no | 129 | 65 | 145 |
+__
+| b | 130 | 66 | 146 |
+__
+| ae | 131 | 67 | 147 |
+__
+| e | 132 | 68 | 148 |
+__
+| ne | 133 | 69 | 149 |
+__
+| be | 134 | 70 | 150 |
+__
+| a | 135 | 71 | 151 |
+__
+| s | 136 | 72 | 152 |
+__
+| ns | 137 | 73 | 153 |
+__
+| p | 138 | 74 | 154 |
+__
+| np | 139 | 75 | 155 |
+__
+| l | 140 | 76 | 156 |
+__
+| ge | 141 | 77 | 157 |
+__
+| le | 142 | 78 | 158 |
+__
+| g | 143 | 79 | 159 |
+@end

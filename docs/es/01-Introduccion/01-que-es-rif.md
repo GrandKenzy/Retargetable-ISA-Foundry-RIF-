@@ -15,7 +15,7 @@ RIF separa tres fases:
 
 El `main.rif` raíz puede contener:
 
-- `@block config`, para secciones, tamaño de palabra, endianness, labels y políticas.
+- `@block config`, para secciones, tamaño de palabra, byte_order, labels y políticas.
 - `@block linker`, para descubrir el archivo MIR.
 - `@table`, para metadatos de instrucciones y datos del target.
 - `@define`, para registrar palabras con nombre.
@@ -62,4 +62,4 @@ SQLite precompilada.
 RIF no asume un procesador ni un ancho de instrucción específicos. El autor del
 target decide cómo se relacionan los tokens con las filas de tablas, cómo se
 emiten los campos, cómo se parchean las reservas y cómo participan las
-funciones Python.
+funciones nativas.

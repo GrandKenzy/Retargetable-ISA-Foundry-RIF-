@@ -7,33 +7,33 @@ compilation. It is independent from the token stack declared with `@stack`.
 
 ```rif
 @rule prepare:
--> dsave 64
+. dpush 64
 
 @rule encode:
--> fits dload
+. fit dget
 ```
 
-`dsave VALUE` evaluates a value and pushes it. `dload` used where a `VALUE` is
+`dpush VALUE` evaluates a value and pushes it. `dget` used where a `VALUE` is
 expected pops the top value. `dpeek` reads the top value without removing it.
-`dpop` discards the top value. `::DDEPTH` returns the current stack depth.
+`dpop` discards the top value. `::ddepth` returns the current stack depth.
 
 The following flow is common:
 
 ```rif
--> dsave 64
--> fits dload
+. dpush 64
+. fit dget
 ```
 
-The first Rule line can push a width for a later emission. `fits dload` checks
-the width and removes it only after a successful fit. A failed `iffits` leaves
+The first Rule line can push a width for a later emission. `fits dget` checks
+the width and removes it only after a successful fit. A failed `fit_exact` leaves
 the value available for recovery logic.
 
 ## Table-Driven Loads
 
-The instruction form of `dload` queries a table using the current MIR token:
+The instruction form of `dget` queries a table using the current MIR token:
 
 ```rif
--> dload ::registers.names : bits
+. dget ::registers.names : bits
 ```
 
 It performs these operations atomically from the language point of view:
@@ -53,10 +53,11 @@ fails without consuming the token or pushing a value.
 reservations, and other cross-line state. This is what allows one MIR line to
 prepare a value for a later line.
 
-Python functions can inspect or manipulate the live list through:
+Native functions will receive explicit contracts; no dynamic Python context
+can inspect or manipulate the live list.
 
 ```python
-context.datastack
+# native function state is intentionally not exposed
 ```
 
 Target authors should keep stack ownership clear: use the datastack for

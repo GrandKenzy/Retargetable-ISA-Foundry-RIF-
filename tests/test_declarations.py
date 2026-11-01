@@ -16,40 +16,39 @@ class DeclarationTests(unittest.TestCase):
             "@define mov\n"
             "@define add\n"
             "@rule mov:\n"
-            "      -> $registros.name, DOT\n"
-            "-> COMMA\n"
-            "-> AT\n"
-            "-> IDENT\n"
-            "-> [NUMBER, STRING]\n"
+            "      . $registros.name, DOT\n"
+            ". COMMA\n"
+            ". AT\n"
+            ". IDENT\n"
+            ". [NUMBER, STRING]\n"
             "@rule add:\n"
-            "-> $registros.name, AT\n"
-            "-> $registros.name, 7\n"
-            "-> put 0000 0000\n"
-            "-> put $register.opcode 0000\n"
-            "-> ebit 0 0 0 0 0 0 0 0\n"
-            "-> ebit $register.bits 0 0 0 0 0 0 0\n"
-            "-> emmit 83847483\n"
-            "-> emmit $register.value\n"
-            '-> KW "ret"\n'
-            "-> jmpif add, true\n"
-            "-> jmpif add, True\n"
-            "-> jmpif add, #call[mifuncion]\n"
-            "-> emmit #call[mifuncion]\n"
-            "-> CALL #call[mifuncion]\n"
-            "-> break\n"
-            '-> error, "cualquier cosa"\n'
-            "-> JMP add\n"
-            '-> save "name"\n'
-            '-> load "name"\n'
-            '-> reserve "buffer" 16\n'
-            '-> ldres "buffer" 0028383\n'
-            '-> ldres "buffer" $register.value\n'
-            '-> ldres "buffer" &buffer\n'
-            "-> put &buffer 0000\n"
-            "-> emmit &buffer\n"
-            '-> dlres "buffer"\n'
-            '-> gtres "buffer"\n'
-            "-> emitfr 0000 $register.word #call[mifuncion]\n"
+            ". $registros.name, AT\n"
+            ". $registros.name, 7\n"
+            ". nibbles 0000 0000\n"
+            ". nibbles $register.opcode 0000\n"
+            ". emit 0 0 0 0 0 0 0 0\n"
+            ". emit $register.bits 0 0 0 0 0 0 0\n"
+            ". eword 83847483\n"
+            ". eword $register.value\n"
+            '. KW "ret"\n'
+            ". JUMPIF add, true\n"
+            ". JUMPIF add, True\n"
+            ". JUMPIF add, #call[mifuncion]\n"
+            ". eword #call[mifuncion]\n"
+            ". BREAK\n"
+            '. ERROR, "cualquier cosa"\n'
+            ". JUMP add\n"
+            '. save "name"\n'
+            '. load "name"\n'
+            '. reserve "buffer" 16\n'
+            '. write_res "buffer" 0028383\n'
+            '. write_res "buffer" $register.value\n'
+            '. write_res "buffer" &buffer\n'
+            ". nibbles &buffer 0000\n"
+            ". eword &buffer\n"
+            '. drop_res "buffer"\n'
+            '. emit_res "buffer"\n'
+            ". frame 0000 $register.word 0\n"
             "0\n"
             "&buffer\n"
             "\n"
@@ -58,7 +57,7 @@ class DeclarationTests(unittest.TestCase):
             "0000\n"
             "0000000\n"
             "0000\n"
-            "-> emitfrend\n"
+            ". frameend\n"
             "@stack 50\n"
         )
 
@@ -71,7 +70,7 @@ class DeclarationTests(unittest.TestCase):
             "@rule mov:\n"
             "@table example\n"
             "| name | age |\n"
-            "_\n"
+            "__\n"
             '| "Ken" | 23 |\n'
             "@end\n"
         )
@@ -82,25 +81,25 @@ class DeclarationTests(unittest.TestCase):
     def test_config_can_share_entrypoint(self) -> None:
         ast = self.parse(
             "@block config:\n"
-            'sectiondef ".section"\n'
-            'make section "data"\n'
-            'sectionend ":"\n'
-            'entrysection "data"\n'
-            'entrylabel "_start"\n'
+            'format section ".section"\n'
+            'section data ""\n'
+            'format section_end ":"\n'
+            'entry data "_start"\n'
+            ''
             'comment ";"\n'
-            'labelend ":"\n'
-            'datasection "data"\n'
-            'defaultsection "data"\n'
-            'wordsize 32\n'
-            'addresssize 32\n'
-            'endianness "little"\n'
-            'casesensitive true\n'
-            'symbolprefix "_"\n'
-            'localprefix "."\n'
-            'undefinedsymbols "error"\n'
-            'duplicatesymbols "error"\n'
+            'format label_end ":"\n'
+            ''
+            'default data\n'
+            'word_size 32\n'
+            'address_size 32\n'
+            'byte_order "little"\n'
+            'case_sensitive true\n'
+            'symbol_prefix "_"\n'
+            'local_prefix "."\n'
+            'undefined_symbols "error"\n'
+            'duplicate_symbols "error"\n'
             'strict true\n'
-            'allowemptysections false\n'
+            'allow_empty_sections false\n'
             "@end\n"
         )
 
@@ -111,9 +110,9 @@ class DeclarationTests(unittest.TestCase):
     def test_linker_can_share_entrypoint(self) -> None:
         ast = self.parse(
             "@block linker:\n"
-            'ext ".asm"\n'
-            'name "main"\n'
-            'searching "lib"\n'
+            'extension ".asm"\n'
+            ''
+            'search_path "lib"\n'
             "@end\n"
         )
 
@@ -125,7 +124,7 @@ class DeclarationTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.parse(
                 "@config:\n"
-                'sectiondef ".section"\n'
+                'format section ".section"\n'
                 "@configend\n"
             )
 

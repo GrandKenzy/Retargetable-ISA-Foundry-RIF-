@@ -22,10 +22,10 @@ Solo puede contener definiciones y Rules:
 @define thumb_word
 
 @rule ENTER_thumb:
--> KW "thumb"
+. KW "thumb"
 
 @rule EXIT_thumb:
--> KW "endthumb"
+. KW "endthumb"
 ```
 
 Las tablas, configuración, linker y demás contexto global siguen siendo los

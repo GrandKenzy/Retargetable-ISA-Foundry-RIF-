@@ -12,6 +12,10 @@ detalle.
 
 - Evalúa el alcance antes de editar. Si el cambio cruza sintaxis, semántica,
   MIR, backend o artefactos, comunica un plan breve y verifica cada frontera.
+- Comunica antes de proponer una alternativa cualquier restricción del lexer,
+  parser, combinadores o API que pueda invalidarla. Incluye la evidencia
+  concreta (por ejemplo, cómo se tokeniza una entrada) y distingue entre una
+  solución válida para Python y una compatible con AOT/C.
 - Sigue el recorrido real de RIF: gramática en `Frontend/syntax/`, despacho
   semántico en `Frontend/processor/`, estado compilado en `Frontend/globals.py`
   y `MIR/`, y emisión o ejecución en los módulos de memoria, runtime y

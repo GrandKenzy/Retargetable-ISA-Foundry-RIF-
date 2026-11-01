@@ -1,0 +1,96 @@
+; GBA ARM7TDMI: ROM fixed header + ARM instruction stream + Thumb variant + pixel geometry data.
+@block config:
+    format section ".section"
+    section text "rx"
+    section data ""
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    vaddr text 134217728
+    word_size 32
+    address_size 32
+    byte_order "little"
+    bit_order "msb"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    allow_empty_sections true
+    strict true
+@end
+
+@block linker:
+    extension ".asm"
+    search_path ""
+@end
+
+@table thumb_regs
+| name | opcode_high |
+__
+| r0 | 32 |
+__
+| r1 | 33 |
+__
+| r2 | 34 |
+__
+| r3 | 35 |
+@end
+
+@SUPPORTS thumb
+@ASMVARIANT thumb:
+.MODE SWITCH
+.ENTER "ENTER_thumb"
+.EXIT "EXIT_thumb"
+@END
+
+; 32-bit ARM instruction word, emitted by RIF in target byte order.
+@rule arm32:
+. IDENT
+. fit_exact 32
+
+; 8-bit data entry for the ball's fixed scanline geometry and literal padding.
+@rule byte:
+. IDENT
+. fit_exact 8
+
+@table arm_movregs
+| name | hi |
+__
+| r0 | 0 |
+__
+| r1 | 16 |
+__
+| r2 | 32 |
+__
+| r3 | 48 |
+__
+| r4 | 64 |
+__
+| r5 | 80 |
+__
+| r6 | 96 |
+__
+| r7 | 112 |
+__
+| r8 | 128 |
+__
+| r9 | 144 |
+__
+| r10 | 160 |
+__
+| r11 | 176 |
+__
+| r12 | 192 |
+@end
+
+@rule arm_mov_imm:
+. IDENT
+. $arm_movregs.name, IDENT
+. COMMA
+. fit_exact 8
+. bits $arm_movregs.hi 8
+. bits 160 8
+. bits 227 8

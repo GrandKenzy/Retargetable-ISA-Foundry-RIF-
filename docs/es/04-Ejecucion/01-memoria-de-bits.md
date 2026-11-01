@@ -6,63 +6,63 @@ cualquier bit, sin limitarse a bytes completos.
 ## Cursor físico
 
 ```rif
--> put 0000 0001
--> ebit 1 0 1 0 1 0 1 0
--> emmit 4660
--> emitbits 5 3
+. nibbles 0000 0001
+. emit 1 0 1 0 1 0 1 0
+. eword 4660
+. bits 5 3
 ```
 
-La emisión normal avanza el cursor físico, consultable con `::SIZE`. `emmit`
-usa `wordsize`; `put` y `ebit` tienen anchos fijos; `emitbits` recibe valor y
+La emisión normal avanza el cursor físico, consultable con `::SIZE`. `eword`
+usa `word_size`; `nibbles` y `emit` tienen anchos fijos; `bits` recibe valor y
 ancho explícitos.
 
 ## Reescribir bits
 
 ```rif
--> readbits 0 8
--> patchbits 0 8 255
+. read_bits 0 8
+. patch_bits 0 8 255
 ```
 
-`readbits OFFSET WIDTH` lee un rango físico y apila su entero en el datastack.
-`patchbits OFFSET WIDTH VALUE` reescribe el rango sin avanzar los cursores.
+`read_bits OFFSET WIDTH` lee un rango físico y apila su entero en el datastack.
+`patch_bits OFFSET WIDTH VALUE` reescribe el rango sin avanzar los cursores.
 Fuera de rango falla antes de modificar el buffer.
 
-Los anchos múltiplos de ocho respetan `endianness`; los demás respetan
-`bitorder`.
+Los anchos múltiplos de ocho respetan `byte_order`; los demás respetan
+`bit_order`.
 
 ## Padding y alineamiento
 
 ```rif
--> padding 3
--> alignement 16
+. pad 3
+. align 16
 ```
 
-Ambos emiten ceros y avanzan los dos cursores. `padding` agrega el ancho
-exacto. `alignement N` alcanza el siguiente múltiplo de `N`. Ambos se registran
+Ambos emiten ceros y avanzan los dos cursores. `pad` agrega el ancho
+exacto. `align N` alcanza el siguiente múltiplo de `N`. Ambos se registran
 como padding en `RuleTrace`.
 
 Las versiones virtuales avanzan solamente `::VSIZE`:
 
 ```rif
--> vpadding 8
--> valignement 32
+. vpad 8
+. valign 32
 ```
 
 ## Reservas
 
 ```rif
--> reserve "header" 16
--> ldres "header" 0000000011111111
--> gtres "header"
--> dlres "header"
+. reserve "header" 16
+. write_res "header" 0000000011111111
+. emit_res "header"
+. drop_res "header"
 ```
 
-Una reserva física agrega bits en cero y conserva un rango con nombre. `ldres`
-lo parchea, `gtres` lo copia al cursor y `dlres` quita el nombre sin limpiar
+Una reserva física agrega bits en cero y conserva un rango con nombre. `write_res`
+lo parchea, `emit_res` lo copia al cursor y `drop_res` quita el nombre sin limpiar
 los bits ya emitidos.
 
 ```rif
--> vreserve "scratch" 64
+. vreserve "scratch" 64
 ```
 
 Una reserva virtual no crea bits físicos. `resdir`, `resvdir`, `reswidth`,
@@ -93,4 +93,4 @@ devuelve una copia serializada y `view()` una vista viva. `BitQuery` expone el
 valor entero, bits, rango y bytes cuando el rango está alineado.
 
 `AssemblyImage.render()` genera una representación de las secciones usando la
-configuración de `sectiondef`, `sectionend`, labels, comentarios y alineación.
+configuración de `format section`, `format section_end`, labels, comentarios y alineación.

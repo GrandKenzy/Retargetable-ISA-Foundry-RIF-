@@ -1,40 +1,90 @@
 from __future__ import annotations
 
-from copy import deepcopy
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from types import MappingProxyType
 from typing import Any
 
 
-@dataclass
+TableKey = tuple[type[Any], Any]
+
+
+@dataclass(frozen=True)
 class TableData:
-    """Matriz con índices de columna y claves construidos solo al consultarse."""
+    """Tabla compilada, inmutable y preindexada por todas sus columnas."""
 
     name: str
     headers: tuple[str, ...]
-    matrix: list[tuple[Any, ...]]
-    columns: dict[str, int]
-    indexes: dict[str, dict[Any, int]] = field(default_factory=dict)
+    matrix: tuple[tuple[Any, ...], ...]
+    columns: Mapping[str, int]
+    indexes: Mapping[str, Mapping[TableKey, tuple[int, ...]]] = field(init=False)
+    unique_columns: frozenset[str] = field(init=False)
 
-    def index_for(self, column: str) -> dict[Any, int]:
-        """Return a unique-key index for one selected column."""
+    def __post_init__(self) -> None:
+        rows = tuple(tuple(row) for row in self.matrix)
+        headers = tuple(self.headers)
+        columns = MappingProxyType(dict(self.columns))
+        if any(len(row) != len(headers) for row in rows):
+            raise ValueError(f"La tabla '{self.name}' contiene filas con ancho inconsistente.")
+        if set(columns) != set(headers):
+            raise ValueError(f"La tabla '{self.name}' tiene un mapa de columnas inconsistente.")
+        if any(index < 0 or index >= len(headers) for index in columns.values()):
+            raise ValueError(f"La tabla '{self.name}' contiene un índice de columna inválido.")
+        indexes: dict[str, Mapping[TableKey, tuple[int, ...]]] = {}
+        unique_columns: set[str] = set()
+        for column, column_index in columns.items():
+            values: dict[TableKey, list[int]] = {}
+            for row_number, row in enumerate(rows):
+                value = row[column_index]
+                key = self._key(value)
+                values.setdefault(key, []).append(row_number)
+            indexes[column] = MappingProxyType(
+                {key: tuple(row_numbers) for key, row_numbers in values.items()}
+            )
+            if all(len(row_numbers) == 1 for row_numbers in values.values()):
+                unique_columns.add(column)
+        object.__setattr__(self, "headers", headers)
+        object.__setattr__(self, "matrix", rows)
+        object.__setattr__(self, "columns", columns)
+        object.__setattr__(self, "indexes", MappingProxyType(indexes))
+        object.__setattr__(self, "unique_columns", frozenset(unique_columns))
+
+    @staticmethod
+    def _key(value: Any) -> TableKey:
+        try:
+            hash(value)
+        except TypeError as exc:
+            raise ValueError(f"El valor de tabla {value!r} no es indexable.") from exc
+        return type(value), value
+
+    def index_for(self, column: str) -> Mapping[TableKey, tuple[int, ...]]:
+        """Return the immutable precomputed index for one column."""
         if column not in self.columns:
             raise KeyError(f"La columna '{column}' no existe en la tabla '{self.name}'.")
-        if column not in self.indexes:
-            index: dict[Any, int] = {}
-            for row_number, row in enumerate(self.matrix):
-                value = row[self.columns[column]]
-                try:
-                    duplicate = value in index
-                except TypeError as exc:
-                    raise ValueError(f"El valor de '{self.name}.{column}' no es indexable.") from exc
-                if duplicate:
-                    raise ValueError(
-                        f"La columna '{column}' de la tabla '{self.name}' contiene "
-                        f"la clave duplicada {value!r}."
-                    )
-                index[value] = row_number
-            self.indexes[column] = index
         return self.indexes[column]
+
+    def require_unique(self, column: str) -> None:
+        """Require every key in a column to select exactly one row."""
+        if column in self.unique_columns:
+            return
+        for key, rows in self.index_for(column).items():
+            if len(rows) > 1:
+                raise ValueError(
+                    f"La columna '{column}' de la tabla '{self.name}' contiene "
+                    f"la clave duplicada {key[1]!r}."
+                )
+
+    def lookup_unique(self, column: str, value: Any) -> int | None:
+        """Return one row for a typed key, or ``None`` when it is absent."""
+        rows = self.index_for(column).get(self._key(value))
+        if rows is None:
+            return None
+        if len(rows) != 1:
+            raise ValueError(
+                f"La columna '{column}' de la tabla '{self.name}' contiene "
+                f"la clave duplicada {value!r}."
+            )
+        return rows[0]
 
 
 @dataclass
@@ -77,26 +127,6 @@ class ConfigData:
 
 
 @dataclass(frozen=True)
-class InsertData:
-    """Declarative binary prelude to apply to one output section."""
-
-    section: str
-    kind: str
-    value: Any
-    source_path: str | None = None
-
-
-@dataclass(frozen=True)
-class BeforePatchData:
-    """Declarative final patch evaluated after all MIR lines finish."""
-
-    offset: int
-    width: int | None
-    expression: Any
-    source_path: str | None = None
-
-
-@dataclass(frozen=True)
 class BlockValueData:
     """One value captured by a generic block line."""
 
@@ -126,9 +156,8 @@ class BlockData:
 class LinkerData:
     """Configuración de descubrimiento de archivos del linker."""
 
-    ext: str
-    name: str
-    searching: str | bool
+    extension: str
+    search_path: tuple[str, ...] | bool
 
 
 @dataclass(frozen=True)
@@ -174,11 +203,14 @@ class TargetContext:
     linker: LinkerData | None = None
     defines: frozenset[str] = frozenset()
     stack_size: int | None = None
-    tables: dict[str, TableData] = field(default_factory=dict)
+    tables: Mapping[str, TableData] = field(default_factory=dict)
     supports: dict[str, SupportData] = field(default_factory=dict)
     asm_variants: dict[str, AsmVariantData] = field(default_factory=dict)
     loaded_sources: dict[str, str] = field(default_factory=dict)
     blocks: dict[str, tuple[BlockData, ...]] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tables", MappingProxyType(dict(self.tables)))
 
 
 def snapshot_target_context() -> TargetContext:
@@ -196,9 +228,8 @@ def snapshot_target_context() -> TargetContext:
         name: TableData(
             name=table.name,
             headers=tuple(table.headers),
-            matrix=deepcopy(table.matrix),
+            matrix=tuple(tuple(row) for row in table.matrix),
             columns=dict(table.columns),
-            indexes=deepcopy(table.indexes),
         )
         for name, table in TABLES.items()
     }
@@ -231,7 +262,7 @@ def activate_target_context(context: TargetContext) -> None:
     DEFINES.clear()
     DEFINES.update(context.defines)
     TABLES.clear()
-    TABLES.update(deepcopy(context.tables))
+    TABLES.update(context.tables)
     SUPPORTS.clear()
     SUPPORTS.update(context.supports)
     ASM_VARIANTS.clear()
@@ -251,9 +282,8 @@ STACK_SIZE: int | None = None
 # stack ni valores runtime.
 DEFINES: set[str] = set()
 
-# Las tablas se localizan por nombre en O(1). Cada TableData conserva la
-# matriz original y un índice de columnas para resolver accesos sin recorrer
-# los encabezados.
+# Las tablas se conservan como valores inmutables y sus índices se construyen
+# al materializarse; el diccionario global solo cambia durante el frontend.
 TABLES: dict[str, TableData] = {}
 
 # Reglas localizadas por nombre. Su AST se conserva para la fase de ejecución.
@@ -276,12 +306,6 @@ VARIANT_STACK: list[VariantFrame] = []
 # variantes lean desde un .pack sin volver al filesystem.
 SOURCE_PROVIDER: Any | None = None
 
-# Binary preludes and final patches are deliberately kept separate from Rules.
-# They are compiled into the target plan but are not executed while a .pack is
-# being created.
-INSERTS: list[InsertData] = []
-BEFORE: list[BeforePatchData] = []
-
 # Generic @block data. Known blocks are materialized by their direct visitors;
 # unknown blocks remain available to higher-level consumers.
 BLOCKS: dict[str, list[BlockData]] = {}
@@ -291,12 +315,11 @@ __all__ = [
     "STACK_SIZE",
     "DEFINES",
     "TableData",
+    "TableKey",
     "TABLES",
     "RuleData",
     "RULES",
     "ConfigData",
-    "InsertData",
-    "BeforePatchData",
     "BlockValueData",
     "BlockEntryData",
     "BlockData",
@@ -315,7 +338,5 @@ __all__ = [
     "ACTIVE_SOURCES",
     "VARIANT_STACK",
     "SOURCE_PROVIDER",
-    "INSERTS",
-    "BEFORE",
     "BLOCKS",
 ]

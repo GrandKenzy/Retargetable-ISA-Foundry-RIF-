@@ -1,96 +1,67 @@
 ; Minimal executable ELF64 target for Linux x86-64.
 
 @block config:
-sectiondef ".section"
-make section "text"
-make section "data"
-make section "bss"
-sectionend ":"
-entrysection "text"
-entrylabel "_start"
-comment ";"
-labelend ":"
-datasection "data"
-defaultsection "text"
-sectionflags "text" "rx"
-sectionflags "data" "rw"
-sectionflags "bss" "rw"
-sectionvaddr "text" 4194304
-wordsize 64
-addresssize 64
-endianness "little"
-casesensitive true
-symbolprefix "_"
-localprefix "."
-undefinedsymbols "error"
-duplicatesymbols "error"
-strict true
-allowemptysections false
-bitorder "msb"
+    format section ".section"
+    section text "rx"
+    section data "rw"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    vaddr text 4194304
+    word_size 64
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+    bit_order "msb"
 @end
 
 @block linker:
-ext ".asm"
-name "main"
-searching ""
-@end
-
-; ELF64 header (64 bytes) followed by one PT_LOAD (56 bytes).
-; Dynamic fields are patched by @before after the MIR has emitted code.
-@insert:
-.section "text"
-.bytes "7f454c46020101000000000000000000"
-.bytes "02003e00010000000000000000000000"
-.bytes "40000000000000000000000000000000"
-.bytes "00000000400038000100000000000000"
-.bytes "01000000050000000000000000000000"
-.bytes "00004000000000000000400000000000"
-.bytes "00000000000000000000000000000000"
-.bytes "0010000000000000"
-@end
-
-@before:
-; e_entry = 0x400000 + physical offset of _start.
-.rplc 24, 8, #:calc(4194304 + #:qlsize(0, "_start"))
-; p_filesz = bytes from file start through the end of text.
-.rplc 96, 8, #:qssize(0, "text")
-; p_memsz = virtual end minus the segment virtual base.
-.rplc 104, 8, #:calc(#:qvssize(0, "text") - 4194304)
+    extension ".asm"
+    search_path ""
 @end
 
 @table registers
 | name | modrm |
-_
+__
 | rax | 192 |
-_
+__
 | rcx | 193 |
-_
+__
 | rdx | 194 |
-_
+__
 | rbx | 195 |
-_
+__
 | rsp | 196 |
-_
+__
 | rbp | 197 |
-_
+__
 | rsi | 198 |
-_
+__
 | rdi | 199 |
 @end
 
 @rule _start:
--> IDENT
+. IDENT
 
 @rule mov:
--> IDENT
--> $registers.name, IDENT
--> COMMA
--> emitbits 72 8
--> emitbits 199 8
--> emitbits $registers.modrm 8
--> fits 32
+. IDENT
+. $registers.name, IDENT
+. COMMA
+. bits 72 8
+. bits 199 8
+. bits $registers.modrm 8
+. fit 32
 
 @rule syscall:
--> IDENT
--> emitbits 15 8
--> emitbits 5 8
+. IDENT
+. bits 15 8
+. bits 5 8

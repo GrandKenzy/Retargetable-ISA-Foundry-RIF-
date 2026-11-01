@@ -12,15 +12,24 @@ from gram import lexer
 
 from Frontend import RIF_LANG_SESSION, globals
 from pack import PackReader
+from pcpi import PCPIError, PCPI_HEADER_SIZE, load_pcpi_file
 from rif_limits import COMPILATION_LOCK, resolve_limits
 
-from .function_context import RIFFunctionContext
-from .functions import FunctionModule, load_function_file, load_function_source
 from .instructions import CompiledRuleSet
+from .buffer import BufferResult, execute_preprocessor_buffer
 from .output import AssemblyImage
-from .artifacts import apply_before, apply_inserts
+from .artifacts import (
+    ArtifactError,
+    InsertData,
+    PatchData,
+    apply_insert_directives,
+    apply_patch_directives,
+    parse_patch_tokens,
+)
 from .pipeline import compile_definition
+from .preprocessor import MIRLine, RIFMetaDirective, preprocess_mir_lines
 from .runtime import ExecutionResult, RIFMachine
+from .storage import StorageError, load_storage_file
 
 
 MAX_MIR_SOURCE_BYTES = 64 << 20
@@ -29,6 +38,15 @@ MAX_MIR_TOKENS = 4_000_000
 
 class MIRInputError(ValueError):
     """An external MIR input or linker-extension error."""
+
+
+@dataclass(frozen=True)
+class PCPIPitAddress:
+    """Absolute address reported by one ``::RIF_PCPI PIT`` query."""
+
+    index: int
+    address: int
+    section: str
 
 
 def _write_binary_atomic(
@@ -57,12 +75,12 @@ def _write_binary_atomic(
 
 @dataclass(frozen=True)
 class PreparedTarget:
-    """A compiled target and its optional loaded ``funcs.py`` module."""
+    """A compiled target and its packaged binary assets."""
 
     program: CompiledRuleSet
     target_path: Path | None
-    function_module: FunctionModule | None = None
     assets: dict[str, bytes] = field(default_factory=dict)
+    buffer: BufferResult | None = None
 
 
 @dataclass
@@ -74,9 +92,11 @@ class MIRCompilation:
     executions: tuple[ExecutionResult, ...]
     section: str
     binary: bytes
-    context: RIFFunctionContext
+    context: RIFMachine
+    buffer: BufferResult | None = None
     target_path: Path | None = None
     mir_path: Path | None = None
+    pcpi_pit_addresses: tuple[PCPIPitAddress, ...] = ()
 
     @property
     def section_binary(self) -> bytes:
@@ -97,39 +117,39 @@ def tokenize_mir(source: str, name: str = "<memory>") -> tuple[lexer.TokenType, 
         return tuple(RIF_LANG_SESSION.tokenize(source, name))
 
 
-def prepare_target(path: str | Path) -> PreparedTarget:
-    """Compile a ``.rif``/``.pack`` and load its sibling/package funcs.py."""
+def prepare_target(path: str | Path, *, backend: str = "aot") -> PreparedTarget:
+    """Compile a ``.rif``/``.pack`` and load its binary assets."""
 
     target_path = Path(path).expanduser().resolve()
     if target_path.suffix.lower() not in {".rif", ".pack"}:
         raise MIRInputError("La definición RIF debe terminar en .rif o .pack.")
-    program = compile_definition(target_path)
-    function_module: FunctionModule | None = None
+    program = compile_definition(target_path, backend=backend)
     assets: dict[str, bytes] = {}
-    if target_path.suffix.lower() == ".rif":
-        function_path = target_path.parent / "funcs.py"
-        if function_path.is_file():
-            function_module = load_function_file(function_path)
-    else:
+    if target_path.suffix.lower() == ".pack":
         with PackReader(target_path) as package:
-            function_source = package.function_source()
-            if function_source is not None:
-                function_module = load_function_source(
-                    function_source,
-                    package.virtual_function_path(),
-                )
             assets = package.assets()
-    return PreparedTarget(program, target_path, function_module, assets)
+    return PreparedTarget(
+        program,
+        target_path,
+        assets,
+        None,
+    )
 
 
 def _prepare_target(
     target: PreparedTarget | CompiledRuleSet | str | Path,
+    *,
+    backend: str = "aot",
 ) -> PreparedTarget:
     if isinstance(target, PreparedTarget):
         return target
     if isinstance(target, CompiledRuleSet):
-        return PreparedTarget(target, None)
-    return prepare_target(target)
+        return PreparedTarget(
+            target,
+            None,
+            buffer=None,
+        )
+    return prepare_target(target, backend=backend)
 
 
 def _require_target_config(program: CompiledRuleSet) -> globals.ConfigData:
@@ -159,6 +179,147 @@ def _split_lines(
 
 def _line_number(line: tuple[lexer.TokenType, ...]) -> int | None:
     return getattr(line[0], "line", None) if line else None
+
+
+def _resolve_meta_path(requested: str, mir_path: str | Path | None) -> Path:
+    path = Path(requested).expanduser()
+    if path.is_absolute() or ".." in path.parts:
+        raise MIRInputError(
+            f"La ruta de metaprogramación debe ser relativa y permanecer junto al MIR: {requested!r}."
+        )
+    base = (
+        Path(mir_path).expanduser().resolve(strict=False).parent
+        if mir_path is not None
+        else Path.cwd().resolve()
+    )
+    candidate = (base / path).resolve(strict=False)
+    try:
+        candidate.relative_to(base)
+    except ValueError as exc:
+        raise MIRInputError(
+            f"La ruta de metaprogramación intenta salir del directorio del MIR: {requested!r}."
+        ) from exc
+    return candidate
+
+
+def _apply_meta_directive(
+    directive: RIFMetaDirective,
+    image: AssemblyImage,
+    section: str,
+    mir_path: str | Path | None,
+) -> None:
+    if directive.name != "RIF_STORE":
+        raise MIRInputError(f"Directiva de metaprogramación no soportada: {directive.name}.")
+    if directive.path is None or directive.label is None:
+        raise MIRInputError("::RIF_STORE requiere una ruta y un label.")
+    if directive.endianness not in {1, 2} or directive.bitorder not in {0, 1}:
+        raise MIRInputError(
+            "::RIF_STORE requiere ENDIANNESS 1/2 y BITORDER 0/1."
+        )
+    if Path(directive.path).suffix.casefold() != ".bin":
+        raise MIRInputError("::RIF_STORE solo acepta archivos con extensión .bin.")
+    storage_path = _resolve_meta_path(directive.path, mir_path)
+    try:
+        payload = load_storage_file(storage_path).payload(directive.label)
+    except (FileNotFoundError, OSError, StorageError) as exc:
+        location = f" en línea {directive.line}" if directive.line else ""
+        raise MIRInputError(
+            f"No se pudo cargar ::RIF_STORE{location}: {exc}"
+        ) from exc
+    emitter = image.emitter(section)
+    if emitter.buffer.bit_length % 8:
+        raise MIRInputError(
+            "::RIF_STORE solo puede insertar raw en una posición alineada a bytes."
+        )
+    try:
+        emitter.emit_bytes(payload)
+    except (TypeError, ValueError) as exc:
+        raise MIRInputError(
+            f"No se pudo insertar el payload '{directive.label}' de ::RIF_STORE: {exc}"
+        ) from exc
+
+
+def _insert_from_meta(
+    directive: RIFMetaDirective,
+    image: AssemblyImage,
+    mir_path: str | Path | None,
+) -> InsertData:
+    """Convert one assembler-side insertion into the shared binary artifact type."""
+
+    if directive.operation not in {"BYTES", "BINARY", "FILE"}:
+        raise MIRInputError("::RIF_INSERT requiere BYTES, BINARY o FILE.")
+    if directive.operation == "FILE":
+        value = directive.path
+    else:
+        value = directive.payload[0].value if directive.payload else None
+    if not isinstance(value, str) or not value:
+        raise MIRInputError(f"::RIF_INSERT {directive.operation} requiere un string no vacío.")
+    section = directive.section or image.config.defaultsection
+    if section not in image.sections:
+        raise MIRInputError(f"La sección '{section}' de ::RIF_INSERT no existe en CONFIG.")
+    return InsertData(
+        section=section,
+        kind=directive.operation.casefold(),
+        value=value,
+        source_path=str(mir_path) if mir_path is not None else None,
+    )
+
+
+def _load_pcpi_directive(
+    directive: RIFMetaDirective,
+    image: AssemblyImage,
+    section: str,
+    mir_path: str | Path | None,
+) -> tuple[object, str, int]:
+    if directive.path is None:
+        raise MIRInputError("::RIF_PCPI SET requiere la ruta de un archivo .pcic.")
+    if Path(directive.path).suffix.casefold() != ".pcic":
+        raise MIRInputError("::RIF_PCPI SET solo acepta archivos con extensión .pcic.")
+    pcpi_path = _resolve_meta_path(directive.path, mir_path)
+    try:
+        pcpi = load_pcpi_file(pcpi_path)
+    except (FileNotFoundError, OSError, PCPIError) as exc:
+        location = f" en línea {directive.line}" if directive.line else ""
+        raise MIRInputError(f"No se pudo cargar ::RIF_PCPI SET{location}: {exc}") from exc
+    emitter = image.emitter(section)
+    if emitter.buffer.bit_length % 8:
+        raise MIRInputError("::RIF_PCPI SET solo puede comenzar alineado a bytes.")
+    offset = emitter.buffer.byte_length
+    try:
+        emitter.emit_bytes(pcpi.to_bytes())
+    except (TypeError, ValueError) as exc:
+        raise MIRInputError(f"No se pudo insertar ::RIF_PCPI SET: {exc}") from exc
+    return pcpi, section, offset
+
+
+def _pcpi_query_address(
+    directive: RIFMetaDirective,
+    pcpi: object,
+    set_section: str,
+    set_offset: int,
+    image: AssemblyImage,
+) -> tuple[int, str]:
+    if directive.index is None:
+        raise MIRInputError("::RIF_PCPI PIT requiere un índice.")
+    pits = getattr(pcpi, "pits", ())
+    try:
+        pit = pits[directive.index]
+    except IndexError as exc:
+        raise MIRInputError(
+            f"No existe el PIT {directive.index} en la PCP-I seleccionada."
+        ) from exc
+    section = directive.section or set_section
+    if section not in image.sections:
+        raise MIRInputError(f"La sección PCP-I '{section}' no existe en CONFIG.")
+    image.layout()
+    address = (
+        image.section_offset(section)
+        + set_offset
+        + PCPI_HEADER_SIZE
+        + len(getattr(pcpi, "padding"))
+        + pit.address
+    )
+    return address, section
 
 
 def _resolve_rule_name(
@@ -212,25 +373,7 @@ def compile_mir_tokens(
     machine = RIFMachine(
         program,
         emitter=image.emitter(selected_section),
-        function_module=prepared.function_module,
         section_name=selected_section,
-    )
-    section_data = image.section(selected_section)
-    context = RIFFunctionContext(
-        program=program,
-        machine=machine,
-        image=image,
-        section=section_data,
-        target_path=prepared.target_path,
-        mir_path=Path(mir_path).expanduser().resolve() if mir_path else None,
-    )
-    machine.bind_function_context(context)
-    apply_inserts(
-        image,
-        program.inserts,
-        function_module=prepared.function_module,
-        context=context,
-        assets=prepared.assets,
     )
     collected: list[lexer.TokenType] = []
     for index, token in enumerate(tokens):
@@ -240,24 +383,80 @@ def compile_mir_tokens(
             )
         collected.append(token)
     token_stream = tuple(collected)
+    lines: tuple[MIRLine, ...] = preprocess_mir_lines(_split_lines(token_stream))
+    pcpi: object | None = None
+    pcpi_set_section: str | None = None
+    pcpi_set_offset = 0
+    pcpi_queries: list[RIFMetaDirective] = []
+    dynamic_patches: list[PatchData] = []
+
+    def handle_directive(directive: RIFMetaDirective) -> None:
+        nonlocal pcpi, pcpi_set_section, pcpi_set_offset
+        if directive.name == "RIF_STORE":
+            _apply_meta_directive(directive, image, selected_section, mir_path)
+            return
+        if directive.name == "RIF_INSERT":
+            try:
+                insert = _insert_from_meta(directive, image, mir_path)
+                apply_insert_directives(image, (insert,), assets=prepared.assets)
+            except (ArtifactError, FileNotFoundError, OSError, ValueError) as exc:
+                location = f" en línea {directive.line}" if directive.line else ""
+                raise MIRInputError(f"No se pudo ejecutar ::RIF_INSERT{location}: {exc}") from exc
+            return
+        if directive.name == "RIF_PATCH":
+            try:
+                dynamic_patches.append(parse_patch_tokens(directive.payload, str(mir_path) if mir_path else None))
+            except (RuntimeError, ValueError) as exc:
+                location = f" en línea {directive.line}" if directive.line else ""
+                raise MIRInputError(f"No se pudo leer ::RIF_PATCH{location}: {exc}") from exc
+            return
+        if directive.name in {"RIF_BUFFER", "RIF_REQSTS"}:
+            return
+        if directive.name != "RIF_PCPI":
+            raise MIRInputError(f"Directiva de metaprogramación no soportada: {directive.name}.")
+        if directive.operation == "SET":
+            if pcpi is not None:
+                raise MIRInputError("::RIF_PCPI SET solo puede aparecer una vez.")
+            pcpi, pcpi_set_section, pcpi_set_offset = _load_pcpi_directive(
+                directive, image, selected_section, mir_path
+            )
+            return
+        if directive.operation == "PIT":
+            if pcpi is None:
+                raise MIRInputError("::RIF_PCPI PIT requiere un SET previo.")
+            pcpi_queries.append(directive)
+            return
+        raise MIRInputError("::RIF_PCPI requiere SET o PIT.")
+
+    buffer_result = execute_preprocessor_buffer(
+        line for line in lines if isinstance(line, RIFMetaDirective)
+    )
+    for line in lines:
+        if isinstance(line, RIFMetaDirective):
+            handle_directive(line)
+
     if rule_name is not None:
         lines = ((
             tuple(
-                token
-                for token in token_stream
-                if token.token not in {lexer.Token.EOF, lexer.Token.NEWLINE}
+                token for line in lines if isinstance(line, tuple) for token in line
+                if token.token != lexer.Token.EOF
             ),
         ))
         resolved_names = (rule_name,)
     else:
-        lines = _split_lines(token_stream)
         resolved_names = tuple(
             _resolve_rule_name(program, line, line_number=_line_number(line))
             for line in lines
+            if isinstance(line, tuple)
         )
 
     executions: list[ExecutionResult] = []
-    for name, line in zip(resolved_names, lines):
+    resolved_index = 0
+    for line in lines:
+        if isinstance(line, RIFMetaDirective):
+            continue
+        name = resolved_names[resolved_index]
+        resolved_index += 1
         result = machine.execute_line(name, line)
         if result.position != len(line):
             line_number = _line_number(line)
@@ -267,13 +466,27 @@ def compile_mir_tokens(
             )
         executions.append(result)
 
-    apply_before(
+    apply_patch_directives(
         image,
         machine,
-        program.before,
-        function_module=prepared.function_module,
-        context=context,
+        tuple(dynamic_patches),
     )
+
+    pit_addresses: list[PCPIPitAddress] = []
+    if pcpi_queries:
+        if pcpi is None or pcpi_set_section is None:
+            raise MIRInputError("::RIF_PCPI PIT requiere un SET previo.")
+        for directive in pcpi_queries:
+            address, address_section = _pcpi_query_address(
+                directive,
+                pcpi,
+                pcpi_set_section,
+                pcpi_set_offset,
+                image,
+            )
+            pit_addresses.append(
+                PCPIPitAddress(directive.index or 0, address, address_section)
+            )
 
     return MIRCompilation(
         program=program,
@@ -281,9 +494,11 @@ def compile_mir_tokens(
         executions=tuple(executions),
         section=selected_section,
         binary=image.file_bytes(),
-        context=context,
+        context=machine,
+        buffer=buffer_result,
         target_path=prepared.target_path,
-        mir_path=context.mir_path,
+        mir_path=Path(mir_path).expanduser().resolve() if mir_path else None,
+        pcpi_pit_addresses=tuple(pit_addresses),
     )
 
 
@@ -298,12 +513,15 @@ def compile_mir_source(
 ) -> MIRCompilation:
     """Compile MIR text through the shared direct token execution path."""
 
+    effective_mir_path = mir_path
+    if effective_mir_path is None and name and not name.startswith("<"):
+        effective_mir_path = name
     return compile_mir_tokens(
         target,
         tokenize_mir(source, name),
         section=section,
         rule_name=rule_name,
-        mir_path=mir_path,
+        mir_path=effective_mir_path,
     )
 
 
@@ -313,6 +531,7 @@ def compile_mir_file(
     *,
     output: str | Path | None = None,
     section: str | None = None,
+    backend: str = "aot",
 ) -> MIRCompilation:
     """Compile one MIR file after validating the target's linker extension."""
 
@@ -321,19 +540,19 @@ def compile_mir_file(
         raise FileNotFoundError(f"Archivo MIR no encontrado: {input_path}")
     if input_path.stat().st_size > resolve_limits().cap(MAX_MIR_SOURCE_BYTES):
         raise MIRInputError("El archivo MIR excede el límite de 64 MiB.")
-    prepared = _prepare_target(target)
+    prepared = _prepare_target(target, backend=backend)
     _config = _require_target_config(prepared.program)
     if prepared.program.context.linker is None:
         raise MIRInputError("La entrada por archivo requiere un bloque @block linker.")
     linker = prepared.program.context.linker
-    expected = linker.ext
+    expected = linker.extension
     if not expected.startswith("."):
         expected = "." + expected
     actual = input_path.suffix
     matches = actual == expected if _config.casesensitive else actual.casefold() == expected.casefold()
     if not matches:
         raise MIRInputError(
-            f"El MIR debe usar la extensión '{linker.ext}', no '{actual}'."
+            f"El MIR debe usar la extensión '{linker.extension}', no '{actual}'."
         )
     result = compile_mir_source(
         prepared,

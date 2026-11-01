@@ -12,6 +12,22 @@ from rif import main as rif_main
 
 
 class PackTests(unittest.TestCase):
+    def test_pack_omits_legacy_python_functions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main = root / "main.rif"
+            main.write_text("@define main\n", encoding="utf-8")
+            (root / "funcs.py").write_text(
+                "def handler(name, context):\n    return True\n",
+                encoding="utf-8",
+            )
+
+            package = create_pack(main)
+            with zipfile.ZipFile(package) as archive:
+                manifest = json.loads(archive.read("manifest.json"))
+                self.assertNotIn("funcs.py", archive.namelist())
+                self.assertNotIn("functions", manifest)
+
     def test_pack_contains_all_rif_sources_and_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -62,6 +78,26 @@ class PackTests(unittest.TestCase):
                 )
                 self.assertEqual(reader.ordered_sources(), manifest.dependency_order)
 
+    def test_pack_variant_search_paths_respect_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main = root / "main.rif"
+            first = root / "first" / "thumb.rif"
+            second = root / "second" / "thumb.rif"
+            first.parent.mkdir()
+            second.parent.mkdir()
+            main.write_text("@define main\n", encoding="utf-8")
+            first.write_text("@define first\n", encoding="utf-8")
+            second.write_text("@define second\n", encoding="utf-8")
+
+            package = create_pack(main)
+
+            with PackReader(package) as reader:
+                selected = reader.resolve_variant("thumb", ("first", "second"))
+                self.assertTrue(selected.endswith("sources/first/thumb.rif"))
+                with self.assertRaises(ValueError):
+                    reader.resolve_variant("thumb", False)
+
     def test_pack_is_reproducible(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -84,31 +120,6 @@ class PackTests(unittest.TestCase):
             ).read_bytes()
             self.assertEqual(compiled_first, compiled_second)
 
-    def test_pack_carries_insert_assets_with_hashes(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            main = root / "main.rif"
-            payload = root / "payload.bin"
-            main.write_text(
-                "@insert:\n"
-                '.file "payload.bin"\n'
-                "@end\n",
-                encoding="utf-8",
-            )
-            payload.write_bytes(b"\x00\xffpayload")
-
-            package = create_pack(main)
-            manifest = read_pack(package)
-
-            self.assertEqual(
-                [(entry.path, entry.size) for entry in manifest.assets],
-                [("assets/payload.bin", len(payload.read_bytes()))],
-            )
-            with PackReader(package) as reader:
-                self.assertEqual(reader.assets(), {"payload.bin": payload.read_bytes()})
-            with zipfile.ZipFile(package) as archive:
-                self.assertEqual(archive.read("assets/payload.bin"), payload.read_bytes())
-
     def test_precompiled_pack_stores_tables_in_sqlite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -116,11 +127,11 @@ class PackTests(unittest.TestCase):
             main.write_text(
                 "@table registers\n"
                 "| name | opcode |\n"
-                "_\n"
+                "__\n"
                 '| "mov" | 1 |\n'
                 "@end\n"
                 "@rule sample:\n"
-                "-> $registers.opcode, NUMBER\n",
+                ". $registers.opcode, NUMBER\n",
                 encoding="utf-8",
             )
             package = create_pack(main, precompile=True)

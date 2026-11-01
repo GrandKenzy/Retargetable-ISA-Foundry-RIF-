@@ -33,7 +33,7 @@ def make_project(root: Path, count: int = 32) -> Path:
     nodes = project / "rules"
     nodes.mkdir(parents=True)
     for index in range(count - 1, -1, -1):
-        body = f"@rule rule_{index}:\n-> NUMBER\n"
+        body = f"@rule rule_{index}:\n. NUMBER\n"
         if index + 1 < count:
             body = f'@LOAD "rule_{index + 1:03d}.rif"\n' + body
         (nodes / f"rule_{index:03d}.rif").write_text(body, encoding="utf-8")

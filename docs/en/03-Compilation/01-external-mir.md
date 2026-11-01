@@ -11,6 +11,32 @@ add rbx, 2
 The remaining tokens on each line are consumed by the selected Rule. A line
 that leaves unconsumed tokens is rejected.
 
+## Metaprogramming directives
+
+External MIR may contain reserved markers for binary artifacts managed by RIF:
+
+```text
+::RIF_PCPI SET "header.pcic"
+::RIF_PCPI PIT 0
+::RIF_PCPI PIT 0 SECTION text
+::RIF_STORE "images.bin" myImage 1 0
+mov rax, 1
+```
+
+`::RIF_PCPI SET` must be the first non-empty line. It loads a `.pcic` file and
+copies the complete container into the current section. `::RIF_PCPI PIT` emits
+no bytes; it queries the absolute address of the reserved payload, measured
+from offset `0` of the final file. The `SECTION text` form uses that section's
+actual file offset. Queries are returned through
+`MIRCompilation.pcpi_pit_addresses` and printed by the CLI.
+
+`::RIF_STORE`
+receives `ENDIANNESS` (`1` little, `2` big) and `BITORDER` (`0` LSB, `1` MSB),
+resolves its path relative to the MIR file, opens `storage.bin`, extracts the
+raw payload by label, and inserts it into the current section. The payload must
+start at a byte-aligned position and is copied without reinterpretation; the
+storage has no word size with which to perform a generic endian conversion.
+
 ## Command Line
 
 The command-line entrypoint is `rif.py`:
@@ -21,7 +47,7 @@ rif main.pack program.asm
 rif main.rif program.asm -o build/program.bin
 ```
 
-The MIR extension must match `ext` in the target's linker block. When `-o` is
+The MIR extension must match `extension` in the target's linker block. When `-o` is
 omitted, the output path is the MIR path with a `.bin` suffix.
 
 ## Direct Python API
@@ -61,7 +87,7 @@ preferred entry when a host compiler already owns tokenization.
 
 ## Sections
 
-The default output section is `entrysection` from `@block config`. A direct caller
+The default output section is `default` from `@block config`. A direct caller
 can select another configured section:
 
 ```python

@@ -1,0 +1,15 @@
+; Raw AMD64 execution-shaped fixture. Execution is platform-owned and is not
+; attempted by this target's host tests.
+_start
+mov rax, 20
+mov rbx, 2
+imulrr rax, rbx
+addri rax, 2
+push64 rax
+load64 rcx, rsp, 0
+store64 rcx, rsp, 0
+leax64 r10, rsp, rbx, 8, 16
+pop64 rdx
+cmprr rcx, rdx
+ret
+

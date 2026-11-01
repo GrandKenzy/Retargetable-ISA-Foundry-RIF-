@@ -1,8 +1,3 @@
-# --- VNMA (Vendor Manager) ---
-/vendor/
-/vendor_vnma/
-.vnma_meta/
-vnma_cache/
 __pycache__/
 .rif-cache/
 *.py[cod]
@@ -16,6 +11,7 @@ __pycache__/
 
 # --- Salidas binarias generadas por RIF ---
 *.pack
+*.elf
 *.pcic
 *.gba
 /storage.bin
@@ -30,3 +26,19 @@ __pycache__/
 /examples/GBA-Bouncing-Ball/rif_ball*.gba
 /examples/GBA-Bouncing-Ball/preview_*.png
 /examples/GBA-Bouncing-Ball/preview_*.gif
+
+# Resultados raw y MIR generados por el target AMD64 bare metal.
+/examples/AMD64-BareMetal-v3/*.bin
+/examples/AMD64-BareMetal-v3/tests/*.bin
+/examples/AMD64-BareMetal-v3/tests/all_encodings.mir
+/examples/AMD64-BareMetal-v3/tests/negative.mir
+/examples/AMD64/*.bin
+
+# Salidas generadas por el paquete AMD64 de sintaxis amigable.
+/examples/amd64-friendlysyntaxs/*.bin
+
+# --- VNMA (Vendor Manager) ---
+/vendor/
+/vendor_vnma/
+.vnma_meta/
+vnma_cache/

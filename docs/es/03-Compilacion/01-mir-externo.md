@@ -95,9 +95,11 @@ contiene las direcciones virtuales absolutas de los símbolos definidos por
 `mark` durante la compilación. `compile_mir` acepta texto o un iterable de
 tokens.
 
-Las Rules pueden registrar relocaciones con `fixup pc8`, `fixup pc32` o
-`fixup abs64`; el runtime las resuelve después de todas las líneas MIR y antes
-de aplicar `::RIF_PATCH`.
+Las Rules pueden registrar relocaciones con `fixup pc8`, `fixup pc16`,
+`fixup pc32`, `fixup pc64`, `fixup abs8`, `fixup abs16`, `fixup abs32` o
+`fixup abs64`. El target también puede declarar clases adicionales en
+`@block relocations`; el runtime las resuelve después de todas las líneas MIR
+y antes de aplicar `::RIF_PATCH`.
 
 La directiva `::RIF_SECTION nombre` selecciona otra sección de la misma
 `AssemblyImage` y conserva los emisores, símbolos y relocaciones de cada una.

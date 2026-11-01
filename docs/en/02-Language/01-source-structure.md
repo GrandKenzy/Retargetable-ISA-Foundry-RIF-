@@ -24,10 +24,12 @@ for Rules, so these two forms have the same structural meaning:
 ## Root-Only Declarations
 
 The root scope may contain `@block config`, `@block linker`, `@table`, `@stack`,
-`@SUPPORTS`, `@ASMVARIANT`, `@define`, `@rule`, and `@LOAD`.
+`@SUPPORTS`, `@ASMVARIANT`, `@define`, `@rule`, `@LOAD`, and `@LIBRARY`.
 
 Included files loaded with `@LOAD` may contain only `@define`, `@table`,
-`@rule`, and more `@LOAD` directives. Variant files loaded through
+`@rule`, and more `@LOAD` directives. A `.riflib` package is a reusable source
+library loaded with `@LIBRARY`; its declarations use the same target context.
+Variant files loaded through
 `@ASMVARIANT` may contain only `@define` and `@rule`.
 
 Configuration can only be materialized by the root. If it is split into

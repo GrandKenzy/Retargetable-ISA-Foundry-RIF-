@@ -7,7 +7,14 @@ from typing import Iterable, Sequence
 
 from rif_limits import resolve_limits
 
-from .bitbuffer import MAX_BUFFER_BITS, BitBuffer, BitLayout, BitQuery, BitSpan
+from .bitbuffer import (
+    MAX_BUFFER_BITS,
+    BitBuffer,
+    BitCheckpoint,
+    BitLayout,
+    BitQuery,
+    BitSpan,
+)
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,15 @@ class VirtualRegion:
     @property
     def end(self) -> int:
         return self.offset + self.width
+
+
+@dataclass(frozen=True)
+class BitEmitterCheckpoint:
+    """Physical and virtual state required for an atomic Rule execution."""
+
+    buffer: BitCheckpoint
+    virtual_position: int
+    virtual_regions: tuple[tuple[str, VirtualRegion], ...]
 
 
 def field(value: int | str | BitField, width: int | None = None) -> BitField:
@@ -173,6 +189,20 @@ class BitEmitter:
     def virtual_regions(self) -> dict[str, VirtualRegion]:
         return dict(self._virtual_regions)
 
+    def checkpoint(self) -> BitEmitterCheckpoint:
+        return BitEmitterCheckpoint(
+            buffer=self.buffer.checkpoint(),
+            virtual_position=self._virtual_position,
+            virtual_regions=tuple(self._virtual_regions.items()),
+        )
+
+    def rollback(self, checkpoint: BitEmitterCheckpoint) -> None:
+        if not isinstance(checkpoint, BitEmitterCheckpoint):
+            raise TypeError("checkpoint debe ser un BitEmitterCheckpoint.")
+        self.buffer.rollback(checkpoint.buffer)
+        self._virtual_position = checkpoint.virtual_position
+        self._virtual_regions = dict(checkpoint.virtual_regions)
+
     def _advance_virtual(self, width: int) -> None:
         if width < 0:
             raise ValueError("El avance virtual no puede ser negativo.")
@@ -262,4 +292,10 @@ class BitEmitter:
         return tuple(spans)
 
 
-__all__ = ["BitField", "VirtualRegion", "field", "BitEmitter"]
+__all__ = [
+    "BitField",
+    "VirtualRegion",
+    "BitEmitterCheckpoint",
+    "field",
+    "BitEmitter",
+]

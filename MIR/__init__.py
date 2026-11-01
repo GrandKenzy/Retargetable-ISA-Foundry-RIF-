@@ -7,6 +7,7 @@ from .bitbuffer import (
     BitWriter,
 )
 from .emitter import BitEmitter, BitField, VirtualRegion, field
+from .diagnostics import Diagnostic, DiagnosticBag, exception_diagnostic, format_exception
 from .compiler import compile_instruction, compile_rule, compile_rules
 from .compiled import build_database, load_database, program_from_dict, program_to_dict
 from .instructions import (
@@ -33,9 +34,31 @@ from .runtime import (
     RuleTrace,
     SymbolAddress,
 )
-from .functions import CalcError, ReqstsError, calc, reqsts
+from .relocations import RelocationSpec, relocation_spec, relocation_specs
+from .functions import (
+    CalcError,
+    OperationError,
+    OperationSpec,
+    ReqstsError,
+    RULE_OPERATION_ABI_VERSION,
+    calc,
+    execute_operation,
+    operation_abi,
+    operation_abi_json,
+    operation_c_header,
+    operation_c_source,
+    operation_specs,
+    reqsts,
+)
 from .buffer import BufferError, BufferResult, execute_buffer
-from .preprocessor import MIRLine, RIFMetaDirective, RIF_META_DIRECTIVES, preprocess_mir_lines
+from rif_contract import CompilationContract, ContractError, current_contract
+from .preprocessor import (
+    MIRLine,
+    RIFMetaDirective,
+    RIF_META_DIRECTIVES,
+    RIF_META_OPERATIONS,
+    preprocess_mir_lines,
+)
 from .external import (
     MIRCompilation,
     MIRInputError,
@@ -46,6 +69,7 @@ from .external import (
     compile_mir_source,
     compile_mir_tokens,
     prepare_target,
+    validate_target,
     tokenize_mir,
 )
 from .artifacts import (
@@ -57,7 +81,8 @@ from .artifacts import (
     apply_insert_directives,
     apply_patch_directives,
 )
-from .output import AssemblyImage, AssemblySection
+from .output import AssemblyImage, AssemblySection, LayoutError
+from .output_map import OutputMap, build_output_map
 from .storage import (
     StorageBuilder,
     StorageEntry,
@@ -88,6 +113,10 @@ __all__ = [
     "BitField",
     "VirtualRegion",
     "field",
+    "Diagnostic",
+    "DiagnosticBag",
+    "exception_diagnostic",
+    "format_exception",
     "Instruction",
     "Operand",
     "CompiledRule",
@@ -113,14 +142,30 @@ __all__ = [
     "RIFMachine",
     "RIFRuntimeError",
     "SymbolAddress",
+    "RelocationSpec",
+    "relocation_spec",
+    "relocation_specs",
     "CalcError",
     "ReqstsError",
     "calc",
     "reqsts",
+    "OperationError",
+    "OperationSpec",
+    "RULE_OPERATION_ABI_VERSION",
+    "execute_operation",
+    "operation_abi",
+    "operation_abi_json",
+    "operation_c_header",
+    "operation_c_source",
+    "operation_specs",
     "BufferError",
     "BufferResult",
     "execute_buffer",
+    "CompilationContract",
+    "ContractError",
+    "current_contract",
     "RIF_META_DIRECTIVES",
+    "RIF_META_OPERATIONS",
     "MIRLine",
     "RIFMetaDirective",
     "preprocess_mir_lines",
@@ -134,6 +179,7 @@ __all__ = [
     "compile_mir_source",
     "compile_mir_file",
     "prepare_target",
+    "validate_target",
     "ArtifactError",
     "BinaryValue",
     "InsertData",
@@ -143,6 +189,9 @@ __all__ = [
     "apply_patch_directives",
     "AssemblyImage",
     "AssemblySection",
+    "LayoutError",
+    "OutputMap",
+    "build_output_map",
     "StorageBuilder",
     "StorageEntry",
     "StorageError",

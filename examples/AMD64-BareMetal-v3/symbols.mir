@@ -1,0 +1,23 @@
+; Bare-metal raw image fixture for forward/backward symbols and fixups.
+_start
+jmp_label begin
+mark message
+db 72
+db 105
+db 10
+mark begin
+mov rax, 1
+mov rbx, 2
+addrr rax, rbx
+call_label answer
+jmp_label finish
+mark answer
+mov rdi, 42
+ret
+mark finish
+jmp8_label exit_point
+mark exit_point
+nop
+; Backward PC32 fixup: validates a negative signed displacement.
+jmp_label begin
+

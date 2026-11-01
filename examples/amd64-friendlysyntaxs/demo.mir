@@ -1,0 +1,10 @@
+; Friendly syntax is intentionally not AMD64 mnemonic syntax.
+set R0 = 42
+set R7 = 7
+copy R8, R0
+add R8, R7
+increase R8, 5
+store R8, R4, 256
+load R9, R4, 256
+noop
+return

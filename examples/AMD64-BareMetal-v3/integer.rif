@@ -1,0 +1,540 @@
+; Integer extensions declared by this AMD64 profile.  These are target Rules,
+; not ISA knowledge in the RIF core.
+
+@table shiftcl
+| name | lo |
+__
+| cl | 1 |
+@end
+
+@table bswap64
+| name | lo | hi | opcode |
+__
+| rax | 0 | 0 | 200 |
+__
+| rcx | 1 | 0 | 201 |
+__
+| rdx | 2 | 0 | 202 |
+__
+| rbx | 3 | 0 | 203 |
+__
+| rsp | 4 | 0 | 204 |
+__
+| rbp | 5 | 0 | 205 |
+__
+| rsi | 6 | 0 | 206 |
+__
+| rdi | 7 | 0 | 207 |
+__
+| r8 | 0 | 1 | 200 |
+__
+| r9 | 1 | 1 | 201 |
+__
+| r10 | 2 | 1 | 202 |
+__
+| r11 | 3 | 1 | 203 |
+__
+| r12 | 4 | 1 | 204 |
+__
+| r13 | 5 | 1 | 205 |
+__
+| r14 | 6 | 1 | 206 |
+__
+| r15 | 7 | 1 | 207 |
+@end
+
+@table bswap32
+| name | lo | hi | opcode |
+__
+| eax | 0 | 0 | 200 |
+__
+| ecx | 1 | 0 | 201 |
+__
+| edx | 2 | 0 | 202 |
+__
+| ebx | 3 | 0 | 203 |
+__
+| esp | 4 | 0 | 204 |
+__
+| ebp | 5 | 0 | 205 |
+__
+| esi | 6 | 0 | 206 |
+__
+| edi | 7 | 0 | 207 |
+__
+| r8d | 0 | 1 | 200 |
+__
+| r9d | 1 | 1 | 201 |
+__
+| r10d | 2 | 1 | 202 |
+__
+| r11d | 3 | 1 | 203 |
+__
+| r12d | 4 | 1 | 204 |
+__
+| r13d | 5 | 1 | 205 |
+__
+| r14d | 6 | 1 | 206 |
+__
+| r15d | 7 | 1 | 207 |
+@end
+
+; F7 unary operations: NOT, NEG, MUL, IMUL, DIV and IDIV.
+@rule encode_rex_unary64:
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $movsrc.hi 1
+
+@rule encode_rex_unary32:
+. bits 4 4
+. bits 0 3
+. bits $src32.hi 1
+
+@rule not64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 2 3
+. bits $movsrc.lo 3
+
+@rule neg64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 3 3
+. bits $movsrc.lo 3
+
+@rule mul64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 4 3
+. bits $movsrc.lo 3
+
+@rule imul64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 5 3
+. bits $movsrc.lo 3
+
+@rule div64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 6 3
+. bits $movsrc.lo 3
+
+@rule idiv64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 247 8
+. bits 3 2
+. bits 7 3
+. bits $movsrc.lo 3
+
+@rule not32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 2 3
+. bits $src32.lo 3
+
+@rule neg32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 3 3
+. bits $src32.lo 3
+
+@rule mul32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 4 3
+. bits $src32.lo 3
+
+@rule imul32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 5 3
+. bits $src32.lo 3
+
+@rule div32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 6 3
+. bits $src32.lo 3
+
+@rule idiv32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 247 8
+. bits 3 2
+. bits 7 3
+. bits $src32.lo 3
+
+; FF register unary operations: INC and DEC.
+@rule inc64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 255 8
+. bits 3 2
+. bits 0 3
+. bits $movsrc.lo 3
+
+@rule dec64:
+. IDENT
+. $movsrc.name, IDENT
+. JUMP encode_rex_unary64
+. bits 255 8
+. bits 3 2
+. bits 1 3
+. bits $movsrc.lo 3
+
+@rule inc32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 255 8
+. bits 3 2
+. bits 0 3
+. bits $src32.lo 3
+
+@rule dec32:
+. IDENT
+. $src32.name, IDENT
+. JUMP encode_rex_unary32
+. bits 255 8
+. bits 3 2
+. bits 1 3
+. bits $src32.lo 3
+
+; Variable shifts take CL as their only count register.
+@rule encode_rex_shift64:
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $movdst.hi 1
+
+@rule encode_rex_shift32:
+. bits 4 4
+. bits 0 3
+. bits $dst32.hi 1
+
+@rule shl64r:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift64
+. bits 211 8
+. bits 3 2
+. bits 4 3
+. bits $movdst.lo 3
+
+@rule shr64r:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift64
+. bits 211 8
+. bits 3 2
+. bits 5 3
+. bits $movdst.lo 3
+
+@rule sar64r:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift64
+. bits 211 8
+. bits 3 2
+. bits 7 3
+. bits $movdst.lo 3
+
+@rule shl32r:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift32
+. bits 211 8
+. bits 3 2
+. bits 4 3
+. bits $dst32.lo 3
+
+@rule shr32r:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift32
+. bits 211 8
+. bits 3 2
+. bits 5 3
+. bits $dst32.lo 3
+
+@rule sar32r:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. $shiftcl.name, IDENT
+. JUMP encode_rex_shift32
+. bits 211 8
+. bits 3 2
+. bits 7 3
+. bits $dst32.lo 3
+
+; 32-bit immediate shifts complement the existing 64-bit C1 forms.
+@rule shl32i:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. JUMP encode_rex_shift32
+. bits 193 8
+. bits 3 2
+. bits 4 3
+. bits $dst32.lo 3
+. fit 8
+
+@rule shr32i:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. JUMP encode_rex_shift32
+. bits 193 8
+. bits 3 2
+. bits 5 3
+. bits $dst32.lo 3
+. fit 8
+
+@rule sar32i:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. JUMP encode_rex_shift32
+. bits 193 8
+. bits 3 2
+. bits 7 3
+. bits $dst32.lo 3
+. fit 8
+
+; Bit test and modify register forms: 0F A3/AB/B3/BB /r.
+@rule encode_rex_bit64_rr:
+. bits 4 4
+. bits 1 1
+. bits $movsrc.hi 1
+. bits 0 1
+. bits $movdst.hi 1
+
+@rule encode_modrm_bit64_rr:
+. bits 3 2
+. bits $movsrc.lo 3
+. bits $movdst.lo 3
+
+@rule encode_rex_bit32_rr:
+. bits 4 4
+. bits 0 1
+. bits $src32.hi 1
+. bits 0 1
+. bits $dst32.hi 1
+
+@rule encode_modrm_bit32_rr:
+. bits 3 2
+. bits $src32.lo 3
+. bits $dst32.lo 3
+
+@rule bt64rr:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_bit64_rr
+. bits 15 8
+. bits 163 8
+. JUMP encode_modrm_bit64_rr
+
+@rule bts64rr:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_bit64_rr
+. bits 15 8
+. bits 171 8
+. JUMP encode_modrm_bit64_rr
+
+@rule btr64rr:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_bit64_rr
+. bits 15 8
+. bits 179 8
+. JUMP encode_modrm_bit64_rr
+
+@rule btc64rr:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_bit64_rr
+. bits 15 8
+. bits 187 8
+. JUMP encode_modrm_bit64_rr
+
+@rule bt32rr:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. $src32.name, IDENT
+. JUMP encode_rex_bit32_rr
+. bits 15 8
+. bits 163 8
+. JUMP encode_modrm_bit32_rr
+
+@rule bsf64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_w_rr
+. bits 15 8
+. bits 188 8
+. JUMP encode_modrm_rr
+
+@rule bsr64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. JUMP encode_rex_w_rr
+. bits 15 8
+. bits 189 8
+. JUMP encode_modrm_rr
+
+@rule popcnt64:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $movsrc.name, IDENT
+. bits 243 8
+. JUMP encode_rex_w_rr
+. bits 15 8
+. bits 184 8
+. JUMP encode_modrm_rr
+
+@rule popcnt32:
+. IDENT
+. $dst32.name, IDENT
+. COMMA
+. $src32.name, IDENT
+. bits 243 8
+. JUMP encode_rex_32_rr
+. bits 15 8
+. bits 184 8
+. JUMP encode_modrm_32_rr
+
+@rule bswap64:
+. IDENT
+. $bswap64.name, IDENT
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $bswap64.hi 1
+. bits 15 8
+. bits $bswap64.opcode 8
+
+@rule bswap32:
+. IDENT
+. $bswap32.name, IDENT
+. bits 4 4
+. bits 0 3
+. bits $bswap32.hi 1
+. bits 15 8
+. bits $bswap32.opcode 8
+
+; Immediate bit-test forms: 0F BA /4..7 ib.
+@rule encode_rex_bitimm64:
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $movdst.hi 1
+
+@rule bt64ri:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. JUMP encode_rex_bitimm64
+. bits 15 8
+. bits 186 8
+. bits 3 2
+. bits 4 3
+. bits $movdst.lo 3
+. fit 8
+
+@rule bts64ri:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. JUMP encode_rex_bitimm64
+. bits 15 8
+. bits 186 8
+. bits 3 2
+. bits 5 3
+. bits $movdst.lo 3
+. fit 8
+
+@rule btr64ri:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. JUMP encode_rex_bitimm64
+. bits 15 8
+. bits 186 8
+. bits 3 2
+. bits 6 3
+. bits $movdst.lo 3
+. fit 8
+
+@rule btc64ri:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. JUMP encode_rex_bitimm64
+. bits 15 8
+. bits 186 8
+. bits 3 2
+. bits 7 3
+. bits $movdst.lo 3
+. fit 8

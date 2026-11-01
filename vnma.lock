@@ -1,17 +1,10 @@
 {
   "lockfile_version": "1.0",
   "packages": {
-    "gram-framework": {
-      "active_extras": [],
-      "dll_directories": [],
-      "files_count": 95,
-      "git_ref": "main",
-      "git_url": "https://github.com/GrandKenzy/Gram.git",
-      "has_native_binaries": false,
-      "sha256": "c93ab0bd8749ba129fde152db67d88a32b6cf90e133d8833f834838c7da8fd02",
-      "source": "git",
-      "version": "2.0.0b3",
-      "wheel_filename": "gram_framework2_0_0b3-2.0.0b3-py3-none-any.whl"
+    "gram": {
+      "editable": true,
+      "path": "~/Desktop/Gram",
+      "source": "editable"
     }
   },
   "python_version": "3.14.7"

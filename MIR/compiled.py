@@ -10,12 +10,19 @@ from typing import Any
 from gram import lexer
 
 from Frontend import globals
+from rif_contract import (
+    COMPILED_SCHEMA_VERSION,
+    CompilationContract,
+    ContractError,
+    current_contract,
+    require_compatible,
+)
 
 from .instructions import CompiledRule, CompiledRuleSet, Instruction, Operand, SourceSpan
 from .semantic import RuleRef, TableLookupRef, TableRef, TokenRef
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = COMPILED_SCHEMA_VERSION
 
 
 def _token_from_name(name: str) -> lexer.Token:
@@ -208,6 +215,7 @@ def program_to_dict(
     source_root: str | Path | None = None,
 ) -> dict[str, Any]:
     return {
+        "contract": program.contract.as_dict(),
         "rules": {
             name: {
                 "name": rule.name,
@@ -252,7 +260,8 @@ def program_from_dict(data: dict[str, Any]) -> CompiledRuleSet:
             instructions=tuple(instructions),
             source_path=raw_rule.get("source_path"),
         )
-    return CompiledRuleSet(rules)
+    contract = CompilationContract.from_dict(data.get("contract"))
+    return CompiledRuleSet(rules, contract=contract)
 
 
 def _config_to_dict(config: globals.ConfigData | None) -> dict[str, Any] | None:
@@ -401,7 +410,10 @@ def build_database(
     source_root: str | Path | None = None,
     *,
     source_fingerprint: str | None = None,
+    contract: CompilationContract | None = None,
 ) -> bytes:
+    contract = contract or program.contract
+    require_compatible(contract)
     connection = sqlite3.connect(":memory:")
     try:
         connection.executescript(
@@ -426,6 +438,14 @@ def build_database(
             """
         )
         connection.execute("INSERT INTO meta VALUES (?, ?)", ("schema", str(SCHEMA_VERSION)))
+        connection.execute(
+            "INSERT INTO meta VALUES (?, ?)",
+            ("contract", json.dumps(contract.as_dict(), sort_keys=True)),
+        )
+        connection.execute(
+            "INSERT INTO meta VALUES (?, ?)",
+            ("contract_fingerprint", contract.fingerprint()),
+        )
         if source_fingerprint is not None:
             connection.execute(
                 "INSERT INTO meta VALUES (?, ?)",
@@ -468,18 +488,35 @@ def load_database(
     data: bytes,
     *,
     expected_fingerprint: str | None = None,
+    expected_contract: CompilationContract | None = None,
 ) -> CompiledRuleSet:
+    expected_contract = expected_contract or current_contract()
     connection = sqlite3.connect(":memory:")
     try:
         connection.deserialize(data)
         row = connection.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
         if row is None or int(row[0]) != SCHEMA_VERSION:
             raise ValueError("Versión de base SQLite compilada no compatible.")
+        contract_row = connection.execute(
+            "SELECT value FROM meta WHERE key = 'contract'"
+        ).fetchone()
+        fingerprint_row = connection.execute(
+            "SELECT value FROM meta WHERE key = 'contract_fingerprint'"
+        ).fetchone()
+        if contract_row is None or fingerprint_row is None:
+            raise ValueError("La base compilada no declara su contrato de ejecución.")
+        stored_contract = CompilationContract.from_dict(json.loads(contract_row[0]))
+        if fingerprint_row[0] != stored_contract.fingerprint():
+            raise ValueError("La huella del contrato SQLite compilado es inválida.")
+        try:
+            require_compatible(stored_contract, expected_contract)
+        except ContractError as exc:
+            raise ValueError(str(exc)) from exc
         if expected_fingerprint is not None:
-            fingerprint_row = connection.execute(
+            source_fingerprint_row = connection.execute(
                 "SELECT value FROM meta WHERE key = 'source_fingerprint'"
             ).fetchone()
-            if fingerprint_row is None or fingerprint_row[0] != expected_fingerprint:
+            if source_fingerprint_row is None or source_fingerprint_row[0] != expected_fingerprint:
                 raise ValueError(
                     "La base SQLite compilada no corresponde al contenido del paquete."
                 )
@@ -494,9 +531,14 @@ def load_database(
         context = json.loads(context_row[0])
         target_context = load_context(connection, context)
         program = program_from_dict(json.loads(program_row[0]))
+        try:
+            require_compatible(program.contract, stored_contract)
+        except ContractError as exc:
+            raise ValueError(str(exc)) from exc
         return CompiledRuleSet(
             rules=program.rules,
             context=target_context,
+            contract=stored_contract,
         )
     finally:
         connection.close()

@@ -1,0 +1,18 @@
+; Raw AMD64 condition-code fixture. It has no operating-system assumptions.
+_start
+mov32imm eax, 20
+mov32imm ebx, 22
+add32rr eax, ebx
+cmp32rr eax, ebx
+push64 rax
+mov rbx, 0
+loadx64 r10, rsp, rbx, 1, 0
+pop64 rax
+mov r9, 41
+mov r11, 0
+cmovrr ne, r10, r9
+setcc ne, r11
+addrr r10, r11
+movrr rdi, r10
+ret
+

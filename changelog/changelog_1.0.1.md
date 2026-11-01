@@ -1,5 +1,95 @@
 # RIF 1.0.1 · Security hardening and resource controls
 
+## Suites de pruebas
+
+- Separadas las pruebas en `suite-essencial`, `suite-aggressive` y
+  `dedicated-suite`. `vnma test` conserva la suite esencial por defecto;
+  benchmarks, estrés e integraciones específicas requieren ejecución explícita.
+
+## Organización de ejemplos
+
+- El demo declarativo general se trasladó a `examples/RIF-Core-Demo/`. La raíz
+  del repositorio ya no contiene fuentes `.rif` de ejemplo ni el `main.pack`
+  generado; `foot/` sigue reservado para datos temporales de referencia.
+
+- Añadido `examples/amd64-friendlysyntaxs/`, un paquete AMD64 raw que declara
+  una sintaxis alternativa (`set`, `copy`, `load`, `store`, `return`, etc.) con
+  tablas y Rules locales. El ejemplo demuestra que RIF no fija la sintaxis de
+  entrada y que una misma arquitectura puede tener vocabularios distintos;
+  usa `set R0 = 42`, la familia `R0..R15` y reserva `SR0..SR15` para futuras
+  Rules de subregistros.
+- Añadida una prueba de equivalencia que compila el mismo programa AMD64 normal
+  y amigable desde fuente y desde `.pack`; los cuatro resultados deben coincidir
+  byte a byte.
+
+## Contrato de target y primitivas declarativas
+
+- Formalizado el flujo de dos fases: `.rif` se compila a un `CompiledRuleSet`
+  distribuible como `.pack`, y `.pack + .mir` produce la imagen binaria.
+- Centralizada la selección tipada de filas de tablas extensibles y reutilizada
+  por `table_matcher`, `dget` y consultas de campos.
+- Añadidas las variantes `fit_signed`, `fit_signed_exact` y `fit_signed_not`
+  para rangos signed y emisión en complemento a dos.
+- Añadida validación del target antes de aceptar MIR: Rules, secciones,
+  políticas de salida, tablas, variantes y contrato del linker.
+
+## Diagnósticos, layout y relocaciones
+
+- Unificados los diagnósticos de frontend, Rules, MIR, layout y fixups con
+  contexto estructurado de archivo, línea, Rule, sección y token.
+- Las ejecuciones de Rules y los inserts son transaccionales sobre memoria
+  física y virtual; un fallo no deja bytes, reservas o símbolos parciales.
+- El layout expone tamaños inicializados/no inicializados, valida solapes
+  virtuales y conserva las regiones `vreserve` fuera del archivo.
+- Las relocaciones usan especificaciones genéricas; además de las clases
+  estándar, un target puede declarar clases `pc` y `abs` en `@block relocations`.
+
+## FFI AOT y contrato de artefactos
+
+- La FFI C/AOT de Gram es el frontend canónico en memoria: recibe texto o
+  bytes, devuelve GIR y no crea archivos `.gir` temporales.
+- La caché AOT versiona su formato y registra el contrato activo, Gram/GIR,
+  ABI del parser C, fuentes nativas y compilador para invalidar artefactos
+  obsoletos.
+- Los manifiestos `.pack` (formato 7) y las bases SQLite compiladas (esquema
+  7) incluyen la misma huella de contrato; los consumidores rechazan
+  combinaciones incompatibles antes de procesar MIR.
+
+## Caches, mapas y paridad
+
+- La huella del contrato incluye las fuentes Python de producción de RIF, por
+  lo que cambios en el compilador, serializador, runtime o lector de paquetes
+  invalidan artefactos derivados junto con los hashes de fuentes, Gram y C/AOT.
+- Añadido `MIRCompilation.output_map()`, `map_output=` y `rif --map` para
+  producir mapas JSON opcionales con binario, secciones, símbolos, Rules y
+  relocaciones resueltas.
+- Añadido `Frontend.parity.compare_target()` para comparar AST, Rules y
+  contexto Python/AOT, junto con `rif_tools.target_scaffold` para generar
+  fixtures de pruebas de targets.
+
+## Librerías, oráculos y ABI de Rules
+
+- Añadido el formato fuente reproducible `.riflib`, creado con
+  `rif_library.create_library()` y consumido desde `.rif` mediante
+  `@LIBRARY "archivo.riflib"`. Las librerías se incluyen y validan dentro de
+  `.pack` sin extracción ni rutas absolutas.
+- Añadido `rif_tools.oracles` para comparar bytes opcionalmente con NASM o
+  LLVM MC, con timeout y límites de salida, y `rif_tools.properties` para
+  property testing/fuzzing determinista sin dependencia de Hypothesis.
+- Añadida `MIR.operations`, una tabla cerrada y versionada de primitivas
+  C/AOT (`fit_unsigned`, `fit_signed` y `encode_relocation`) con descriptores,
+  JSON, header e implementación C. El runtime de Rules consume la misma implementación pura;
+  los callbacks Python dinámicos siguen fuera del contrato.
+
+## Inspector de paquetes
+
+- Añadido `rif --inspect-pack`, con salida humana o JSON, para revisar de forma
+  segura formato, versión, fingerprint, fuentes, assets, Rules, tablas,
+  configuración, linker, variantes y extensiones MIR aceptadas.
+- El inspector verifica siempre el ZIP y la base SQLite compilada en memoria,
+  valida integridad, esquema, índices y filas, no activa globals, no ejecuta
+  Rules ni extrae archivos, y limita los elementos repetidos del informe.
+
 ## Símbolos nativos
 
 - Añadido el opcode AOT-safe `mark`, basado en `MatchSeqSymbol`, para registrar
@@ -14,6 +104,26 @@
 - Añadida la directiva MIR `::RIF_SECTION nombre` para cambiar el emisor
   activo entre secciones de una `AssemblyImage`; el ejemplo AMD64 ya no usa
   `select_text`, `select_data` ni `link_image` mediante Python.
+
+## Perfil AMD64 bare metal
+
+- El ejemplo `AMD64-BareMetal-v3` declara en `.rif` las familias de registros
+  de 8/16/32/64 bits, inmediatos `imm8`/`imm32`/`imm64`, memoria sin
+  desplazamiento/`disp8`/`disp32`, las 16 condiciones en ramas cortas y largas,
+  y branches indirectos por registro y memoria.
+- Estas extensiones permanecen dentro de las tablas y Rules del target; el
+  núcleo RIF sigue siendo agnóstico de ISA. `test_profile_points.py` conserva
+  un oráculo raw independiente para esas cinco familias.
+- Añadidas Rules de enteros para operaciones unarias, `mul`/`imul`/`div`/`idiv`,
+  shifts por `CL`, bit operations, `bsf`/`bsr`, `popcnt` y `bswap`.
+- Declarado el alcance `amd64-base-integer`: `0x66`, `0x67`, `LOCK`, `REP`,
+  `FS` y `GS` están probados; MMX, SSE, AVX, AVX-512, x87 y system
+  instructions permanecen fuera del perfil.
+- Ampliado el cross-check externo a 60 formas representativas contra el
+  ensamblador integrado de LLVM. El diferencial detectó y corrigió el ModR/M
+  `/2` de `callmem64_*`, que estaba reutilizando erróneamente el `/4` de los
+  saltos indirectos. NASM y LLVM MC siguen siendo oráculos opcionales, sin
+  convertirse en dependencias de RIF.
 
 ## Syntax
 
@@ -31,7 +141,7 @@
   alignment, byte order, and bit order now use compact canonical names; the
   former configuration directives are rejected instead of retained as aliases.
 - Simplified `@block linker` to `extension` and `search_path`; removed the
-  unused `name` field and bumped the compiled-context schema to version 5.
+  unused `name` field and bumped the compiled-context schema to version 6.
 - `search_path` may now be repeated; variant resolution uses the first matching
   directory, while `false` remains an exclusive disable switch.
 - Tables are now immutable, type-aware, and preindexed across every column;
@@ -118,13 +228,15 @@
 - Reused one AOT parser across physical `@LOAD` and variant sources, persisted
   its Gram compiler cache under `.rif-cache/aot/`, serialized cache builds
   across processes, and removed intermediate GIR files after loading them.
-- Kept source-only `.pack` traversal on the explicit Python backend because
-  its `pack://` paths are not valid inputs for Gram's native CLI.
+- Made the in-memory Gram FFI the canonical path for source-only `.pack`
+  traversal; virtual `pack://` sources now enter the same native parser API as
+  physical files.
 
 ## Verification
 
 - Added hardening tests for resource-limit precedence, path traversal,
   package origins, and concurrent Gram compilations.
-- `vnma test` passes all 137 tests.
+- `vnma test` passes 121 essential tests; the dedicated suite passes 65 tests
+  with 6 optional skips and the aggressive suite passes 12 tests.
 - `python -m compileall -q .`, `vnma run rif.py ...`, and direct
   `python rif.py ...` execution were verified.

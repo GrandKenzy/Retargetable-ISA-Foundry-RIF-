@@ -1,0 +1,4 @@
+kind,width_bits,formula,range,reference
+pc8,8,"target - next_ip","-128 <= value < 128",https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+pc32,32,"target - next_ip","-2147483648 <= value < 2147483648",https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+abs64,64,target,"0 <= value < 18446744073709551616",https://llvm.org/docs/doxygen/classllvm_1_1MCFixup.html

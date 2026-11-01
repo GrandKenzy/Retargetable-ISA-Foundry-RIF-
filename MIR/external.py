@@ -16,8 +16,10 @@ from pcpi import PCPIError, PCPI_HEADER_SIZE, load_pcpi_file
 from rif_limits import COMPILATION_LOCK, resolve_limits
 
 from .instructions import CompiledRuleSet
+from .diagnostics import Diagnostic, DiagnosticBag
 from .buffer import BufferResult, execute_preprocessor_buffer
 from .output import AssemblyImage
+from .output_map import build_output_map
 from .artifacts import (
     ArtifactError,
     InsertData,
@@ -29,6 +31,7 @@ from .artifacts import (
 from .pipeline import compile_definition
 from .preprocessor import MIRLine, RIFMetaDirective, preprocess_mir_lines
 from .runtime import ExecutionResult, RIFMachine, RIFRuntimeError
+from .relocations import relocation_specs
 from .storage import StorageError, load_storage_file
 
 
@@ -97,6 +100,7 @@ class MIRCompilation:
     target_path: Path | None = None
     mir_path: Path | None = None
     pcpi_pit_addresses: tuple[PCPIPitAddress, ...] = ()
+    diagnostics: tuple[Diagnostic, ...] = ()
 
     @property
     def section_binary(self) -> bytes:
@@ -114,6 +118,11 @@ class MIRCompilation:
             + symbol.virtual_offset
             for name, symbol in self.context.symbols.items()
         }
+
+    def output_map(self) -> dict[str, object]:
+        """Return an optional JSON-ready map of the finalized output."""
+
+        return build_output_map(self).as_dict()
 
 
 def tokenize_mir(source: str, name: str = "<memory>") -> tuple[lexer.TokenType, ...]:
@@ -164,9 +173,141 @@ def _prepare_target(
 
 
 def _require_target_config(program: CompiledRuleSet) -> globals.ConfigData:
-    if program.context.config is None:
+    return validate_target(program)
+
+
+def validate_target(
+    program: CompiledRuleSet,
+    *,
+    require_linker: bool = False,
+) -> globals.ConfigData:
+    """Validate the target contract before accepting external MIR input.
+
+    A target may be compiled and packaged without an input program. The
+    stronger contract is enforced at the boundary where MIR is accepted:
+    sections, entry/default selection, section metadata, and—when compiling a
+    file—the linker extension must describe one coherent target.
+    """
+
+    config = program.context.config
+    if config is None:
         raise MIRInputError("La definición RIF requiere un bloque @block config.")
-    return program.context.config
+
+    if not program.rules:
+        raise MIRInputError("El target no declara ninguna Rule ejecutable.")
+    for name, rule in program.rules.items():
+        if not isinstance(name, str) or not name:
+            raise MIRInputError("El target contiene una Rule sin nombre.")
+        if rule.name != name:
+            raise MIRInputError(
+                f"La Rule '{name}' tiene un nombre interno inconsistente."
+            )
+
+    sections = tuple(config.sections)
+    if not sections:
+        raise MIRInputError("El target no declara secciones de salida.")
+    if len(set(sections)) != len(sections) or any(
+        not isinstance(section, str) or not section for section in sections
+    ):
+        raise MIRInputError("El target contiene secciones vacías o duplicadas.")
+    if config.entrysection not in sections:
+        raise MIRInputError(
+            f"La sección de entrada '{config.entrysection}' no existe en el target."
+        )
+    if config.defaultsection not in sections:
+        raise MIRInputError(
+            f"La sección por defecto '{config.defaultsection}' no existe en el target."
+        )
+
+    declared = set(sections)
+    for field_name, values in (
+        ("flags", config.sectionflags),
+        ("alignment", config.sectionalign),
+        ("vaddr", config.sectionvaddr),
+    ):
+        unknown = sorted(set(values) - declared)
+        if unknown:
+            rendered = ", ".join(unknown)
+            raise MIRInputError(
+                f"La metadata de {field_name} referencia sección(es) inexistente(s): {rendered}."
+            )
+
+    if config.wordsize <= 0 or config.addresssize <= 0:
+        raise MIRInputError("word_size y address_size deben ser positivos.")
+    if config.wordsize % 8 or config.addresssize % 8:
+        raise MIRInputError("word_size y address_size deben ser múltiplos de ocho.")
+    if config.endianness not in {"little", "big"}:
+        raise MIRInputError("byte_order del target debe ser 'little' o 'big'.")
+    if config.bitorder not in {"msb", "lsb"}:
+        raise MIRInputError("bit_order del target debe ser 'msb' o 'lsb'.")
+    if config.undefinedsymbols not in {"error", "warn", "ignore"}:
+        raise MIRInputError("undefined_symbols del target no es válido.")
+    if config.duplicatesymbols not in {"error", "warn", "ignore"}:
+        raise MIRInputError("duplicate_symbols del target no es válido.")
+    if not config.entrylabel or not config.defaultsection:
+        raise MIRInputError("El target requiere entry y default no vacíos.")
+
+    for section, alignment in config.sectionalign.items():
+        if section not in declared or alignment <= 0:
+            raise MIRInputError(
+                f"La alineación de la sección '{section}' no es válida."
+            )
+    for section, address in config.sectionvaddr.items():
+        if section not in declared or address < 0:
+            raise MIRInputError(
+                f"La dirección virtual de la sección '{section}' no es válida."
+            )
+
+    for table_name, table in program.context.tables.items():
+        if table_name != table.name or not table_name:
+            raise MIRInputError("El target contiene una tabla sin nombre consistente.")
+        if not table.headers or len(set(table.headers)) != len(table.headers):
+            raise MIRInputError(
+                f"La tabla '{table_name}' contiene columnas vacías o duplicadas."
+            )
+        if set(table.columns) != set(table.headers):
+            raise MIRInputError(
+                f"La tabla '{table_name}' tiene columnas inconsistentes."
+            )
+    try:
+        relocation_specs(program.context)
+    except ValueError as exc:
+        raise MIRInputError(str(exc)) from exc
+
+    supports = program.context.supports
+    variants = program.context.asm_variants
+    for name, support in supports.items():
+        if name != support.name or not support.path:
+            raise MIRInputError(f"La variante soportada '{name}' es inconsistente.")
+    for name, variant in variants.items():
+        if name != variant.name or name not in supports:
+            raise MIRInputError(
+                f"La variante '{name}' no tiene una declaración @SUPPORTS válida."
+            )
+        if variant.mode not in {"SWITCH", "ENCAPSULATE"}:
+            raise MIRInputError(f"El modo de la variante '{name}' no es válido.")
+        missing = [
+            rule_name
+            for rule_name in (variant.enter_rule, variant.exit_rule)
+            if rule_name not in program.rules
+        ]
+        if missing:
+            raise MIRInputError(
+                f"La variante '{name}' referencia Rules inexistentes: "
+                + ", ".join(missing)
+                + "."
+            )
+
+    if require_linker:
+        linker = program.context.linker
+        if linker is None:
+            raise MIRInputError(
+                "La compilación de un archivo MIR requiere un bloque @block linker."
+            )
+        if not linker.extension:
+            raise MIRInputError("El target requiere una extensión MIR no vacía.")
+
+    return config
 
 
 def _split_lines(
@@ -359,7 +500,7 @@ def _resolve_rule_name(
     raise MIRInputError(f"No existe una Rule llamada '{value}'{location}.")
 
 
-def compile_mir_tokens(
+def _compile_mir_tokens(
     target: PreparedTarget | CompiledRuleSet | str | Path,
     tokens: Iterable[lexer.TokenType],
     *,
@@ -375,7 +516,7 @@ def compile_mir_tokens(
 
     prepared = _prepare_target(target)
     program = prepared.program
-    config = _require_target_config(program)
+    config = validate_target(program)
     selected_section = section or config.entrysection
     if selected_section not in config.sections:
         raise MIRInputError(f"La sección MIR '{selected_section}' no existe en @block config.")
@@ -535,6 +676,54 @@ def compile_mir_tokens(
     )
 
 
+def _write_output_map_atomic(
+    output: str | Path,
+    result: MIRCompilation,
+    *,
+    protected: tuple[Path, ...] = (),
+) -> Path:
+    protected = protected + tuple(
+        path
+        for path in (result.target_path, result.mir_path)
+        if path is not None
+    )
+    return _write_binary_atomic(
+        output,
+        build_output_map(result).json_bytes(),
+        protected=protected,
+    )
+
+
+def compile_mir_tokens(
+    target: PreparedTarget | CompiledRuleSet | str | Path,
+    tokens: Iterable[lexer.TokenType],
+    *,
+    section: str | None = None,
+    rule_name: str | None = None,
+    mir_path: str | Path | None = None,
+    map_output: str | Path | None = None,
+    diagnostics: DiagnosticBag | None = None,
+) -> MIRCompilation:
+    """Compile MIR and expose the same structured diagnostics on failure/success."""
+
+    bag = diagnostics if diagnostics is not None else DiagnosticBag()
+    try:
+        result = _compile_mir_tokens(
+            target,
+            tokens,
+            section=section,
+            rule_name=rule_name,
+            mir_path=mir_path,
+        )
+    except Exception as exc:
+        bag.add_exception(exc, path=str(mir_path) if mir_path is not None else None)
+        raise
+    result.diagnostics = bag.items
+    if map_output is not None:
+        _write_output_map_atomic(map_output, result)
+    return result
+
+
 def compile_mir_source(
     target: PreparedTarget | CompiledRuleSet | str | Path,
     source: str,
@@ -543,6 +732,8 @@ def compile_mir_source(
     section: str | None = None,
     rule_name: str | None = None,
     mir_path: str | Path | None = None,
+    map_output: str | Path | None = None,
+    diagnostics: DiagnosticBag | None = None,
 ) -> MIRCompilation:
     """Compile MIR text through the shared direct token execution path."""
 
@@ -555,14 +746,17 @@ def compile_mir_source(
         section=section,
         rule_name=rule_name,
         mir_path=effective_mir_path,
+        map_output=map_output,
+        diagnostics=diagnostics,
     )
 
 
-def compile_mir_file(
+def _compile_mir_file(
     target: PreparedTarget | CompiledRuleSet | str | Path,
     mir_path: str | Path,
     *,
     output: str | Path | None = None,
+    map_output: str | Path | None = None,
     section: str | None = None,
     backend: str = "aot",
 ) -> MIRCompilation:
@@ -574,9 +768,8 @@ def compile_mir_file(
     if input_path.stat().st_size > resolve_limits().cap(MAX_MIR_SOURCE_BYTES):
         raise MIRInputError("El archivo MIR excede el límite de 64 MiB.")
     prepared = _prepare_target(target, backend=backend)
-    _config = _require_target_config(prepared.program)
-    if prepared.program.context.linker is None:
-        raise MIRInputError("La entrada por archivo requiere un bloque @block linker.")
+    _config = validate_target(prepared.program, require_linker=True)
+    assert prepared.program.context.linker is not None
     linker = prepared.program.context.linker
     expected = linker.extension
     if not expected.startswith("."):
@@ -600,6 +793,46 @@ def compile_mir_file(
             (prepared.target_path,) if prepared.target_path is not None else ()
         )
         _write_binary_atomic(output, result.binary, protected=protected)
+    if map_output is not None:
+        map_protected = (
+            (Path(output).expanduser().resolve(),)
+            if output is not None
+            else ()
+        )
+        _write_output_map_atomic(
+            map_output,
+            result,
+            protected=map_protected,
+        )
+    return result
+
+
+def compile_mir_file(
+    target: PreparedTarget | CompiledRuleSet | str | Path,
+    mir_path: str | Path,
+    *,
+    output: str | Path | None = None,
+    map_output: str | Path | None = None,
+    section: str | None = None,
+    backend: str = "aot",
+    diagnostics: DiagnosticBag | None = None,
+) -> MIRCompilation:
+    """Compile a MIR file and collect diagnostics from every external phase."""
+
+    bag = diagnostics if diagnostics is not None else DiagnosticBag()
+    try:
+        result = _compile_mir_file(
+            target,
+            mir_path,
+            output=output,
+            map_output=map_output,
+            section=section,
+            backend=backend,
+        )
+    except Exception as exc:
+        bag.add_exception(exc, path=str(mir_path))
+        raise
+    result.diagnostics = bag.items
     return result
 
 
@@ -610,6 +843,8 @@ def compile_mir(
     name: str = "<memory>",
     section: str | None = None,
     rule_name: str | None = None,
+    map_output: str | Path | None = None,
+    diagnostics: DiagnosticBag | None = None,
 ) -> MIRCompilation:
     """Direct convenience entry point for MIR text or pre-tokenized MIR."""
 
@@ -620,12 +855,16 @@ def compile_mir(
             name=name,
             section=section,
             rule_name=rule_name,
+            map_output=map_output,
+            diagnostics=diagnostics,
         )
     return compile_mir_tokens(
         target,
         mir,
         section=section,
         rule_name=rule_name,
+        map_output=map_output,
+        diagnostics=diagnostics,
     )
 
 
@@ -639,4 +878,5 @@ __all__ = [
     "compile_mir_tokens",
     "compile_mir_source",
     "compile_mir_file",
+    "validate_target",
 ]

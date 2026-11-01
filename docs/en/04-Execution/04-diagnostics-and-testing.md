@@ -1,6 +1,9 @@
 # Diagnostics and Testing
 
-RIF reports errors at the phase where they are detected.
+RIF reports errors at the phase where they are detected. The API can collect
+them with `DiagnosticBag`; every diagnostic keeps its phase (`frontend`,
+`rules`, `mir`, `layout`, or `fixups`) and, when available, its file, line,
+Rule, section, and token.
 
 ## Syntax Errors
 
@@ -26,7 +29,7 @@ definition, before external MIR is executed.
 - an immediate that cannot fit;
 - an out-of-range bit read or patch;
 - an unknown reservation or Rule;
-- an invalid native function result.
+- an invalid native operation result.
 
 ## Rule Traces
 
@@ -40,6 +43,9 @@ result.context.rule_traces
 Traces show where a Rule started, how many physical and virtual bits it
 produced, where it ended, and how much of that output was explicit padding.
 
+The CLI uses the same structured rendering for frontend, Rule, MIR, layout,
+and relocation failures instead of formatting each phase independently.
+
 ## Test Commands
 
 Run the repository suite with VNMA:
@@ -48,6 +54,15 @@ Run the repository suite with VNMA:
 vnma test
 ```
 
-The test suite covers parser integration, table stress, packages, direct and
-CLI MIR compilation, native functions, physical and virtual memory, datastack
-behavior, and failure paths.
+That command runs the essential suite. Run the other layers explicitly:
+
+```powershell
+vnma test suite-aggressive
+vnma test dedicated-suite
+```
+
+The essential suite covers parser integration, packages, direct and CLI MIR
+compilation, native operations, physical and virtual memory, datastack behavior,
+and failure paths. The aggressive suite covers benchmarks and stress cases; the
+dedicated suite covers AOT, PCP-I, plugins, diagnostics, and API-specific
+contracts that may need repair after an API change.

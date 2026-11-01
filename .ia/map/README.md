@@ -6,12 +6,24 @@ este mapa cuando cambien responsabilidades o conexiones principales.
 
 ## Flujo de compilación
 
-`rif.py` recibe una definición `.rif` o `.pack` y delega en `MIR/pipeline.py`.
-El pipeline tokeniza con Gram, procesa los nodos mediante
-`Frontend/processor/`, captura el estado en `Frontend/globals.py`, resuelve
-Rules y construye un `CompiledRuleSet`. El runtime `MIR/runtime.py` ejecuta
-las Rules sobre `BitBuffer`/`BitEmitter`; `MIR/output.py` y `MIR/artifacts.py`
-construyen imágenes, inserts y parches finales.
+RIF trabaja en dos fases y requiere dos artefactos conceptualmente distintos:
+
+1. La definición declarativa `.rif` describe el target: tablas, Rules,
+   configuración, linker y variantes. `rif.py --pack main.rif` la procesa a un
+   `CompiledRuleSet`; el `.pack` agrupa las fuentes y, con `precompile=True`,
+   serializa ese Rule Set, sus tablas y contexto en SQLite. El `.pack` no
+   contiene el MIR externo ni el binario final.
+2. El programa `.mir` es la entrada compatible con ese target. `rif.py
+   target.pack program.mir -o program.bin` carga el `.pack`, tokeniza y
+   preprocesa el MIR, selecciona la Rule cuyo nombre inicia cada línea y la
+   ejecuta para emitir bits, layout, símbolos, relocaciones y el binario. La
+   ruta `.rif + .mir` es la equivalente de desarrollo; `.pack + .mir` es la
+   ruta distribuible y rápida.
+
+`MIR/pipeline.py` resuelve la primera fase para `.rif` o `.pack`; el runtime
+`MIR/runtime.py` ejecuta las Rules sobre `BitBuffer`/`BitEmitter`; y
+`MIR/external.py` posee la segunda fase, incluyendo preprocesador, secciones,
+fixups, parches e imagen final. El MIR externo no es el `CompiledRuleSet`.
 
 Para PCP-I, `rif.py --comp-pcpi` usa `pcpi_compiler.py`: compila una fuente
 `.pci` directamente y serializa el contenedor validado con `pcpi.py`. PCP-I es
@@ -46,12 +58,15 @@ El bloque `linker` acepta únicamente `extension` y `search_path`. El antiguo
 `name` se retiró porque no participaba en la resolución de archivos.
 `search_path` puede repetirse y se prueba en orden; `false` desactiva la carga
 de variantes y no se combina con carpetas. Los contextos compilados usan el
-esquema SQLite 5 para reflejar ese contrato.
+esquema SQLite 7 para reflejar ese contrato y almacenan además la huella de la
+combinación RIF/Gram/GIR/AOT/runtime.
 
-Las tablas se materializan como matrices de tuplas inmutables. `TableData`
-preconstruye índices tipados para todas las columnas y solo exige unicidad
-cuando una operación usa una columna como selector; el `TargetContext` expone
-el mapa de tablas como solo lectura.
+Las tablas son totalmente extensibles y no están limitadas a registros,
+opcodes o arquitecturas concretas. Un target puede declarar tantas tablas como
+necesite, con las columnas y tipos de datos que requiera. Se materializan como
+matrices de tuplas inmutables. `TableData` preconstruye índices tipados para
+todas las columnas y solo exige unicidad cuando una operación usa una columna
+como selector; el `TargetContext` expone el mapa de tablas como solo lectura.
 
 `main.rif` es el centro de control. Solo la fuente raíz puede materializar
 `config` y `linker`; opcionalmente puede cargar directamente un `config.rif`
@@ -63,9 +78,10 @@ Las instrucciones de una Rule usan un marcador `.` al inicio de cada línea
 
 Las operaciones binarias usan los nombres canónicos `nibbles`, `emit`,
 `eword`, `bits`, `frame`, `fit`, `fit_exact`, `pad`, `align`, `vpad`,
-`valign`, `write_res`, `emit_res`, `read_bits`, `patch_bits`, `fit_not` y
-`drop_res`. `reserve` y `vreserve` conservan sus nombres porque no recibieron
-un reemplazo en esta revisión.
+`valign`, `write_res`, `emit_res`, `read_bits`, `patch_bits`, `fit_not`,
+`fit_signed`, `fit_signed_exact`, `fit_signed_not` y `drop_res`. `reserve` y
+`vreserve` conservan sus nombres porque no recibieron un reemplazo en esta
+revisión.
 
 `mark` define un símbolo nativo en la posición actual sin consumir el token.
 `RIFMachine.symbols` conserva sus offsets físico/virtual relativos y
@@ -73,9 +89,20 @@ un reemplazo en esta revisión.
 el layout. Su matcher fijo usa `MatchSeqSymbol`, que forma parte del
 subconjunto C/AOT de Gram. La directiva MIR `::RIF_SECTION nombre` cambia el
 emisor activo dentro de una `AssemblyImage`. `fixup pc8|pc32|abs64 "reserva"` registra una
-relocación diferida contra el símbolo actual; `MIR/external.py` la resuelve de
+relocación diferida contra el símbolo actual; el núcleo incluye anchos
+`pc8|pc16|pc32|pc64` y `abs8|abs16|abs32|abs64`, y los targets pueden añadir
+clases `pc`/`abs` en `@block relocations`. `MIR/external.py` las resuelve de
 forma transaccional después de ejecutar todas las líneas MIR y antes de los
 parches finales.
+
+Las Rules y las imágenes usan checkpoints físicos y virtuales. Un fallo
+restaura buffers, reservas, cursores virtuales, símbolos, fixups, datastack y
+sección activa. El layout conserva por separado `file_size` y `virtual_size`,
+expone el espacio no inicializado y rechaza solapes virtuales.
+
+Los errores se normalizan mediante `MIR/diagnostics.py`: frontend, Rules, MIR,
+layout y fixups comparten fase, ubicación, Rule, sección y token cuando esos
+datos existen.
 
 Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 `dpush`, `dget`, `dpop`, `dpeek` y `ddepth`. La instrucción `CALL` fue retirada;
@@ -83,7 +110,7 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 
 ## Directorios y archivos
 
-- `rif.py`: CLI para compilar definiciones, ejecutar MIR, producir PCP-I y
+- `rif.py`: CLI para empaquetar definiciones, ejecutar MIR compatible, producir PCP-I y
   revisar artefactos con `--doctor-pcpi`/`--doctor-storage`.
 - `Frontend/syntax/`: sesión Gram, keywords y reglas de entrada; `blocks.py`
   contiene el bloque genérico.
@@ -117,11 +144,36 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   inserta contenedores `.pcic` y `RIF_PCPI PIT` calcula offsets absolutos,
   mientras `RIF_STORE` valida `ENDIANNESS`/`BITORDER`, extrae payloads raw
   etiquetados y los inserta en la sección actual.
+- `foot/`: material temporal resumido y machine-readable usado para alimentar
+  y verificar los ejemplos de `examples/`; no es una dependencia del núcleo ni
+  un artefacto final. Las fuentes completas de Intel y NASM permanecen
+  enlazadas, no vendorizadas.
 - `pcpi.py` y `pcpi_compiler.py`: formato PCP-I v1, parser declarativo de
   fuentes `.pci` y compilación de pits alineados.
 - `pack.py`: creación y lectura segura de paquetes `.pack`.
-- `tests/`: pruebas rápidas de parser, semántica, runtime, packs y PCP-I.
-  `examples/`: targets AMD64, ELF64 y GBA que documentan usos completos.
+- `pack_inspector.py`: inspección de solo lectura de `.pack`; verifica el
+  contenedor y SQLite en memoria, y expone Rules, tablas, configuración,
+  linker, variantes, fingerprint, versión y extensiones MIR sin ejecutar el
+  target. `rif --inspect-pack` ofrece salida humana o JSON acotada.
+- `suite-essencial/`: pruebas fundamentales de parser, semántica, MIR,
+  runtime y empaquetado; se ejecuta en cada cambio.
+- `suite-aggressive/`: benchmarks y pruebas de estrés; se ejecuta de forma
+  explícita cuando el cambio afecta rendimiento, volumen o límites.
+- `dedicated-suite/`: pruebas específicas de AOT, formatos, CLI, plugins,
+  hardening e integraciones que pueden requerir adaptación ante cambios de API.
+- `tests/`: lanzador compatible para que `vnma test` ejecute la suite esencial.
+  `examples/`: targets y demostraciones completas, incluyendo el demo
+  agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs`, AMD64 bare metal, ELF64
+  y GBA. El target
+  `AMD64-BareMetal-v3` emite imágenes raw y no asume un sistema operativo,
+  formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
+  del repositorio.
+
+El perfil `AMD64-BareMetal-v3` mantiene sus decisiones de ISA fuera del núcleo:
+`integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras
+`main.rif` conserva un bloque `isa_scope` que excluye MMX, SSE, AVX, AVX-512,
+x87 y system instructions. Sus pruebas raw y el cross-check LLVM viven junto
+al target; no son capacidades generales de RIF.
 - `docs/en/` y `docs/es/`: documentación del lenguaje, compilación y memoria.
   `changelog/`: notas versionadas de cambios importantes.
 
@@ -129,13 +181,13 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 
 | Área | Código principal | Pruebas relacionadas |
 | --- | --- | --- |
-| Sintaxis de bloques | `Frontend/syntax/items/blocks.py`, `Frontend/syntax/__init__.py` | `tests/test_blocks.py`, `tests/test_declarations.py` |
-| Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `tests/test_processor.py`, `tests/test_pipeline.py`, `tests/test_variants.py` |
-| Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `tests/test_runtime.py`, `tests/test_mir.py` |
-| Packs y serialización | `pack.py`, `MIR/compiled.py` | `tests/test_pack.py`, `tests/test_blocks.py` |
-| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `rif.py` | `tests/test_pcpi.py` |
-| Diagnóstico de artefactos | `rif.py`, `pcpi.py`, `MIR/storage.py` | `tests/test_doctor.py` |
-| Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `tests/test_artifacts.py` |
+| Sintaxis de bloques | `Frontend/syntax/items/blocks.py`, `Frontend/syntax/__init__.py` | `suite-essencial/test_blocks.py`, `suite-essencial/test_declarations.py` |
+| Semántica config/linker | `Frontend/processor/visitors/config.py`, `linker.py` | `suite-essencial/test_processor.py`, `suite-essencial/test_pipeline.py`, `suite-essencial/test_variants.py` |
+| Reglas y valores | `Frontend/syntax/items/declarations.py`, `Frontend/processor/visitors/rule.py`, `MIR/` | `suite-essencial/test_runtime.py`, `suite-essencial/test_mir.py` |
+| Packs y serialización | `pack.py`, `MIR/compiled.py` | `suite-essencial/test_pack.py`, `suite-essencial/test_blocks.py` |
+| PCP-I | `pcpi.py`, `pcpi_compiler.py`, `rif.py` | `dedicated-suite/test_pcpi.py` |
+| Diagnóstico de artefactos | `rif.py`, `pcpi.py`, `MIR/storage.py` | `dedicated-suite/test_doctor.py` |
+| Inserts y parches | `Frontend/processor/visitors/artifacts.py`, `MIR/artifacts.py` | `suite-essencial/test_artifacts.py` |
 
 El preprocesador del MIR externo usa `::RIF_INSERT` para bytes, binarios o
 archivos y `::RIF_PATCH` para correcciones finales. Sus expresiones tienen un
@@ -157,14 +209,16 @@ backend. Sigue ese recorrido antes de modificar una sola capa.
 ## Herramientas y pruebas
 
 - `vnma run rif.py ...` ejecuta la CLI del proyecto.
-- `vnma test` ejecuta la suite rápida; `vnma test tests/<archivo>` permite una
-  comprobación enfocada.
+- `vnma test` ejecuta la suite esencial; `vnma test suite-essencial/<archivo>`
+  permite una comprobación enfocada.
+- `vnma test suite-aggressive` ejecuta benchmarks y estrés.
+- `vnma test dedicated-suite` ejecuta las pruebas específicas e integraciones.
 - Los `.pack`, binarios y logs generados no son puntos de partida para cambios
   de código. Conserva `.vscode/` y cualquier artefacto local no relacionado.
 
 ### Baseline del frontend Python
 
-El benchmark `tests/test_frontend_benchmark.py` procesa `main.rif` completo y
+El benchmark `suite-aggressive/test_frontend_benchmark.py` procesa `main.rif` completo y
 mide lexing, parsing y procesamiento semántico por separado. Baseline del 31
 de octubre de 2026, con Gram 3.0.0 y tres iteraciones promedio:
 
@@ -182,7 +236,7 @@ umbral de aceptación de las pruebas.
 
 ### Frontera AOT
 
-`Frontend/aot.py` es el puente experimental al backend C/AOT de Gram. Exporta
+`Frontend/aot.py` es el puente al backend C/AOT de Gram. Exporta
 la gramática declarativa de RIF, compila el parser nativo con GCC o Clang y
 lee su salida GIR mediante el lector oficial `gram.ir.load_gir`. La
 exportación actual contiene 38 Rules y ya procesa `main.rif` completo en C.
@@ -196,20 +250,30 @@ API de Gram; RIF ya no re-tokeniza la fuente con el lexer Python.
 
 El pipeline expone `backend="python"` y `backend="aot"`; la CLI selecciona
 el segundo con `rif.py --backend aot`. El parser generado se guarda bajo
-`.rif-cache/aot/`; AOT es ahora el backend predeterminado. El ejecutable AOT
-vive en el cache persistente de RIF y su construcción se serializa con un
-lock entre procesos. Cada fuente usa un GIR temporal y único bajo su propio
-`.rif-cache/gir/`, que se elimina después de cargarlo en memoria. RIF
-reutiliza el ejecutable cuando coinciden los hashes de Gram, del lexer nativo y
-del compilador. Python se conserva como ruta explícita de comparación mediante
-`--backend python`; los `.pack` fuente-only usan ese backend porque sus rutas
-`pack://` no pueden entrar al CLI nativo.
-La prueba `tests/test_aot.py` verifica compilación nativa, lectura de GIR y
+`.rif-cache/aot/`; AOT es ahora el backend predeterminado. La FFI AOT en
+memoria es el camino canónico: la biblioteca compartida vive en ese cache, su
+construcción se serializa con un lock entre procesos y
+`gram_compile_source_to_ir` entrega GIR que se copia y adapta sin crear
+archivos `.gir` temporales. Python se conserva como ruta explícita de
+comparación mediante `--backend python`; los `.pack` fuente-only también
+pueden usar AOT porque sus bytes entran directamente por la misma FFI.
+
+El cache AOT guarda formato, modo, huella del contrato, Gram/GIR, ABI del
+parser C, fuentes nativas y compilador. El contrato compartido en
+`rif_contract.py` también se serializa en el manifiesto `.pack` (formato 7) y
+en SQLite compilado (esquema 7); `read_pack` y `load_database` rechazan
+artefactos de otra combinación de RIF, Gram, AOT, MIR o runtime.
+
+La huella del contrato incluye las fuentes Python de producción bajo `Frontend/`
+y `MIR/`, además de los módulos raíz que participan en compilación, empaquetado
+y runtime. Cambiar el compilador invalida los artefactos derivados aunque las
+fuentes `.rif` permanezcan iguales.
+La prueba `dedicated-suite/test_aot.py` verifica compilación nativa, lectura de GIR y
 procesamiento semántico de `main.rif`, sin alterar el camino predeterminado.
 También compara el AST normalizado y el `TargetContext` resultante contra el
 backend Python, incluyendo los opcodes de las Rules.
 
-El benchmark AOT de `tests/test_frontend_benchmark.py` se ejecutó el 31 de
+El benchmark AOT de `suite-aggressive/test_frontend_benchmark.py` se ejecutó el 31 de
 octubre de 2026 sobre tres iteraciones. La compilación inicial se mide aparte;
 el tamaño AOT cuenta los saltos de línea físicos y el baseline Python usa el
 texto normalizado por `read_text()`.
@@ -231,19 +295,20 @@ forma parte del camino normal.
 
 ### Benchmark del target AMD64 amplio
 
-El benchmark también procesa `examples/AMD64-Linux-v3/main.rif`, incluyendo
-sus nueve archivos `@LOAD`, tablas de registros, reglas REX/ModRM/SIB,
-memoria, condiciones y relocaciones. Se ejecutaron tres iteraciones con el
+El benchmark también procesa `examples/AMD64-BareMetal-v3/main.rif`, incluyendo
+sus quince archivos `@LOAD`, tablas de registros, reglas REX/ModRM/SIB,
+memoria, condiciones, enteros, prefijos y relocaciones. Se ejecutaron tres iteraciones con el
 parser AOT ya cacheado:
 
 | Métrica | Python | AOT |
 | --- | ---: | ---: |
-| Entrada | 1.894 bytes / 252 tokens | 1.894 bytes / 86 nodos GIR |
-| Lexer + parser / GIR + adaptación | 0,036330 s | 0,025539 s |
-| Recepción de incluidos + semántica | 6,392521 s | 0,623583 s |
-| Total | 6,428852 s | 0,649122 s |
+| Entrada | 1.092 bytes / 126 tokens | 1.137 bytes / 72 nodos GIR |
+| Lexer + parser / GIR + adaptación | 0,026598 s | 0,027903 s |
+| Recepción de incluidos + semántica | 10,235511 s | 0,956841 s |
+| Total | 10,262110 s | 0,984744 s |
 
-En este target AOT reduce el total aproximadamente 87,7%. La semántica sigue
+En este target AOT reduce el total aproximadamente 87,7% en la medición
+anterior; la semántica sigue
 en Python; la mejora restante proviene de que los nueve `@LOAD` ya no vuelven
 a tokenizarse y parsearse con Python, sino que reutilizan el parser AOT.
 
@@ -260,5 +325,34 @@ El frontend AOT reduce el total de este target GBA aproximadamente 60%; la
 semántica permanece en Python y la diferencia restante corresponde a la
 recepción de `thumb.rif`.
 
-La ruta AOT ya está activada como predeterminada; queda mantener la paridad
-de diagnósticos y ampliar la cobertura de fixtures conforme evolucione Gram.
+La ruta AOT ya está activada como predeterminada; queda ampliar la cobertura
+de diagnósticos y fixtures conforme evolucione Gram.
+
+`Frontend.parity.compare_target()` compara un target físico con ambos
+frontends y verifica AST, Rules y `TargetContext`, incluyendo tablas y cargas.
+`MIRCompilation.output_map()` y la opción `rif --map mapa.json` producen un
+mapa opcional del binario final con secciones, símbolos, trazas de Rules y
+relocaciones resueltas. `rif_tools.target_scaffold` genera la plantilla
+reutilizable de pruebas válidas, límites, símbolos y errores para un target.
+
+### Librerías, oráculos y operaciones AOT
+
+`rif_library.py` define el formato `.riflib`: un ZIP reproducible de fuentes
+`.rif` con manifiesto, índice de `@LOAD`, límites y huella. La directiva
+canónica `@LIBRARY "patrones.riflib"` procesa sus declaraciones en el mismo
+contexto de tablas, defines y Rules del target. `create_library()` crea el
+paquete; `create_pack()` incluye las librerías referenciadas bajo `libraries/`
+y `PackReader` las sirve sin extraerlas al filesystem. Una librería no crea un
+ISA ni un registro rígido: solo reutiliza declaraciones extensibles.
+
+`rif_tools.oracles` integra NASM y LLVM MC como oráculos opcionales. Cada
+proceso tiene timeout y límite de salida; su ausencia produce un skip/estado
+explícito y nunca vuelve obligatoria la dependencia. `rif_tools.properties`
+ofrece fuzzing determinista por seed para operandos y primitivas.
+
+`MIR.operations` es la frontera C/AOT para operaciones puras dentro de Rules.
+`operation_abi()`/`operation_abi_json()` describen la tabla cerrada y
+`operation_c_header()` y `operation_c_source()` devuelven las firmas e
+implementación C portables. La ABI actual es `1.0` y cubre fit unsigned, fit
+signed y encoding de relocaciones. El runtime Python usa esas mismas
+primitivas; no se serializan callbacks Python en `.pack`.

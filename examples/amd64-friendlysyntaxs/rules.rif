@@ -1,0 +1,114 @@
+; Friendly syntax: SET, COPY, ADD, INCREASE, LOAD, STORE, RETURN and NOOP.
+; The names are arbitrary target-level vocabulary, not AMD64 built-ins.
+
+; SET r64, imm32 -> mov r64, imm32 (sign-extended by AMD64).
+@rule set:
+. IDENT
+. $dst.name, IDENT
+. ASSIGN
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $dst.hi 1
+. bits 199 8
+. bits 3 2
+. bits 0 3
+. bits $dst.lo 3
+. fit_signed 32
+
+; COPY destination, source -> mov destination, source.
+@rule copy:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $src.name, IDENT
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $src.hi 1
+. bits 139 8
+. bits 3 2
+. bits $dst.lo 3
+. bits $src.lo 3
+
+; ADD destination, source.
+@rule add:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $src.name, IDENT
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $src.hi 1
+. bits 3 8
+. bits 3 2
+. bits $dst.lo 3
+. bits $src.lo 3
+
+; INCREASE destination, signed_imm32.
+@rule increase:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits 0 2
+. bits $dst.hi 1
+. bits 129 8
+. bits 3 2
+. bits 0 3
+. bits $dst.lo 3
+. fit_signed 32
+
+; LOAD destination, base, displacement32.
+@rule load:
+. IDENT
+. $dst.name, IDENT
+. COMMA
+. $base.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits $dst.hi 1
+. bits 0 1
+. bits $base.hi 1
+. bits 139 8
+. bits 2 2
+. bits $dst.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $base.lo 3
+. fit_signed 32
+
+; STORE source, base, displacement32.
+@rule store:
+. IDENT
+. $src.name, IDENT
+. COMMA
+. $base.name, IDENT
+. COMMA
+. bits 4 4
+. bits 1 1
+. bits $src.hi 1
+. bits 0 1
+. bits $base.hi 1
+. bits 137 8
+. bits 2 2
+. bits $src.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $base.lo 3
+. fit_signed 32
+
+@rule return:
+. IDENT
+. bits 195 8
+
+@rule noop:
+. IDENT
+. bits 144 8

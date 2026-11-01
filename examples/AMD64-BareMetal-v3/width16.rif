@@ -1,0 +1,246 @@
+; 16-bit GPR register and immediate forms.
+@rule encode_rex_16_rr:
+. bits 102 8
+. bits 4 4
+. bits 0 1
+. bits $dst16.hi 1
+. bits 0 1
+. bits $src16.hi 1
+
+@rule encode_modrm_16_rr:
+. bits 3 2
+. bits $dst16.lo 3
+. bits $src16.lo 3
+
+@rule encode_rex_16_dst:
+. bits 102 8
+. bits 4 4
+. bits 0 2
+. bits 0 1
+. bits $dst16.hi 1
+
+@rule mov16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 139 8
+. JUMP encode_modrm_16_rr
+
+@rule add16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 3 8
+. JUMP encode_modrm_16_rr
+
+@rule sub16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 43 8
+. JUMP encode_modrm_16_rr
+
+@rule cmp16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 59 8
+. JUMP encode_modrm_16_rr
+
+@rule xor16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 51 8
+. JUMP encode_modrm_16_rr
+
+@rule and16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 35 8
+. JUMP encode_modrm_16_rr
+
+@rule or16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 11 8
+. JUMP encode_modrm_16_rr
+
+@rule test16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 133 8
+. JUMP encode_modrm_16_rr
+
+@rule imul16rr:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. $src16.name, IDENT
+. JUMP encode_rex_16_rr
+. bits 15 8
+. bits 175 8
+. JUMP encode_modrm_16_rr
+
+@rule mov16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits $dst16.movop 8
+. fit 16
+
+; Group-1 immediate forms use 81 /group iw.
+@rule add16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 0 3
+. bits $dst16.lo 3
+. fit 16
+
+@rule or16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 1 3
+. bits $dst16.lo 3
+. fit 16
+
+@rule and16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 4 3
+. bits $dst16.lo 3
+. fit 16
+
+@rule sub16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 5 3
+. bits $dst16.lo 3
+. fit 16
+
+@rule xor16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 6 3
+. bits $dst16.lo 3
+. fit 16
+
+@rule cmp16ri:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_rex_16_dst
+. bits 129 8
+. bits 3 2
+. bits 7 3
+. bits $dst16.lo 3
+. fit 16
+
+; Group-1 compact forms sign-extend an imm8 to the selected 16-bit operand.
+@rule encode_imm8_16_base:
+. bits 102 8
+. bits 4 4
+. bits 0 2
+. bits 0 1
+. bits $dst16.hi 1
+. bits 131 8
+
+@rule add16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 0 3
+. bits $dst16.lo 3
+. fit_signed 8
+
+@rule or16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 1 3
+. bits $dst16.lo 3
+. fit_signed 8
+
+@rule and16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 4 3
+. bits $dst16.lo 3
+. fit_signed 8
+
+@rule sub16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 5 3
+. bits $dst16.lo 3
+. fit_signed 8
+
+@rule xor16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 6 3
+. bits $dst16.lo 3
+. fit_signed 8
+
+@rule cmp16ri8:
+. IDENT
+. $dst16.name, IDENT
+. COMMA
+. JUMP encode_imm8_16_base
+. bits 3 2
+. bits 7 3
+. bits $dst16.lo 3
+. fit_signed 8

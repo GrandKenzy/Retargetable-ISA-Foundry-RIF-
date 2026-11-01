@@ -20,6 +20,16 @@ RIF_META_DIRECTIVES = frozenset(
     }
 )
 
+RIF_META_OPERATIONS = {
+    "RIF_BUFFER": ("SET", "CLEAN", "EXTRACT"),
+    "RIF_INSERT": ("BYTES", "BINARY", "FILE"),
+    "RIF_PATCH": ("PATCH",),
+    "RIF_PCPI": ("SET", "PIT"),
+    "RIF_REQSTS": ("REQSTS",),
+    "RIF_SECTION": ("SECTION",),
+    "RIF_STORE": ("STORE",),
+}
+
 
 @dataclass(frozen=True)
 class RIFMetaDirective:
@@ -227,4 +237,10 @@ def preprocess_mir_lines(
     return tuple(result)
 
 
-__all__ = ["MIRLine", "RIFMetaDirective", "RIF_META_DIRECTIVES", "preprocess_mir_lines"]
+__all__ = [
+    "MIRLine",
+    "RIFMetaDirective",
+    "RIF_META_DIRECTIVES",
+    "RIF_META_OPERATIONS",
+    "preprocess_mir_lines",
+]

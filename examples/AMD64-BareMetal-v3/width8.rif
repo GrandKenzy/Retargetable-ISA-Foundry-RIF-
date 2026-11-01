@@ -1,0 +1,231 @@
+; Low-byte GPR forms. REX is emitted for every low-byte rule so SPL/BPL/SIL/
+; DIL and R8B..R15B have unambiguous encodings.
+@rule encode_rex_8_rr:
+. bits 4 4
+. bits 0 1
+. bits $dst8.hi 1
+. bits 0 1
+. bits $src8.hi 1
+
+@rule encode_modrm_8_rr:
+. bits 3 2
+. bits $dst8.lo 3
+. bits $src8.lo 3
+
+@rule encode_rex_8_dst:
+. bits 4 4
+. bits 0 2
+. bits 0 1
+. bits $dst8.hi 1
+
+@rule mov8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 138 8
+. JUMP encode_modrm_8_rr
+
+@rule add8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 2 8
+. JUMP encode_modrm_8_rr
+
+@rule sub8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 42 8
+. JUMP encode_modrm_8_rr
+
+@rule cmp8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 58 8
+. JUMP encode_modrm_8_rr
+
+@rule xor8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 50 8
+. JUMP encode_modrm_8_rr
+
+@rule and8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 34 8
+. JUMP encode_modrm_8_rr
+
+@rule or8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 10 8
+. JUMP encode_modrm_8_rr
+
+@rule test8rr:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. $src8.name, IDENT
+. JUMP encode_rex_8_rr
+. bits 132 8
+. JUMP encode_modrm_8_rr
+
+@rule mov8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits $dst8.movop 8
+. fit 8
+
+; Group-1 immediate forms use 80 /group ib.
+@rule add8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 3 2
+. bits 0 3
+. bits $dst8.lo 3
+. fit 8
+
+@rule or8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 1 3
+. bits $dst8.lo 3
+. fit 8
+
+@rule and8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 4 3
+. bits $dst8.lo 3
+. fit 8
+
+@rule sub8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 5 3
+. bits $dst8.lo 3
+. fit 8
+
+@rule xor8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 6 3
+. bits $dst8.lo 3
+. fit 8
+
+@rule cmp8ri:
+. IDENT
+. $dst8.name, IDENT
+. COMMA
+. JUMP encode_rex_8_dst
+. bits 128 8
+. bits 7 3
+. bits $dst8.lo 3
+. fit 8
+
+; AH/CH/DH/BH cannot coexist with REX, so they have an explicit no-prefix
+; family instead of being silently accepted by the low-byte rules.
+@rule encode_modrm_8h_rr:
+. bits 3 2
+. bits $dst8h.lo 3
+. bits $src8h.lo 3
+
+@rule mov8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 138 8
+. JUMP encode_modrm_8h_rr
+
+@rule add8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 2 8
+. JUMP encode_modrm_8h_rr
+
+@rule sub8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 42 8
+. JUMP encode_modrm_8h_rr
+
+@rule cmp8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 58 8
+. JUMP encode_modrm_8h_rr
+
+@rule and8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 34 8
+. JUMP encode_modrm_8h_rr
+
+@rule or8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 10 8
+. JUMP encode_modrm_8h_rr
+
+@rule test8hrr:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. $src8h.name, IDENT
+. bits 132 8
+. JUMP encode_modrm_8h_rr
+
+@rule mov8hri:
+. IDENT
+. $dst8h.name, IDENT
+. COMMA
+. bits $dst8h.movop 8
+. fit 8

@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Iterator
 
 from Frontend import globals
 from rif_limits import resolve_limits
 
-from .bitbuffer import BitBuffer, BitLayout
-from .emitter import BitEmitter
+from .bitbuffer import BitBuffer, BitCheckpoint, BitLayout
+from .emitter import BitEmitter, BitEmitterCheckpoint
 
 
 MAX_IMAGE_BYTES = 512 << 20
+
+
+class LayoutError(ValueError):
+    """A target-neutral physical or virtual layout violation."""
 
 
 @dataclass
@@ -27,6 +33,36 @@ class AssemblySection:
     @property
     def file_size(self) -> int:
         return self.buffer.byte_length
+
+    @property
+    def file_end(self) -> int:
+        return self.file_offset + self.file_size
+
+    @property
+    def virtual_end(self) -> int:
+        return self.virtual_base + self.virtual_size
+
+    @property
+    def initialized_size(self) -> int:
+        """Bytes backed by the file; the remainder is virtual-only space."""
+
+        return self.file_size
+
+    @property
+    def uninitialized_size(self) -> int:
+        """Virtual bytes with no physical payload (BSS-like space)."""
+
+        return max(0, self.virtual_size - self.file_size)
+
+
+@dataclass(frozen=True)
+class AssemblyImageCheckpoint:
+    current: str
+    emitters: tuple[tuple[str, BitEmitterCheckpoint], ...]
+    buffers: tuple[tuple[str, BitCheckpoint], ...]
+    file_bytes: bytes
+    finalized: bool
+    section_state: tuple[tuple[str, int, int, int], ...]
 
 
 class AssemblyImage:
@@ -101,6 +137,8 @@ class AssemblyImage:
 
         file_cursor = 0
         virtual_cursor = 0
+        previous_virtual_end = 0
+        previous_virtual_name: str | None = None
         chunks: list[bytes] = []
         for name in self.config.sections:
             section = self.sections[name]
@@ -108,7 +146,7 @@ class AssemblyImage:
             section.file_offset = self._align(file_cursor, section.alignment)
             maximum = resolve_limits().cap(MAX_IMAGE_BYTES)
             if section.file_offset + len(data) > maximum:
-                raise ValueError(
+                raise LayoutError(
                     f"La imagen excede el límite de {maximum} bytes."
                 )
             if name in self.config.sectionvaddr:
@@ -116,11 +154,22 @@ class AssemblyImage:
             else:
                 section.virtual_base = self._align(virtual_cursor, section.alignment)
             section.virtual_size = (self.emitter(name).virtual_position + 7) // 8
+            if section.virtual_size < section.file_size:
+                raise LayoutError(
+                    f"La sección '{name}' tiene menos espacio virtual que físico."
+                )
+            if section.virtual_size and section.virtual_base < previous_virtual_end:
+                raise LayoutError(
+                    f"Las secciones virtuales '{previous_virtual_name}' y '{name}' se solapan."
+                )
             if section.file_offset > file_cursor:
                 chunks.append(b"\x00" * (section.file_offset - file_cursor))
             chunks.append(data)
             file_cursor = section.file_offset + len(data)
             virtual_cursor = section.virtual_base + section.virtual_size
+            if section.virtual_size:
+                previous_virtual_end = section.virtual_end
+                previous_virtual_name = name
 
         self._file_bytes = b"".join(chunks)
         return self._file_bytes
@@ -136,7 +185,7 @@ class AssemblyImage:
         finalized = bytes(data)
         expected = len(self.layout())
         if len(finalized) != expected:
-            raise ValueError(
+            raise LayoutError(
                 f"La imagen final contiene {len(finalized)} bytes; se esperaban {expected}."
             )
         for section in self.sections.values():
@@ -148,6 +197,63 @@ class AssemblyImage:
 
     def invalidate_layout(self) -> None:
         self._finalized = False
+
+    def checkpoint(self) -> AssemblyImageCheckpoint:
+        return AssemblyImageCheckpoint(
+            current=self.current,
+            emitters=tuple(
+                (name, emitter.checkpoint())
+                for name, emitter in self._emitters.items()
+            ),
+            buffers=tuple(
+                (name, section.buffer.checkpoint())
+                for name, section in self.sections.items()
+            ),
+            file_bytes=self._file_bytes,
+            finalized=self._finalized,
+            section_state=tuple(
+                (
+                    name,
+                    section.file_offset,
+                    section.virtual_base,
+                    section.virtual_size,
+                )
+                for name, section in self.sections.items()
+            ),
+        )
+
+    def rollback(self, checkpoint: AssemblyImageCheckpoint) -> None:
+        if not isinstance(checkpoint, AssemblyImageCheckpoint):
+            raise TypeError("checkpoint debe ser un AssemblyImageCheckpoint.")
+        self.current = checkpoint.current
+        saved_emitters = dict(checkpoint.emitters)
+        self._emitters = {
+            name: emitter
+            for name, emitter in self._emitters.items()
+            if name in saved_emitters
+        }
+        for name, emitter_checkpoint in saved_emitters.items():
+            emitter = self._emitters.get(name)
+            if emitter is not None:
+                emitter.rollback(emitter_checkpoint)
+        for name, buffer_checkpoint in checkpoint.buffers:
+            self.sections[name].buffer.rollback(buffer_checkpoint)
+        for name, file_offset, virtual_base, virtual_size in checkpoint.section_state:
+            section = self.sections[name]
+            section.file_offset = file_offset
+            section.virtual_base = virtual_base
+            section.virtual_size = virtual_size
+        self._file_bytes = checkpoint.file_bytes
+        self._finalized = checkpoint.finalized
+
+    @contextmanager
+    def transaction(self) -> Iterator["AssemblyImage"]:
+        checkpoint = self.checkpoint()
+        try:
+            yield self
+        except Exception:
+            self.rollback(checkpoint)
+            raise
 
     def section_offset(self, name: str) -> int:
         self.layout()
@@ -184,4 +290,10 @@ class AssemblyImage:
         return "\n".join(lines) + ("\n" if lines else "")
 
 
-__all__ = ["MAX_IMAGE_BYTES", "AssemblySection", "AssemblyImage"]
+__all__ = [
+    "MAX_IMAGE_BYTES",
+    "LayoutError",
+    "AssemblySection",
+    "AssemblyImageCheckpoint",
+    "AssemblyImage",
+]

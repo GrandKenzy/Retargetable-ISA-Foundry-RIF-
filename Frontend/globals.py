@@ -86,6 +86,23 @@ class TableData:
             )
         return rows[0]
 
+    def select(
+        self,
+        column: str,
+        value: Any,
+    ) -> tuple[int, tuple[Any, ...]] | None:
+        """Select one row through any declared column.
+
+        Targets may use tables for arbitrary metadata, not only registers.
+        Keeping row selection here gives matching, captures, and lookups one
+        typed and duplicate-aware implementation.
+        """
+
+        row_index = self.lookup_unique(column, value)
+        if row_index is None:
+            return None
+        return row_index, self.matrix[row_index]
+
 
 @dataclass
 class RuleData:

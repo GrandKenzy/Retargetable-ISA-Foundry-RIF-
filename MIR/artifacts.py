@@ -248,23 +248,24 @@ def apply_insert_directives(
 
     config = image.config
     asset_map = assets or {}
-    for insert in inserts:
-        section_name = insert.section or config.defaultsection
-        emitter = image.emitter(section_name)
-        if insert.kind == "binary":
-            binary = _binary_value(str(insert.value), config)
-            emitter.bits(str(insert.value), binary.bit_width)
-        elif insert.kind == "bytes":
-            emitter.emit_bytes(_hex_to_bytes(str(insert.value)))
-        elif insert.kind == "file":
-            emitter.emit_bytes(_file_payload(str(insert.value), insert.source_path, asset_map))
-        elif insert.kind == "call":
-            raise ArtifactError(
-                f"No existe una función nativa registrada para #call[{insert.value}]."
-            )
-        else:
-            raise ArtifactError(f"Tipo de insert desconocido: {insert.kind}.")
-    image.invalidate_layout()
+    with image.transaction():
+        for insert in inserts:
+            section_name = insert.section or config.defaultsection
+            emitter = image.emitter(section_name)
+            if insert.kind == "binary":
+                binary = _binary_value(str(insert.value), config)
+                emitter.bits(str(insert.value), binary.bit_width)
+            elif insert.kind == "bytes":
+                emitter.emit_bytes(_hex_to_bytes(str(insert.value)))
+            elif insert.kind == "file":
+                emitter.emit_bytes(_file_payload(str(insert.value), insert.source_path, asset_map))
+            elif insert.kind == "call":
+                raise ArtifactError(
+                    f"No existe una función nativa registrada para #call[{insert.value}]."
+                )
+            else:
+                raise ArtifactError(f"Tipo de insert desconocido: {insert.kind}.")
+        image.invalidate_layout()
 
 
 def _as_int(value: Any, label: str) -> int:

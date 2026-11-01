@@ -12,8 +12,10 @@ definición y usan el mismo dispatcher de MIR.
 ## Dos fases
 
 ```text
-Fase 1: main.rif o main.pack -> CompiledRuleSet
-Fase 2: CompiledRuleSet + MIR externo -> binario puro
+Fase 1: main.rif -> CompiledRuleSet -> main.pack (opcional)
+Fase 2: main.pack + programa.mir -> binario puro
 ```
 
-La fase 1 resuelve el target. La fase 2 ejecuta sus Rules contra el MIR.
+La fase 1 resuelve el target. El `.pack` guarda Rules, tablas y contexto, pero
+no contiene el MIR externo. La fase 2 carga el `.pack` (o el `.rif` durante
+desarrollo), valida el contrato del target y ejecuta sus Rules contra el MIR.

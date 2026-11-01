@@ -424,6 +424,9 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             "fit",
             "fit_exact",
             "fit_not",
+            "fit_signed",
+            "fit_signed_exact",
+            "fit_signed_not",
             "vpad",
             "dpush",
             "bits",
@@ -490,11 +493,11 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
         elif opcode == "fixup":
             if (
                 len(rest) != 2
-                or str(rest[0].value) not in {"pc8", "pc32", "abs64"}
+                or rest[0].token.name not in {"IDENT", "KEYWORD"}
                 or rest[1].token.name != "STRING"
             ):
                 raise RuntimeError(
-                    "FIXUP requiere una clase pc8, pc32 o abs64 y el nombre STRING de una reserva."
+                    "FIXUP requiere una clase de relocación y el nombre STRING de una reserva."
                 )
             kind = rest[0]
             reservation = rest[1]

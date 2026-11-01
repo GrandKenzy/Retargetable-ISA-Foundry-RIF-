@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from gram import lexer
+from rif_contract import ContractError, require_compatible
 from rif_limits import resolve_limits
 
 from .emitter import BitEmitter, BitField
 from .instructions import CompiledRuleSet, Instruction, Operand
 from .semantic import RuleRef, TableLookupRef, TableRef, TokenRef
+from .relocations import relocation_spec
+from .operations import OperationError, execute_operation
 
 
 MAX_RULE_CALL_DEPTH = 256
@@ -19,6 +22,41 @@ MAX_DYNAMIC_WIDTH_BYTES = 256 << 20
 
 class RIFRuntimeError(RuntimeError):
     """An execution failure associated with a MIR instruction."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        phase: str = "rules",
+        rule: str | None = None,
+        span: Any = None,
+        section: str | None = None,
+        token_index: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.phase = phase
+        self.rule = rule
+        self.span = span
+        self.section = section
+        self.token_index = token_index
+
+    def attach_context(
+        self,
+        *,
+        rule: str | None = None,
+        span: Any = None,
+        section: str | None = None,
+        token_index: int | None = None,
+        phase: str | None = None,
+    ) -> "RIFRuntimeError":
+        self.rule = self.rule or rule
+        self.span = self.span or span
+        self.section = self.section or section
+        if self.token_index is None:
+            self.token_index = token_index
+        if phase is not None and self.phase == "rules":
+            self.phase = phase
+        return self
 
 
 class _BreakFlow(Exception):
@@ -39,6 +77,7 @@ class RuleTrace:
     """Physical and virtual spans produced by one Rule invocation."""
 
     name: str
+    section: str | None
     start: int
     bits: int
     end: int
@@ -91,6 +130,7 @@ class Fixup:
 @dataclass
 class _RuleTraceState:
     name: str
+    section: str | None
     start: int
     virtual_start: int
     padding_bits: int = 0
@@ -108,6 +148,13 @@ class RIFMachine:
         section_name: str | None = None,
         image: Any | None = None,
     ) -> None:
+        try:
+            require_compatible(program.contract)
+        except ContractError as exc:
+            raise RIFRuntimeError(
+                f"El programa compilado no es compatible con este runtime: {exc}",
+                phase="runtime",
+            ) from exc
         self.program = program
         self.context = program.context
         self.emitter = emitter or BitEmitter(
@@ -181,18 +228,76 @@ class RIFMachine:
         """
         if rule_name not in self.program.rules:
             raise RIFRuntimeError(f"La Rule '{rule_name}' no existe en el MIR.")
+        checkpoint = self._checkpoint()
         self.tokens = tuple(tokens)
         self.position = 0
         self.last_token = None
         self.stored_token = None
-        self._execute_rule(rule_name)
-        return ExecutionResult(
-            rule=rule_name,
-            position=self.position,
-            last_token=self.last_token,
-            stored_token=self.stored_token,
-            buffer=self.emitter.buffer.to_bytes(),
+        try:
+            self._execute_rule(rule_name)
+            return ExecutionResult(
+                rule=rule_name,
+                position=self.position,
+                last_token=self.last_token,
+                stored_token=self.stored_token,
+                buffer=self.emitter.buffer.to_bytes(),
+            )
+        except RIFRuntimeError:
+            self._rollback(checkpoint)
+            raise
+        except Exception:
+            self._rollback(checkpoint)
+            raise
+
+    def _checkpoint(self) -> dict[str, Any]:
+        image_checkpoint = (
+            self.image.checkpoint() if self.image is not None else None
         )
+        return {
+            "image": image_checkpoint,
+            "emitter": None if image_checkpoint is not None else self.emitter.checkpoint(),
+            "tokens": self.tokens,
+            "position": self.position,
+            "last_token": self.last_token,
+            "stored_token": self.stored_token,
+            "storage": dict(self.storage),
+            "datastack": list(self.datastack),
+            "selected_rows": dict(self.selected_rows),
+            "rule_traces": list(self.rule_traces),
+            "last_rule_trace": self.last_rule_trace,
+            "rule_addresses": dict(self.rule_addresses),
+            "virtual_rule_addresses": dict(self.virtual_rule_addresses),
+            "symbols": dict(self.symbols),
+            "fixups": list(self.fixups),
+            "variant_stack": list(self.variant_stack),
+            "trace_stack": list(self._trace_stack),
+            "rule_depth": self._rule_depth,
+            "section_name": self.section_name,
+        }
+
+    def _rollback(self, checkpoint: dict[str, Any]) -> None:
+        if self.image is not None and checkpoint["image"] is not None:
+            self.image.rollback(checkpoint["image"])
+            self.section_name = checkpoint["section_name"]
+            self.emitter = self.image.emitter(self.section_name)
+        elif checkpoint["emitter"] is not None:
+            self.emitter.rollback(checkpoint["emitter"])
+        self.tokens = checkpoint["tokens"]
+        self.position = checkpoint["position"]
+        self.last_token = checkpoint["last_token"]
+        self.stored_token = checkpoint["stored_token"]
+        self.storage = dict(checkpoint["storage"])
+        self.datastack = list(checkpoint["datastack"])
+        self.selected_rows = dict(checkpoint["selected_rows"])
+        self.rule_traces = list(checkpoint["rule_traces"])
+        self.last_rule_trace = checkpoint["last_rule_trace"]
+        self.rule_addresses = dict(checkpoint["rule_addresses"])
+        self.virtual_rule_addresses = dict(checkpoint["virtual_rule_addresses"])
+        self.symbols = dict(checkpoint["symbols"])
+        self.fixups = list(checkpoint["fixups"])
+        self.variant_stack = list(checkpoint["variant_stack"])
+        self._trace_stack = list(checkpoint["trace_stack"])
+        self._rule_depth = checkpoint["rule_depth"]
 
     def _current(self) -> lexer.TokenType:
         if self.position >= len(self.tokens):
@@ -227,17 +332,35 @@ class RIFMachine:
         return row[reference.index]
 
     def _table_lookup_value(self, reference: TableLookupRef) -> Any:
-        table = self.context.tables[reference.table]
-        try:
-            row_index = table.lookup_unique(reference.selector, reference.key)
-        except ValueError as exc:
-            raise RIFRuntimeError(str(exc)) from exc
-        if row_index is None:
-            raise RIFRuntimeError(
+        selection = self._select_table_row(
+            reference.table,
+            reference.selector,
+            reference.key,
+            missing=(
                 f"La clave {reference.key!r} no existe en "
                 f"{reference.table}.{reference.selector}."
-            )
-        return table.matrix[row_index][reference.index]
+            ),
+        )
+        return selection[1][reference.index]
+
+    def _select_table_row(
+        self,
+        table_name: str,
+        column: str,
+        value: Any,
+        *,
+        missing: str,
+    ) -> tuple[int, tuple[Any, ...]]:
+        """Select one typed, unique row for all table-backed primitives."""
+
+        try:
+            table = self.context.tables[table_name]
+            selection = table.select(column, value)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RIFRuntimeError(str(exc)) from exc
+        if selection is None:
+            raise RIFRuntimeError(missing)
+        return selection
 
     def _value(self, operand: Operand, source: Instruction | None = None) -> Any:
         if operand.kind == "data_pop":
@@ -413,7 +536,52 @@ class RIFMachine:
             return int(value, 2)
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise RIFRuntimeError("FIT requiere un inmediato entero no negativo.")
-        return value & ((1 << width) - 1)
+        try:
+            return execute_operation("fit_unsigned", value, width, truncate)
+        except OperationError as exc:
+            raise RIFRuntimeError(str(exc)) from exc
+
+    def _signed_immediate(self) -> tuple[int, int, lexer.TokenType]:
+        """Read one signed MIR immediate and return value, token count and last token."""
+
+        token = self._current()
+        if token.token in {lexer.Token.NUMBER, lexer.Token.DECIMAL}:
+            value = token.value
+            if token.token == lexer.Token.DECIMAL and isinstance(value, float) and value.is_integer():
+                value = int(value)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise RIFRuntimeError("FIT_SIGNED requiere un inmediato entero.")
+            return value, 1, token
+
+        if token.token == lexer.Token.MINUS:
+            if self.position + 1 >= len(self.tokens):
+                raise RIFRuntimeError("FIT_SIGNED requiere un número después de '-'.")
+            value_token = self.tokens[self.position + 1]
+            if value_token.token not in {lexer.Token.NUMBER, lexer.Token.DECIMAL}:
+                raise RIFRuntimeError("FIT_SIGNED requiere un número después de '-'.")
+            value = value_token.value
+            if value_token.token == lexer.Token.DECIMAL and isinstance(value, float) and value.is_integer():
+                value = int(value)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise RIFRuntimeError("FIT_SIGNED requiere un inmediato entero.")
+            return -value, 2, value_token
+
+        raise RIFRuntimeError(
+            "FIT_SIGNED requiere tokens NUMBER, DECIMAL o un número con signo negativo."
+        )
+
+    @staticmethod
+    def _signed_immediate_fits(value: int, width: int) -> bool:
+        if width <= 0 or width > resolve_limits().cap(MAX_DYNAMIC_WIDTH_BYTES) * 8:
+            raise RIFRuntimeError("El ancho inmediato excede el límite de recursos configurado.")
+        limit = 1 << (width - 1)
+        return -limit <= value < limit
+
+    def _signed_immediate_bits(self, value: int, width: int, *, truncate: bool) -> int:
+        try:
+            return execute_operation("fit_signed", value, width, truncate)
+        except OperationError as exc:
+            raise RIFRuntimeError(str(exc)) from exc
 
     def _emit_fit(self, operand: Operand, instruction: Instruction, *, exact: bool) -> None:
         width = self._fit_width(operand, instruction)
@@ -423,6 +591,35 @@ class RIFMachine:
         if operand.kind == "data_pop":
             self.datastack.pop()
         self.position += 1
+        self.last_token = token
+
+    def _emit_signed_fit(
+        self,
+        operand: Operand,
+        instruction: Instruction,
+        *,
+        exact: bool,
+    ) -> None:
+        width = self._fit_width(operand, instruction)
+        value, consumed, token = self._signed_immediate()
+        encoded = self._signed_immediate_bits(value, width, truncate=not exact)
+        self.emitter.bits(encoded, width)
+        if operand.kind == "data_pop":
+            self.datastack.pop()
+        self.position += consumed
+        self.last_token = token
+
+    def _consume_signed_fit_not(self, operand: Operand, instruction: Instruction) -> None:
+        width = self._fit_width(operand, instruction)
+        value, consumed, token = self._signed_immediate()
+        if self._signed_immediate_fits(value, width):
+            raise RIFRuntimeError(
+                f"El inmediato signed {value} cabe en {width} bits; "
+                "FIT_SIGNED_NOT falló."
+            )
+        if operand.kind == "data_pop":
+            self.datastack.pop()
+        self.position += consumed
         self.last_token = token
 
     def _bit_field(
@@ -510,11 +707,11 @@ class RIFMachine:
             raise RIFRuntimeError(
                 f"FIXUP requiere un identificador de símbolo; recibió {symbol!r}."
             )
-        widths = {"pc8": 8, "pc32": 32, "abs64": 64}
         try:
-            width_bits = widths[kind]
-        except KeyError as exc:
-            raise RIFRuntimeError(f"Clase de FIXUP desconocida: {kind!r}.") from exc
+            spec = relocation_spec(self.context, kind)
+        except ValueError as exc:
+            raise RIFRuntimeError(str(exc), phase="fixups") from exc
+        width_bits = spec.width_bits
         try:
             span = self.emitter.buffer.query(reservation).span
         except KeyError as exc:
@@ -559,7 +756,6 @@ class RIFMachine:
         if not self.fixups:
             return
         bases = dict(virtual_bases or {})
-        widths = {"pc8": 8, "pc32": 32, "abs64": 64}
         planned: list[tuple[BitEmitter, Fixup, int]] = []
         for fixup in self.fixups:
             symbol = self.symbols.get(fixup.symbol)
@@ -573,22 +769,17 @@ class RIFMachine:
             next_base = bases.get(fixup.section, 0)
             target = target_base + symbol.virtual_offset
             next_ip = next_base + fixup.next_virtual_bits // 8
-            if fixup.kind in {"pc8", "pc32"}:
-                value = target - next_ip
-                limit = 1 << (widths[fixup.kind] - 1)
-                if not -limit <= value < limit:
-                    raise RIFRuntimeError(
-                        f"{fixup.kind}: desplazamiento {value} fuera del rango signed "
-                        f"de {widths[fixup.kind]} bits para {fixup.symbol}."
-                    )
-                encoded = value & ((1 << widths[fixup.kind]) - 1)
-            else:
-                value = target
-                if not 0 <= value < (1 << widths[fixup.kind]):
-                    raise RIFRuntimeError(
-                        f"{fixup.kind}: dirección virtual inválida: {value}."
-                    )
-                encoded = value
+            try:
+                spec = relocation_spec(self.context, fixup.kind)
+                value = target - next_ip if spec.relative else target
+                encoded = spec.encode(value)
+            except ValueError as exc:
+                raise RIFRuntimeError(str(exc), phase="fixups") from exc
+            if spec.width_bits != fixup.width_bits:
+                raise RIFRuntimeError(
+                    f"La especificación de {fixup.kind} cambió después de registrar el fixup.",
+                    phase="fixups",
+                )
             planned.append((self._emitter_for_section(fixup.section), fixup, encoded))
 
         buffers: dict[int, tuple[Any, Any]] = {}
@@ -625,6 +816,7 @@ class RIFMachine:
         rule = self.program.rules[rule_name]
         frame = _RuleTraceState(
             rule_name,
+            self.section_name,
             self.emitter.buffer.bit_length,
             self.emitter.virtual_position,
         )
@@ -634,13 +826,25 @@ class RIFMachine:
         self._rule_depth += 1
         try:
             for instruction in rule.instructions:
-                self._execute_instruction(instruction)
+                try:
+                    self._execute_instruction(instruction)
+                except RIFRuntimeError as exc:
+                    phase = "fixups" if instruction.opcode == "fixup" else "rules"
+                    exc.attach_context(
+                        rule=frame.name,
+                        span=instruction.span,
+                        section=self.section_name,
+                        token_index=self.position,
+                        phase=phase,
+                    )
+                    raise
         except _BreakFlow:
             return
         finally:
             end = self.emitter.buffer.bit_length
             trace = RuleTrace(
                 name=frame.name,
+                section=frame.section,
                 start=frame.start,
                 bits=end - frame.start,
                 end=end,
@@ -681,20 +885,19 @@ class RIFMachine:
                 raise RIFRuntimeError(
                     f"TABLE_MATCHER esperaba Token.{token_ref.token.name}."
                 )
-            table = self.context.tables[table_ref.table]
-            try:
-                index = table.lookup_unique(table_ref.column, token.value)
-            except (TypeError, ValueError) as exc:
-                raise RIFRuntimeError(str(exc)) from exc
-            if index is not None:
-                self.selected_rows[table_ref.table] = index
-                self.position += 1
-                self.last_token = token
-                return
-            raise RIFRuntimeError(
-                f"El valor {token.value!r} no existe en "
-                f"{table_ref.table}.{table_ref.column}."
+            selection = self._select_table_row(
+                table_ref.table,
+                table_ref.column,
+                token.value,
+                missing=(
+                    f"El valor {token.value!r} no existe en "
+                    f"{table_ref.table}.{table_ref.column}."
+                ),
             )
+            self.selected_rows[table_ref.table] = selection[0]
+            self.position += 1
+            self.last_token = token
+            return
 
         if opcode == "dget":
             references = operands[0].resolved
@@ -702,17 +905,17 @@ class RIFMachine:
                 raise RIFRuntimeError("DLOAD no fue resuelto semánticamente.")
             selector, field = references
             token = self._current()
-            table = self.context.tables[selector.table]
-            try:
-                row_index = table.lookup_unique(selector.column, token.value)
-            except (TypeError, ValueError) as exc:
-                raise RIFRuntimeError("El token actual no es indexable en la tabla.") from exc
-            if row_index is None:
-                raise RIFRuntimeError(
-                    f"El valor {token.value!r} no existe en {selector.table}.{selector.column}."
-                )
-            self.datastack.append(table.matrix[row_index][field.index])
-            self.selected_rows[selector.table] = row_index
+            selection = self._select_table_row(
+                selector.table,
+                selector.column,
+                token.value,
+                missing=(
+                    f"El valor {token.value!r} no existe en "
+                    f"{selector.table}.{selector.column}."
+                ),
+            )
+            self.datastack.append(selection[1][field.index])
+            self.selected_rows[selector.table] = selection[0]
             self.position += 1
             self.last_token = token
             return
@@ -777,6 +980,18 @@ class RIFMachine:
                 self.last_token = token
                 return
             raise RIFRuntimeError(f"El inmediato cabe en {width} bits; FIT_NOT falló.")
+
+        if opcode == "fit_signed":
+            self._emit_signed_fit(operands[0], instruction, exact=False)
+            return
+
+        if opcode == "fit_signed_exact":
+            self._emit_signed_fit(operands[0], instruction, exact=True)
+            return
+
+        if opcode == "fit_signed_not":
+            self._consume_signed_fit_not(operands[0], instruction)
+            return
 
         if opcode == "pad":
             width = int(operands[0].value)

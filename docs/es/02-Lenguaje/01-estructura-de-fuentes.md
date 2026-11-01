@@ -25,10 +25,12 @@ No existe una gramática de indentación para Rules.
 ## Declaraciones por alcance
 
 La raíz puede contener `@block config`, `@block linker`, `@table`, `@stack`,
-`@SUPPORTS`, `@ASMVARIANT`, `@define`, `@rule` y `@LOAD`.
+`@SUPPORTS`, `@ASMVARIANT`, `@define`, `@rule`, `@LOAD` y `@LIBRARY`.
 
 Un archivo cargado con `@LOAD` solo puede contener `@define`, `@table`, `@rule`
-y más `@LOAD`. Un archivo de variante solo puede contener `@define` y `@rule`.
+y más `@LOAD`. Una librería `.riflib` contiene fuentes reutilizables y se
+incorpora con `@LIBRARY`; sus declaraciones se procesan en el mismo contexto.
+Un archivo de variante solo puede contener `@define` y `@rule`.
 
 La configuración solo puede materializarse desde la raíz. Si se separa en
 `config.rif`, únicamente `main.rif` puede cargarlo directamente; ese archivo

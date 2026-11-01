@@ -20,14 +20,15 @@ first matching token from its candidates.
 ```rif
 . JUMP mov
 . JUMPIF mov, true
-. JUMPIF mov, #call[should_jump]
 . BREAK
 . ERROR, "invalid instruction"
 ```
 
 `JUMP` invokes another Rule and returns when it finishes. `JUMPIF` invokes it only
 when its boolean condition is true. `BREAK` stops the current Rule flow.
-`#call[...]` references can only resolve registered native functions.
+`#call[...]` is reserved for closed native operations. It does not load a
+Python callback, and an unregistered name is rejected. Prefer the declarative
+Rule primitives and table values described on this page.
 
 Token storage is separate from the datastack:
 
@@ -71,32 +72,70 @@ its rows.
 region, `write_res` patches it, `emit_res` copies it into the current output, and
 `drop_res` removes its name without clearing its previous bits.
 
+## Reusable Target Primitives
+
+Rules can combine these primitives without making the RIF core know an ISA:
+
+- `table_matcher` and `dget` select rows from any extensible table and capture
+  fields; tables are not limited to registers.
+- `bits`, `nibbles`, `emit`, `eword`, and `frame` emit fields and values.
+- `fit`, `fit_exact`, `fit_not`, and the `fit_signed*` variants validate and
+  emit immediates using target-declared widths and ranges.
+- `reserve`, `write_res`, `emit_res`, and `drop_res` compose deferred fields.
+- `mark` and `fixup` connect symbols to relocations after layout.
+
+The generic primitive checks used by fitting and relocation encoding have a
+stable C/AOT contract. Target-specific instruction meaning remains in Rules
+and tables.
+
+The built-in relocation classes are `pc8`, `pc16`, `pc32`, `pc64` for signed
+displacements from the next instruction and `abs8`, `abs16`, `abs32`, `abs64`
+for absolute virtual addresses. Targets can add target-neutral classes through
+an extensible block:
+
+```rif
+@block relocations:
+    rel24 24 pc
+    addr48 48 abs
+@end
+```
+
+They are then used as `. fixup rel24 "slot"`. All relocations are validated and
+planned before any patch is committed.
+
+Memory forms, registers, and prefixes remain target data and Rules; RIF only
+provides the generic machinery to select, validate, and emit them.
+
 ## Immediate Fitting
 
 ```rif
 . fit 8
 . fit_exact 8
 . fit_not 8
+. fit_signed 8
+. fit_signed_exact 8
+. fit_signed_not 8
 . fit $registers.name[rax].bits
 ```
 
 These instructions operate on the current MIR token. `fit` emits the low bits
 when the value is too wide. `fit_exact` emits only when the value fits exactly.
-`fit_not` consumes a value only when it does not fit.
+`fit_not` consumes a value only when it does not fit. The `fit_signed` variants
+accept signed immediates such as `-1` and emit two's-complement bits;
+`fit_signed_exact` requires the signed range, while `fit_signed_not` consumes a
+value only when it falls outside that range.
 
-Widths can be values obtained from a table, a native function, a reservation,
-or the datastack.
+Widths can be values obtained from a table, a reservation, or the datastack.
 
 ## Value Forms
 
 RIF values include numeric and string literals, booleans, table accesses,
-reservation accesses, calls, and position queries:
+reservation accesses, and position queries:
 
 ```rif
 $registers.bits
 $registers.name[rax].bits
 &slot
-#call[get_bits]
 ::SIZE
 ::VSIZE
 ::ALIGNMENT

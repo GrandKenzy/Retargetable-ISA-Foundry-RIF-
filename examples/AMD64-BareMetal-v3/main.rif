@@ -1,0 +1,63 @@
+; AMD64 bare-metal raw binary target.
+; Register encodings use the x86-64 GPR index (0..15).
+; Produces a flat image in the configured section order; no OS or object format
+; is assumed by this target.
+@block config:
+    format section ".section"
+    section text "rx"
+    section data "rw"
+    section bss "rw"
+    format section_end ":"
+    entry text "_start"
+    comment ";"
+    format label_end ":"
+    default text
+    word_size 64
+    address_size 64
+    byte_order "little"
+    case_sensitive true
+    symbol_prefix "_"
+    local_prefix "."
+    undefined_symbols "error"
+    duplicate_symbols "error"
+    strict true
+    allow_empty_sections false
+    bit_order "msb"
+@end
+
+@block linker:
+    extension ".mir"
+    search_path ""
+@end
+
+@LOAD "registers.rif"
+@LOAD "instructions.rif"
+@LOAD "encoding.rif"
+@LOAD "arithmetic.rif"
+@LOAD "memory.rif"
+@LOAD "control.rif"
+@LOAD "conditions.rif"
+@LOAD "width32.rif"
+@LOAD "width16.rif"
+@LOAD "width8.rif"
+@LOAD "addressing.rif"
+@LOAD "branches.rif"
+@LOAD "integer.rif"
+@LOAD "prefixes.rif"
+@LOAD "relocations.rif"
+
+@block isa_scope:
+    profile "amd64-base-integer"
+    address_size "64-bit-default"
+    mmx "excluded"
+    sse "excluded"
+    avx "excluded"
+    avx512 "excluded"
+    x87 "excluded"
+    system "excluded"
+    os_abi "none"
+@end
+
+; GPR64 table: code is architectural register number.
+; rex = REX.W with B extension; modrm = 11 000 r/m (C7 /0).
+; opcode = B8+rd for MOV r64, imm64.

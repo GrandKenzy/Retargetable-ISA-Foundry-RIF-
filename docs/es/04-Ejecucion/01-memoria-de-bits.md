@@ -92,5 +92,11 @@ with buffer.transaction():
 devuelve una copia serializada y `view()` una vista viva. `BitQuery` expone el
 valor entero, bits, rango y bytes cuando el rango está alineado.
 
+Una ejecución de Rule usa la misma idea para el emisor físico y virtual:
+si una instrucción falla, se restauran bits, reservas, posiciones virtuales,
+símbolos, fixups, datastack y selección de sección. `AssemblySection` expone
+`file_size`/`initialized_size`, `virtual_size` y `uninitialized_size`; las
+reservas `vreserve` ocupan solamente el último espacio.
+
 `AssemblyImage.render()` genera una representación de las secciones usando la
 configuración de `format section`, `format section_end`, labels, comentarios y alineación.

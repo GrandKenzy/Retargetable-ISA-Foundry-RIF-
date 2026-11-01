@@ -70,6 +70,22 @@ una palabra de `word_size`; y `frame`, un frame multilinea con cualquier
 `emit_res` copia la reserva al cursor y `drop_res` quita su nombre sin limpiar los
 bits ya emitidos.
 
+## Primitivas reutilizables del target
+
+Las Rules pueden combinar estas primitivas sin que el núcleo conozca una ISA:
+
+- `table_matcher` y `dget` seleccionan filas de cualquier tabla extensible y
+  capturan campos; las tablas no están limitadas a registros.
+- `bits`, `nibbles`, `emit`, `eword` y `frame` emiten campos y valores.
+- `fit`, `fit_exact`, `fit_not` y las variantes `fit_signed*` validan y emiten
+  inmediatos con anchos y rangos declarados por el target.
+- `reserve`, `write_res`, `emit_res` y `drop_res` componen campos diferidos.
+- `mark` y `fixup` conectan símbolos con relocaciones después del layout.
+
+La memoria, los registros y los prefijos concretos siguen siendo datos y Rules
+del target; RIF aporta la maquinaria genérica para seleccionarlos, validarlos
+y emitirlos.
+
 ## Símbolos nativos
 
 `mark` registra el token actual como símbolo en la posición física y virtual
@@ -94,10 +110,20 @@ Una relocación diferida usa la reserva física y el símbolo del token actual:
 . drop_res "fix32"
 ```
 
-`pc8` y `pc32` escriben desplazamientos signed relativos a la siguiente
-instrucción; `abs64` escribe una dirección virtual absoluta. Se validan y
-aplican juntas después del MIR, permitiendo símbolos definidos más adelante
-sin dejar parches parciales.
+`pc8`, `pc16`, `pc32` y `pc64` escriben desplazamientos signed relativos a la
+siguiente instrucción; `abs8`, `abs16`, `abs32` y `abs64` escriben direcciones
+virtuales absolutas. Un target puede añadir clases sin hardcodear una ISA:
+
+```rif
+@block relocations:
+    rel24 24 pc
+    addr48 48 abs
+@end
+```
+
+Después se usan igual: `. fixup rel24 "slot"`. Las clases se validan y aplican
+juntas después del MIR, permitiendo símbolos definidos más adelante sin dejar
+parches parciales.
 
 La directiva MIR `::RIF_SECTION text` cambia el emisor activo de un MIR
 sectionado. Solo está disponible cuando la ejecución tiene una
@@ -110,12 +136,18 @@ definidos.
 . fit 8
 . fit_exact 8
 . fit_not 8
+. fit_signed 8
+. fit_signed_exact 8
+. fit_signed_not 8
 . fit $registers.name[rax].bits
 ```
 
 Estas instrucciones usan el token MIR actual. `fit` conserva los bits bajos
 si el valor es demasiado grande. `fit_exact` falla si no cabe. `fit_not` consume
-solo cuando no cabe.
+solo cuando no cabe. Las variantes `fit_signed` interpretan un inmediato
+signed, aceptan una forma negativa como `-1` y emiten complemento a dos;
+`fit_signed_exact` exige el rango signed y `fit_signed_not` consume solo cuando
+queda fuera de ese rango.
 
 ## Formas de `VALUE`
 

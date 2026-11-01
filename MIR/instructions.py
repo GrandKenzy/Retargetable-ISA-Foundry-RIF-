@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from Frontend import globals
+from rif_contract import CompilationContract, current_contract
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,7 @@ class CompiledRuleSet:
 
     rules: dict[str, CompiledRule]
     context: globals.TargetContext = field(default_factory=globals.TargetContext)
+    contract: CompilationContract = field(default_factory=current_contract)
 
 
 __all__ = [

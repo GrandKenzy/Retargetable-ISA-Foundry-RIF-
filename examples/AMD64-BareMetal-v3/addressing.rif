@@ -1,0 +1,309 @@
+; 64-bit memory addressing forms. The core RIF engine only provides generic
+; fields and table selection; all AMD64 ModR/M and SIB choices live here.
+
+@rule encode_rex_mem0:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits 0 1
+. bits $membase_nodisp.hi 1
+
+@rule encode_modrm_mem0:
+. bits 0 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_nodisp.lo 3
+
+@rule encode_rex_mem0bp:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits 0 1
+. bits $membase_zero.hi 1
+
+@rule encode_modrm_mem0bp:
+. bits 1 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase_zero.lo 3
+. bits 0 8
+
+@rule encode_rex_mem8:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits 0 1
+. bits $membase.hi 1
+
+@rule encode_modrm_mem8:
+. bits 1 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits 0 2
+. bits 4 3
+. bits $membase.lo 3
+
+@rule encode_rex_index0:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits $memindex.hi 1
+. bits $membase_nodisp.hi 1
+
+@rule encode_modrm_index0:
+. bits 0 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits $memscale.code 2
+. bits $memindex.lo 3
+. bits $membase_nodisp.lo 3
+
+@rule encode_rex_index0bp:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits $memindex.hi 1
+. bits $membase_zero.hi 1
+
+@rule encode_modrm_index0bp:
+. bits 1 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits $memscale.code 2
+. bits $memindex.lo 3
+. bits $membase_zero.lo 3
+. bits 0 8
+
+@rule encode_rex_index8:
+. bits 4 4
+. bits 1 1
+. bits $movdst.hi 1
+. bits $memindex.hi 1
+. bits $membase.hi 1
+
+@rule encode_modrm_index8:
+. bits 1 2
+. bits $movdst.lo 3
+. bits 4 3
+. bits $memscale.code 2
+. bits $memindex.lo 3
+. bits $membase.lo 3
+
+; No displacement. RBP/R13 use the dedicated _0bp rules because AMD64
+; reserves mod=00,r/m=101 for a disp32/no-base form.
+@rule load64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. JUMP encode_rex_mem0
+. bits 139 8
+. JUMP encode_modrm_mem0
+
+@rule store64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. JUMP encode_rex_mem0
+. bits 137 8
+. JUMP encode_modrm_mem0
+
+@rule lea64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. JUMP encode_rex_mem0
+. bits 141 8
+. JUMP encode_modrm_mem0
+
+@rule load64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. JUMP encode_rex_mem0bp
+. bits 139 8
+. JUMP encode_modrm_mem0bp
+
+@rule store64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. JUMP encode_rex_mem0bp
+. bits 137 8
+. JUMP encode_modrm_mem0bp
+
+@rule lea64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. JUMP encode_rex_mem0bp
+. bits 141 8
+. JUMP encode_modrm_mem0bp
+
+; disp8 uses a signed one-byte displacement, including negative offsets.
+@rule load64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_mem8
+. bits 139 8
+. JUMP encode_modrm_mem8
+. fit_signed 8
+
+@rule store64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_mem8
+. bits 137 8
+. JUMP encode_modrm_mem8
+. fit_signed 8
+
+@rule lea64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. JUMP encode_rex_mem8
+. bits 141 8
+. JUMP encode_modrm_mem8
+. fit_signed 8
+
+; Indexed no-displacement and disp8 forms. RSP remains excluded from the
+; index table because SIB index=100 means no index in 64-bit mode.
+@rule loadx64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0
+. bits 139 8
+. JUMP encode_modrm_index0
+
+@rule storex64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0
+. bits 137 8
+. JUMP encode_modrm_index0
+
+@rule leax64_0:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_nodisp.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0
+. bits 141 8
+. JUMP encode_modrm_index0
+
+@rule loadx64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0bp
+. bits 139 8
+. JUMP encode_modrm_index0bp
+
+@rule storex64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0bp
+. bits 137 8
+. JUMP encode_modrm_index0bp
+
+@rule leax64_0bp:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase_zero.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. JUMP encode_rex_index0bp
+. bits 141 8
+. JUMP encode_modrm_index0bp
+
+@rule loadx64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_index8
+. bits 139 8
+. JUMP encode_modrm_index8
+. fit_signed 8
+
+@rule storex64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_index8
+. bits 137 8
+. JUMP encode_modrm_index8
+. fit_signed 8
+
+@rule leax64_8:
+. IDENT
+. $movdst.name, IDENT
+. COMMA
+. $membase.name, IDENT
+. COMMA
+. $memindex.name, IDENT
+. COMMA
+. $memscale.factor, NUMBER
+. COMMA
+. JUMP encode_rex_index8
+. bits 141 8
+. JUMP encode_modrm_index8
+. fit_signed 8

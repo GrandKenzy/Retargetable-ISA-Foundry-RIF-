@@ -45,7 +45,8 @@ class SourceParser:
 
     def parse_text(self, source: str, name: str) -> list[Any]:
         if self.backend == "aot":
-            raise ValueError("El backend AOT requiere una ruta de archivo real.")
+            document = self._get_aot_parser().parse_source(source, name)
+            return GIRAdapter(document).ast()
         self.session.load()
         tokens = self.session.tokenize(source, name)
         return self.session.parse(tokens, name)

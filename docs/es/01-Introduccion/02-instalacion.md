@@ -35,7 +35,8 @@ RIF/
 │   └── processor/
 ├── MIR/
 ├── tests/
-├── main.rif
+├── examples/
+│   └── RIF-Core-Demo/
 ├── main.py
 ├── rif.py
 ├── pack.py

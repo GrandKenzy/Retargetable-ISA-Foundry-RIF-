@@ -1,10 +1,11 @@
 # Architecture
 
-RIF has two input phases and one output phase.
+RIF has two compilation phases and one output phase. The first phase teaches
+the target to RIF; the second applies that compiled target to external MIR.
 
 ## Target Definition
 
-`main.rif` describes the target:
+`main.rif` and any referenced `.riflib` sources describe the target:
 
 ```text
 main.rif -> CompiledRuleSet
@@ -19,12 +20,13 @@ compiled against the target.
 The external MIR is the program that the target consumes:
 
 ```text
-CompiledRuleSet + program.asm -> program.bin
+CompiledRuleSet + program.mir -> program.bin
 ```
 
-Its first token on each line selects a Rule. The remaining tokens are passed to
-that Rule. RIF can tokenize the file itself or receive tokens from another
-compiler through the direct Python API.
+Its first token on each ordinary line selects a Rule. The remaining tokens are
+passed to that Rule. Preprocessor directives beginning with `::RIF_` are
+handled before Rule dispatch. RIF can tokenize the file itself or receive
+tokens from another compiler through the direct Python API.
 
 ## Internal Components
 
@@ -38,6 +40,7 @@ compiler through the direct Python API.
 | `MIR.bitbuffer.BitBuffer` | Stores and rewrites arbitrary bit ranges. |
 | `MIR.output.AssemblyImage` | Owns one output buffer per configured section. |
 | `pack.py` | Creates and validates reproducible `.pack` archives. |
+| `rif_library.py` | Creates and validates reusable `.riflib` source packages. |
 
 ## State Ownership
 

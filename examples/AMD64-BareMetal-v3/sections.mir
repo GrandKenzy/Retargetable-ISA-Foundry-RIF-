@@ -1,0 +1,17 @@
+; Bare-metal raw image fixture for aligned sections and cross-section fixups.
+::RIF_SECTION data
+mark counter
+dq 0
+mark message
+db 72
+db 105
+db 10
+mark scratch
+virtual_scratch
+::RIF_SECTION text
+_start
+movaddr64 rax, counter
+storerip64 rax, counter
+loadrip64 r10, counter
+movrr rbx, r10
+ret

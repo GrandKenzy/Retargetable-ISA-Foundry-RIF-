@@ -53,12 +53,9 @@ fails without consuming the token or pushing a value.
 reservations, and other cross-line state. This is what allows one MIR line to
 prepare a value for a later line.
 
-Native functions will receive explicit contracts; no dynamic Python context
-can inspect or manipulate the live list.
-
-```python
-# native function state is intentionally not exposed
-```
+Native Rule operations receive explicit primitive values; no dynamic Python
+context can inspect or manipulate the live list. See the [Rule Operation
+ABI](./06-rule-operation-abi.md) for the closed C/AOT surface.
 
 Target authors should keep stack ownership clear: use the datastack for
 temporary values and the token storage instructions for token identity.

@@ -42,9 +42,9 @@ storage has no word size with which to perform a generic endian conversion.
 The command-line entrypoint is `rif.py`:
 
 ```powershell
-rif main.rif program.asm
-rif main.pack program.asm
-rif main.rif program.asm -o build/program.bin
+rif main.rif program.mir
+rif target.pack program.mir
+rif main.rif program.mir -o build/program.bin
 ```
 
 The MIR extension must match `extension` in the target's linker block. When `-o` is
@@ -66,7 +66,7 @@ Prepare a target once when compiling multiple inputs:
 ```python
 from MIR import compile_mir_source, prepare_target
 
-target = prepare_target("main.pack")
+target = prepare_target("target.pack")
 first = compile_mir_source(target, "mov rax\n")
 second = compile_mir_source(target, "add rbx\n")
 ```
@@ -77,9 +77,9 @@ compiler already has a token stream:
 ```python
 from MIR import compile_mir_file, compile_mir_tokens, tokenize_mir
 
-result = compile_mir_file("main.rif", "program.asm")
-tokens = tokenize_mir("mov rax\n", "generated.asm")
-result = compile_mir_tokens("main.pack", tokens)
+result = compile_mir_file("main.rif", "program.mir")
+tokens = tokenize_mir("mov rax\n", "generated.mir")
+result = compile_mir_tokens("target.pack", tokens)
 ```
 
 `compile_mir_tokens` avoids lexing and parsing the MIR a second time. It is the

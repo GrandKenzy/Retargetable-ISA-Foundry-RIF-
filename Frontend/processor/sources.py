@@ -111,17 +111,13 @@ def load_source(
     try:
         if path is not None and path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La fuente RIF excede el límite de tamaño: {path}")
-        if backend == "aot":
-            if path is None:
-                raise ValueError("El backend AOT no puede recibir una fuente virtual.")
+        if path is None:
+            source = provider.source_text(path_key)
+            ast = source_parser.parse_text(source, path_key)
+        elif backend == "aot":
             ast = source_parser.parse_file(path)
         else:
-            source = (
-                provider.source_text(path_key)
-                if provider is not None
-                else path.read_text(encoding="utf-8")
-            )
-            ast = source_parser.parse_text(source, path_key)
+            ast = source_parser.parse_text(path.read_text(encoding="utf-8"), path_key)
         process(
             ast,
             source_path=path_key,

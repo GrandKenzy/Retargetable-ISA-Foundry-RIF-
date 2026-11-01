@@ -20,10 +20,21 @@ sources/other.rif
 compiled.sqlite          (when precompiled)
 ```
 
-The manifest records the package format, source hashes, `@LOAD` graph,
-dependency order, and the optional compiled database. External MIR directives
+The actual compiled database path is `compiled/program.sqlite3`.
+
+The manifest records the package format, contract version, source hashes, the
+`@LOAD` graph, dependency order, referenced `.riflib` packages, and the
+optional compiled database. The
+contract identifies the compatible RIF, Gram/GIR, AOT FFI, SQLite, and runtime
+combination; artifacts from another combination are rejected before MIR is
+processed. External MIR directives
 are not part of the package source graph; `::RIF_INSERT FILE` resolves its path
 relative to the MIR file being compiled.
+
+Reusable libraries can be created with `rif --library patterns/main.rif -o
+patterns.riflib` and consumed from a target with `@LIBRARY "patterns.riflib"`.
+When creating a `.pack`, RIF embeds and verifies those libraries under
+`libraries/`.
 
 ## Why Use a Package?
 
@@ -47,3 +58,31 @@ versions, and invalid package metadata.
 
 The package remains a target definition. It does not contain the external MIR
 program or the final binary unless the caller writes that output separately.
+
+## Safe inspection
+
+The package inspector always verifies the ZIP, hashes, limits, content
+fingerprint, and compiled SQLite database. It does not execute Rules, activate
+frontend globals, load plugins, or extract files:
+
+```powershell
+rif --inspect-pack target.pack
+rif --inspect-pack target.pack --json
+rif --inspect-pack target.pack --verbose --max-items 200
+```
+
+The report includes package format and version, contract fingerprint, sources,
+libraries, assets, Rules, tables, configuration, linker, variants, and accepted
+MIR extensions.
+`--json` emits stable machine-readable output; `--verbose` adds instructions
+and rows, still bounded by `--max-items`. Creator absolute origin paths remain
+hidden unless `--show-origins` is supplied.
+
+MIR compilation can also emit an optional map without changing the binary:
+
+```powershell
+rif target.pack program.mir -o program.bin --map program.map.json
+```
+
+The map records the contract, binary hash and sizes, sections, symbols,
+executed Rules, and resolved relocations.

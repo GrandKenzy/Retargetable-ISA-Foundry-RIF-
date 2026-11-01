@@ -15,6 +15,7 @@ from rif_limits import COMPILATION_LOCK, resolve_limits
 from . import compiler as compiler_module
 from .compiler import compile_rules
 from .compiled import load_database
+from .diagnostics import DiagnosticBag
 from .instructions import CompiledRuleSet
 from .output import AssemblyImage
 from .runtime import ExecutionResult, RIFMachine
@@ -64,14 +65,10 @@ def parse_source(
                 source = package.source_text()
                 source_name = package.virtual_path()
                 # A source-only pack exposes ``pack://`` virtual paths.  The
-                # native Gram CLI intentionally accepts physical files only,
-                # so keep this narrow fallback explicit at the pack boundary.
-                pack_parser = (
-                    parser
-                    if backend == "python"
-                    and parser is not None
-                    and parser.backend == "python"
-                    else SourceParser(backend="python", session=RIF_LANG_SESSION)
+                # canonical native FFI accepts its source bytes directly.
+                pack_parser = parser or SourceParser(
+                    backend=backend,
+                    session=RIF_LANG_SESSION,
                 )
                 ast = pack_parser.parse_text(source, source_name)
                 return ast, source_path
@@ -83,7 +80,7 @@ def parse_source(
         return source_parser.parse_file(source_path), source_path
 
 
-def compile_source(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
+def _compile_source(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
     """Compile a RIF definition source (``.rif`` or ``.pack``).
 
     The returned object is the internal compiled Rule set. It is not the
@@ -106,6 +103,23 @@ def compile_source(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet
         return compile_rules(resolve=True)
 
 
+def compile_source(
+    path: str | Path,
+    *,
+    backend: str = "aot",
+    diagnostics: DiagnosticBag | None = None,
+) -> CompiledRuleSet:
+    """Compile a target and optionally collect its normalized diagnostic."""
+
+    bag = diagnostics if diagnostics is not None else DiagnosticBag()
+    try:
+        return _compile_source(path, backend=backend)
+    except Exception as exc:
+        phase = "rules" if type(exc).__name__ == "MIRSemanticError" else "frontend"
+        bag.add_exception(exc, phase=phase, path=str(path))
+        raise
+
+
 def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
     """Compile a .pack entrypoint using its precomputed source index."""
 
@@ -121,6 +135,7 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
                 return load_database(
                     compiled_database,
                     expected_fingerprint=package.manifest.content_sha256,
+                    expected_contract=package.manifest.contract,
                 )
             previous_sources = dict(compiler_module.SOURCE_TEXTS)
             compiler_module.SOURCE_TEXTS.update(
@@ -133,11 +148,10 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
             source = package.source_text()
             try:
                 # Source-only packs are indexed through virtual ``pack://``
-                # paths.  They cannot be handed to Gram's native CLI, so the
-                # policy is an explicit Python frontend fallback for the
-                # complete pack traversal (root, @LOAD and variants).
+                # paths. The canonical AOT FFI accepts their source bytes
+                # directly; Python remains an explicit comparison backend.
                 pack_parser = SourceParser(
-                    backend="python",
+                    backend=backend,
                     session=RIF_LANG_SESSION,
                 )
                 ast = pack_parser.parse_text(source, source_name)
@@ -145,7 +159,7 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
                     ast,
                     source_path=source_name,
                     source_provider=package,
-                    backend="python",
+                    backend=backend,
                     parser=pack_parser,
                 )
                 return compile_rules(resolve=True)
@@ -154,10 +168,15 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
                 compiler_module.SOURCE_TEXTS.update(previous_sources)
 
 
-def compile_definition(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
+def compile_definition(
+    path: str | Path,
+    *,
+    backend: str = "aot",
+    diagnostics: DiagnosticBag | None = None,
+) -> CompiledRuleSet:
     """Explicit name for compiling a ``.rif``/``.pack`` target definition."""
 
-    return compile_source(path, backend=backend)
+    return compile_source(path, backend=backend, diagnostics=diagnostics)
 
 
 def compile_project(path: str | Path, *, backend: str = "aot") -> Compilation:

@@ -102,5 +102,11 @@ returns a masked serialized copy; `view()` returns a live byte-level view.
 `BitQuery` exposes the integer value, individual bits, span, and aligned raw
 bytes when the queried range covers complete bytes.
 
+Rule execution is transactional across physical and virtual state: a failed
+instruction restores bits, reservations, virtual cursors, symbols, fixups,
+datastack, and section selection. `AssemblySection` exposes
+`file_size`/`initialized_size`, `virtual_size`, and `uninitialized_size` so
+virtual-only `vreserve` space is visible without being written to the file.
+
 `AssemblyImage.render()` can render configured sections using `format section`,
 `format section_end`, `entry`, `format label_end`, `comment`, and section alignment.

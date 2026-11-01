@@ -13,6 +13,7 @@ from .visitors.variant import visit_support, visit_variant
 from .visitors.block import visit as visit_block
 from Frontend.syntax.items.blocks import normalize_block
 from .sources import is_config_load, load_source
+from .libraries import load_library
 from .variants import current_variant, enter_variant, exit_variant, load_variants as _load_variants
 from .parsing import SourceParser
 
@@ -41,7 +42,7 @@ def process(
     provider = source_provider if source_provider is not None else globals.SOURCE_PROVIDER
     source_parser = parser or SourceParser(backend=backend)
     raw_source = str(source_path) if source_path is not None else ""
-    if raw_source.startswith("pack://"):
+    if raw_source.startswith(("pack://", "riflib://", "packlib://")):
         source_key = raw_source
     else:
         source_key = (
@@ -54,7 +55,7 @@ def process(
         if project_root is not None
         else (
             Path(source_path).expanduser().resolve(strict=False).parent
-            if source_path and not raw_source.startswith("pack://")
+            if source_path and not raw_source.startswith(("pack://", "riflib://", "packlib://"))
             else None
         )
     )
@@ -70,10 +71,10 @@ def process(
         allowed = {
             "root": {
                 "DEFINE", "SUPPORTS", "ASMVARIANT",
-                "TABLE", "STACK", "RULE", "LOAD_FILE",
+                "TABLE", "STACK", "RULE", "LOAD_FILE", "LIBRARY",
                 "BLOCK",
             },
-            "include": {"DEFINE", "TABLE", "RULE", "LOAD_FILE"},
+            "include": {"DEFINE", "TABLE", "RULE", "LOAD_FILE", "LIBRARY"},
             "variant": {"DEFINE", "RULE"},
             "config": {"BLOCK"},
         }
@@ -145,6 +146,15 @@ def process(
                     backend=backend,
                     parser=source_parser,
                 )
+            elif name == "LIBRARY":
+                load_library(
+                    node,
+                    source_key,
+                    source_provider=provider,
+                    project_root=resolved_root,
+                    backend=backend,
+                    parser=source_parser,
+                )
             else:
                 print("falta por procesar", name)
 
@@ -167,6 +177,7 @@ __all__ = [
     "process",
     "load_variants",
     "load_source",
+    "load_library",
     "enter_variant",
     "exit_variant",
     "current_variant",

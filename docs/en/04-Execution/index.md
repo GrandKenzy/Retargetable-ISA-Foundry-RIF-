@@ -10,6 +10,7 @@ sectioned, bit-addressable output image.
 | [03. Variants](./03-variants.md) | Loading and delegating to ISA variants. |
 | [04. Diagnostics and Testing](./04-diagnostics-and-testing.md) | Runtime errors, traces, and verification. |
 | [05. Binary Artifacts](./05-binary-artifacts.md) | Inserts, final patches, native queries, and physical/virtual layout. |
+| [06. Rule Operation ABI](./06-rule-operation-abi.md) | The closed C/AOT primitive contract used by Rules. |
 
 ## Runtime Objects
 

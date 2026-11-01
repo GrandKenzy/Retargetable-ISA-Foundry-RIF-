@@ -1,0 +1,13 @@
+; Small raw AMD64 smoke fixture.
+_start
+mov rax, 40
+mov rbx, 2
+addrr rax, rbx
+mov r10, 0
+mov r9, 1
+xorrr r10, r9
+movabs r11, 4294967296
+load64 r13, rsp, 16
+store64 r13, r12, 32
+ret
+

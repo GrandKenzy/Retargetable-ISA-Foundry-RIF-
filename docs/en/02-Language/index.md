@@ -9,6 +9,7 @@ one instruction per line. Comments begin with `;`.
 | [02. Configuration and Linker](./02-configuration-and-linker.md) | Target sections, output policy, and MIR file discovery. |
 | [03. Tables and Loads](./03-tables-and-loads.md) | Immutable indexed tables, `@LOAD`, and source scopes. |
 | [04. Rules and Values](./04-rules-and-values.md) | Rule instructions, token references, table access, and value expressions. |
+| [05. Reusable Pattern Libraries](./05-reusable-pattern-libraries.md) | Portable `.riflib` packages and `@LIBRARY`. |
 
 ## Minimal Shape
 

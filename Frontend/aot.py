@@ -1,20 +1,20 @@
-"""Gram C/AOT frontend bridge.
+"""Canonical in-memory Gram C/AOT frontend bridge.
 
-This module only replaces lexing/parsing.  RIF semantic processing remains in
-Python until the GIR adapter has been validated against the Python AST.
+The native FFI owns lexing and parsing and returns GIR bytes directly. RIF
+semantic processing remains in Python after the GIR-to-AST boundary.
 """
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
 import shutil
 import subprocess
-import tempfile
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +30,24 @@ from gram.core.ast.nodes import (
     RawNode,
 )
 from gram.ir import GirView, load_gir
+from rif_contract import AOT_CACHE_FORMAT_VERSION, AOT_MODE
+
+
+class _GramIrBlob(ctypes.Structure):
+    _fields_ = [
+        ("data", ctypes.POINTER(ctypes.c_uint8)),
+        ("size", ctypes.c_size_t),
+    ]
+
+
+class _GramDriverError(ctypes.Structure):
+    _fields_ = [
+        ("status", ctypes.c_int),
+        ("line", ctypes.c_uint32),
+        ("column", ctypes.c_uint32),
+        ("offset", ctypes.c_uint32),
+        ("message", ctypes.c_char * 192),
+    ]
 
 
 class AOTError(RuntimeError):
@@ -160,8 +178,15 @@ class GIRAdapter:
 @dataclass
 class AOTParser:
     output_dir: Path
-    executable: Path
+    library: Path
     session: Any
+    _ffi: Any = field(default=None, init=False, repr=False)
+
+    @property
+    def executable(self) -> Path:
+        """Compatibility name for the cached native AOT library path."""
+
+        return self.library
 
     @staticmethod
     def default_cache_dir() -> Path:
@@ -255,20 +280,29 @@ class AOTParser:
         compiler = shutil.which("gcc") or shutil.which("clang")
         if compiler is None:
             raise AOTError("No se encontró gcc ni clang para compilar el parser AOT.")
-        gram_root = Path(__import__("gram").__file__).resolve().parents[1]
+        import gram
+        from rif_contract import current_contract
+
+        gram_root = Path(gram.__file__).resolve().parents[1]
         native = gram_root / "native" / "gram_lexer"
         cache_manifest_path = output / "rif_aot_build.json"
-        executable = output / ("rif-gram-aot.exe" if shutil.which("gcc") else "rif-gram-aot")
+        library = output / (
+            "rif-gram-aot.dll" if os.name == "nt" else "librif-gram-aot.so"
+        )
         compiler_path = Path(compiler).resolve()
         compiler_stat = compiler_path.stat()
+        contract = current_contract()
         cache_inputs = {
+            "cache_format_version": AOT_CACHE_FORMAT_VERSION,
+            "aot_mode": AOT_MODE,
+            "contract_fingerprint": contract.fingerprint(),
             "input_sources_hash": cls._input_sources_digest(gram_root),
             "native_sources_hash": cls._native_sources_digest(native),
             "compiler": str(compiler_path),
             "compiler_mtime_ns": compiler_stat.st_mtime_ns,
             "compiler_size": compiler_stat.st_size,
         }
-        if executable.is_file() and cache_manifest_path.is_file():
+        if library.is_file() and cache_manifest_path.is_file():
             try:
                 cache_manifest = json.loads(cache_manifest_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
@@ -277,14 +311,18 @@ class AOTParser:
                 cache_manifest.get(name) == value
                 for name, value in cache_inputs.items()
             ):
-                return cls(output, executable, session)
+                return cls(output, library, session)
 
-        session.export_c_parser(output, emit_driver=True, emit_cli=True)
+        session.export_c_parser(output, emit_driver=True, emit_cli=False)
+        # Older Gram exporters left the CLI translation unit in this cache.
+        # It is not linked by the FFI build and must not survive as a stale
+        # second entry point beside the in-memory driver.
+        (output / "gram_cli.c").unlink(missing_ok=True)
         parser_manifest_path = output / "gram_parser_manifest.json"
         lexer_manifest_path = output / "gram_lexer_manifest.json"
         generated = [
             output / name
-            for name in ("gram_cli.c", "gram_ast.c", "gram_parser.c", "gram_ir.c", "gram_driver.c")
+            for name in ("gram_ast.c", "gram_parser.c", "gram_ir.c", "gram_driver.c")
         ]
         generated.extend(output.glob("gram_lexer_*.c"))
         generated.extend(native.joinpath("src").glob("*.c"))
@@ -298,19 +336,21 @@ class AOTParser:
         cache_key = hashlib.sha256(
             json.dumps(cache_key_data, sort_keys=True).encode("utf-8")
         ).hexdigest()
-        if executable.is_file() and cache_manifest_path.is_file():
+        if library.is_file() and cache_manifest_path.is_file():
             try:
                 cache_manifest = json.loads(cache_manifest_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 cache_manifest = None
             if cache_manifest and cache_manifest.get("cache_key") == cache_key:
-                return cls(output, executable, session)
+                return cls(output, library, session)
         command = [
             compiler,
             "-std=c11",
             "-O2",
             "-Wall",
             "-Wextra",
+            "-shared",
+            *([] if os.name == "nt" else ["-fPIC"]),
             "-I",
             str(native / "include"),
             "-I",
@@ -319,16 +359,18 @@ class AOTParser:
             str(output),
             *(str(path) for path in generated),
             "-o",
-            str(executable),
+            str(library),
         ]
         completed = subprocess.run(command, capture_output=True, text=True)
         if completed.returncode:
+            library.unlink(missing_ok=True)
             raise AOTError(completed.stderr or "Falló la compilación del parser AOT.")
         cache_manifest_path.write_text(
             json.dumps(
                 {
                     "cache_key": cache_key,
                     **cache_inputs,
+                    "contract": contract.as_dict(),
                     "parser_content_hash": parser_manifest.get("content_hash"),
                     "lexer_content_hash": lexer_manifest.get("content_hash"),
                 },
@@ -338,34 +380,80 @@ class AOTParser:
             encoding="utf-8",
             newline="\n",
         )
-        return cls(output, executable, session)
+        return cls(output, library, session)
+
+    def _ffi_library(self) -> Any:
+        if self._ffi is not None:
+            return self._ffi
+        if not self.library.is_file():
+            raise AOTError(f"No se encontró la biblioteca AOT: {self.library}")
+        try:
+            library = ctypes.CDLL(str(self.library))
+            compile_source = library.gram_compile_source_to_ir
+            compile_source.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_size_t,
+                ctypes.POINTER(_GramIrBlob),
+                ctypes.POINTER(_GramDriverError),
+            ]
+            compile_source.restype = ctypes.c_int
+            free_blob = library.gram_ir_blob_free
+            free_blob.argtypes = [ctypes.POINTER(_GramIrBlob)]
+            free_blob.restype = None
+        except (AttributeError, OSError) as exc:
+            raise AOTError(
+                f"No se pudo cargar la FFI AOT desde '{self.library}': {exc}"
+            ) from exc
+        self._ffi = (library, compile_source, free_blob)
+        return self._ffi
+
+    @staticmethod
+    def _ffi_error(error: _GramDriverError, name: str) -> str:
+        raw = bytes(error.message).split(b"\0", 1)[0]
+        message = raw.decode("utf-8", errors="replace") or "fallo AOT"
+        location = (
+            f"{name}:{error.line}:{error.column}: "
+            if error.line
+            else f"{name}: "
+        )
+        return location + message
+
+    def parse_source(
+        self,
+        source: str | bytes | bytearray | memoryview,
+        name: str = "<memory>",
+    ) -> GirView:
+        """Parse RIF through Gram's C driver and keep GIR entirely in memory."""
+
+        if isinstance(source, str):
+            source_bytes = source.encode("utf-8")
+        elif isinstance(source, (bytes, bytearray, memoryview)):
+            source_bytes = bytes(source)
+        else:
+            raise TypeError(f"La fuente AOT debe ser texto o bytes, no {type(source).__name__}.")
+        buffer = ctypes.create_string_buffer(source_bytes)
+        blob = _GramIrBlob()
+        error = _GramDriverError()
+        _, compile_source, free_blob = self._ffi_library()
+        status = compile_source(
+            ctypes.cast(buffer, ctypes.c_void_p),
+            len(source_bytes),
+            ctypes.byref(blob),
+            ctypes.byref(error),
+        )
+        if status != 0:
+            raise AOTError(self._ffi_error(error, name))
+        try:
+            if not blob.data or blob.size == 0:
+                raise AOTError(f"{name}: Gram no produjo GIR.")
+            gir = ctypes.string_at(blob.data, blob.size)
+            return load_gir(gir, source_text=source_bytes, session=self.session)
+        finally:
+            free_blob(ctypes.byref(blob))
 
     def parse_file(self, source_path: str | Path) -> GirView:
-        source_path = Path(source_path).resolve()
-        source = source_path.read_bytes()
-        gir_dir = source_path.parent / ".rif-cache" / "gir"
-        gir_dir.mkdir(parents=True, exist_ok=True)
-        temporary = tempfile.NamedTemporaryFile(
-            prefix=f"{source_path.stem}-",
-            suffix=".gir",
-            dir=gir_dir,
-            delete=False,
-        )
-        gir_path = Path(temporary.name)
-        temporary.close()
-        try:
-            completed = subprocess.run(
-                [str(self.executable), "compile", str(source_path), "-o", str(gir_path)],
-                capture_output=True,
-                text=True,
-            )
-            if completed.returncode:
-                raise AOTError(completed.stderr or "Falló el parser AOT.")
-            # load_gir copies the file into GirView, so the intermediate can
-            # be removed without invalidating the adapted AST.
-            return load_gir(gir_path, source_text=source, session=self.session)
-        finally:
-            gir_path.unlink(missing_ok=True)
+        source_path = Path(source_path).expanduser().resolve()
+        return self.parse_source(source_path.read_bytes(), str(source_path))
 
 
 __all__ = ["AOTError", "AOTParser", "GIRAdapter"]

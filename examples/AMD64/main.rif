@@ -1,5 +1,5 @@
-; AMD64 Linux raw-binary target.
-; This target encodes a minimal _exit(42) program.
+; AMD64 bare-metal raw-binary target.
+; This target encodes a small OS-neutral instruction fixture.
 
 @block config:
     format section ".section"
@@ -25,7 +25,7 @@
 @end
 
 @block linker:
-    extension ".asm"
+    extension ".mir"
     search_path ""
 @end
 
@@ -60,8 +60,7 @@ __
 . bits $registers.modrm 8
 . fit 32
 
-; syscall -> 0F 05.
-@rule syscall:
+; nop -> 90.
+@rule nop:
 . IDENT
-. bits 15 8
-. bits 5 8
+. bits 144 8

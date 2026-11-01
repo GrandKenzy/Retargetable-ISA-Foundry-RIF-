@@ -406,6 +406,17 @@ class LOAD_FILE(cmb.RuleItem):
     )
 
 
+class LIBRARY(cmb.RuleItem):
+    nodeable = True
+    description = "Carga una librería portable de declaraciones RIF reutilizables."
+    entrypoint = cmb.Seq(
+        cmb.MatchToken("AT"),
+        cmb.MatchKeyword("LIBRARY"),
+        cmb.MatchToken("STRING"),
+        cmb.MatchToken("NEWLINE"),
+    )
+
+
 __all__ = [
     "DEFINE",
     "RULE",
@@ -436,5 +447,6 @@ __all__ = [
     "VARIANT_EXIT",
     "ASMVARIANT",
     "LOAD_FILE",
+    "LIBRARY",
     "INSTRUCTION",
 ]

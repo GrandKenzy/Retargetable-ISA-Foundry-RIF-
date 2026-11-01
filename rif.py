@@ -10,11 +10,23 @@ import sys
 from pathlib import Path
 
 from pack import create_pack
+from pack_inspector import (
+    MAX_REPORT_ITEMS,
+    PackInspectionError,
+    inspect_pack,
+    render_pack_inspection,
+)
 from pcpi import PCPIError, load_pcpi_file
 from pcpi_compiler import compile_pcpi_source_file
 from rif_limits import ENV_KEY, parse_mib, write_mib
+from rif_library import create_library
 from store import StoreError, compile_store_file
 from MIR.storage import StorageError, load_storage_file
+from MIR.diagnostics import format_exception
+
+
+def _print_error(error: BaseException) -> None:
+    print(f"rif: error: {format_exception(error)}", file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--pack",
         metavar="MAIN.RIF",
         help="empaqueta todos los archivos .rif del proyecto",
+    )
+    parser.add_argument(
+        "--library",
+        metavar="MAIN.RIF",
+        help="crea una librería reutilizable .riflib desde un proyecto RIF",
     )
     parser.add_argument(
         "--comp-pcpi",
@@ -45,6 +62,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="valida un storage.bin indexado sin modificarlo",
     )
     parser.add_argument(
+        "--inspect-pack",
+        metavar="TARGET.PACK",
+        help="inspecciona y verifica un paquete .pack sin ejecutar su target",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emite la inspección del paquete como JSON",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="incluye instrucciones de Rules y filas de tablas en la inspección",
+    )
+    parser.add_argument(
+        "--show-origins",
+        action="store_true",
+        help="muestra las rutas de origen guardadas en el manifiesto",
+    )
+    parser.add_argument(
+        "--max-items",
+        type=int,
+        default=MAX_REPORT_ITEMS,
+        metavar="N",
+        help=f"máximo de elementos repetidos por sección (1-{10_000}; default: {MAX_REPORT_ITEMS})",
+    )
+    parser.add_argument(
         "--backend",
         choices=("python", "aot"),
         default="aot",
@@ -63,6 +107,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="ruta de salida del paquete, binario o PCP-I compilada",
     )
     parser.add_argument(
+        "--map",
+        dest="map_output",
+        metavar="MAPA.JSON",
+        help="escribe un mapa opcional de símbolos, secciones, Rules y fixups",
+    )
+    parser.add_argument(
         "definition",
         nargs="?",
         help="definición objetivo .rif o .pack",
@@ -78,20 +128,71 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.inspect_pack:
+        if (
+            args.pack
+            or args.library
+            or args.comp_pcpi
+            or args.comp_store
+            or args.doctor_pcpi
+            or args.doctor_storage
+            or args.definition
+            or args.mir
+            or args.output
+            or args.map_output
+            or args.plimit is not None
+        ):
+            parser.error(
+                "--inspect-pack no puede combinarse con otra operación, --plimit, -o ni --map"
+            )
+        try:
+            report = inspect_pack(
+                args.inspect_pack,
+                verbose=args.verbose,
+                max_items=args.max_items,
+                show_origins=args.show_origins,
+            )
+        except (FileNotFoundError, OSError, ValueError, PackInspectionError) as exc:
+            _print_error(exc)
+            return 1
+        print(render_pack_inspection(report, json_output=args.json), end="")
+        return 0
     if args.plimit is not None:
         try:
             write_mib(args.plimit)
             os.environ[ENV_KEY] = str(args.plimit)
         except (OSError, ValueError) as exc:
-            print(f"rif: error: {exc}", file=sys.stderr)
+            _print_error(exc)
             return 1
+    if args.json or args.verbose or args.show_origins or args.max_items != MAX_REPORT_ITEMS:
+        parser.error("--json/--verbose/--show-origins/--max-items requieren --inspect-pack")
+    if args.map_output and (args.pack or args.library or args.comp_pcpi or args.comp_store or args.doctor_pcpi or args.doctor_storage):
+        parser.error("--map solo puede acompañar la compilación de MIR")
+    if args.library:
+        if (
+            args.pack
+            or args.comp_pcpi
+            or args.comp_store
+            or args.doctor_pcpi
+            or args.doctor_storage
+            or args.definition
+            or args.mir
+        ):
+            parser.error("--library no puede combinarse con otra operación")
+        try:
+            output = create_library(args.library, args.output)
+        except (FileNotFoundError, OSError, ValueError) as exc:
+            _print_error(exc)
+            return 1
+        print(output)
+        return 0
     if args.comp_pcpi:
         if args.pack or args.comp_store or args.doctor_pcpi or args.doctor_storage or args.definition or args.mir:
             parser.error("--comp-pcpi no puede combinarse con --pack ni con una definición MIR")
         try:
             output = compile_pcpi_source_file(args.comp_pcpi, args.output)
         except (FileNotFoundError, OSError, ValueError, RuntimeError, PCPIError) as exc:
-            print(f"rif: error: {exc}", file=sys.stderr)
+            _print_error(exc)
             return 1
         print(output)
         return 0
@@ -101,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = compile_store_file(args.comp_store, args.output)
         except (FileNotFoundError, OSError, ValueError, StoreError) as exc:
-            print(f"rif: error: {exc}", file=sys.stderr)
+            _print_error(exc)
             return 1
         print(output)
         return 0
@@ -111,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             image = load_pcpi_file(args.doctor_pcpi)
         except (FileNotFoundError, OSError, ValueError, PCPIError) as exc:
-            print(f"rif: error: {exc}", file=sys.stderr)
+            _print_error(exc)
             return 1
         print(
             "OK PCP-I"
@@ -136,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             image = load_storage_file(args.doctor_storage)
         except (FileNotFoundError, OSError, ValueError, StorageError) as exc:
-            print(f"rif: error: {exc}", file=sys.stderr)
+            _print_error(exc)
             return 1
         print(
             "OK STORAGE"
@@ -167,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.definition,
                 args.mir,
                 output=output,
+                map_output=args.map_output,
                 backend=args.backend,
             )
         except (FileNotFoundError, OSError, ValueError, RuntimeError) as exc:
@@ -185,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         output = create_pack(Path(args.pack), args.output, precompile=True)
     except (FileNotFoundError, OSError, ValueError) as exc:
-        print(f"rif: error: {exc}", file=sys.stderr)
+        _print_error(exc)
         return 1
 
     print(output)

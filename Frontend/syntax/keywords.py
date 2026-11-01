@@ -13,6 +13,7 @@ INSTRUCTION_OPCODES = {
         "nibbles", "emit", "eword", "save", "load", "reserve", "write_res",
         "drop_res", "emit_res", "frame",
         "pad", "align", "fit", "fit_exact", "fit_not",
+        "fit_signed", "fit_signed_exact", "fit_signed_not",
         "vpad", "vreserve", "dpush", "dget", "dpop",
         "bits", "read_bits", "patch_bits", "valign", "mark", "fixup",
     )
@@ -24,7 +25,7 @@ for keyword in (
     "insert", "before",
     "reswidth", "vreswidth", "dist", "vdist",
     "resdir", "resvdir", "resdist", "resvdist", "SIZE", "VSIZE",
-    "ALIGNMENT", "LOAD",
+    "ALIGNMENT", "LOAD", "LIBRARY",
 ):
     word.add_keyword(keyword, group="keywords")
 word.add_group("variant_keywords")

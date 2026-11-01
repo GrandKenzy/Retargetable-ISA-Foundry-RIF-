@@ -20,10 +20,10 @@ vnma install
 vnma sync-ide
 ```
 
-Run the project entrypoint through VNMA:
+Run the RIF command-line entrypoint through VNMA:
 
 ```powershell
-vnma run main.py
+vnma run rif.py --help
 ```
 
 For development, the workspace normally contains:
@@ -35,9 +35,11 @@ RIF/
 │   ├── syntax/
 │   └── processor/
 ├── MIR/
-├── tests/
-├── main.rif
-├── main.py
+├── suite-essencial/
+├── suite-aggressive/
+├── dedicated-suite/
+├── examples/
+│   └── RIF-Core-Demo/
 ├── rif.py
 ├── pack.py
 └── vnma.toml
@@ -53,3 +55,11 @@ from gram import lexer
 The RIF syntax configures `;` as its comment token, preserves newline tokens,
 and disables indentation support because Rule bodies use newlines as their
 instruction delimiter.
+
+For normal use, VNMA is the only command wrapper you need. It supplies the
+project's Gram dependency and keeps the Python environment consistent:
+
+```powershell
+vnma install
+vnma run rif.py target/main.rif program.mir -o build/program.bin
+```

@@ -3,7 +3,8 @@
 Un paquete ``.pack`` es un ZIP reproducible que contiene todos los archivos
 ``.rif`` del directorio del proyecto bajo ``sources/``, un manifiesto JSON y,
 cuando se crea con ``precompile=True``, una
-base SQLite con el MIR y el contexto ya resueltos.
+base SQLite con las Rules, tablas y contexto del target ya resueltos. El MIR
+externo y el binario final permanecen fuera del paquete.
 """
 
 from __future__ import annotations
@@ -20,11 +21,17 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from rif_contract import (
+    PACK_FORMAT_VERSION,
+    CompilationContract,
+    ContractError,
+    current_contract,
+    require_compatible,
+)
 from rif_limits import resolve_limits
 
 
 PACK_FORMAT = "RIF_PACK"
-PACK_FORMAT_VERSION = 5
 MANIFEST_NAME = "manifest.json"
 SOURCE_PREFIX = "sources/"
 MAX_MANIFEST_SIZE = 1 << 20
@@ -36,6 +43,7 @@ MAX_COMPILED_SIZE = 128 << 20
 MAX_TOTAL_UNCOMPRESSED = 512 << 20
 MAX_COMPRESSION_RATIO = 10_000
 _LOAD_RE = re.compile(r'^\s*@LOAD\s+"([^"]+)"(?:\s*;.*)?\s*$', re.IGNORECASE)
+_LIBRARY_RE = re.compile(r'^\s*@LIBRARY\s+"([^"]+)"(?:\s*;.*)?\s*$', re.IGNORECASE)
 _INSERT_FILE_RE = re.compile(r'^\s*\.file\s+"([^"]+)"(?:\s*;.*)?\s*$', re.IGNORECASE)
 
 
@@ -60,8 +68,10 @@ class PackManifest:
     load_graph: dict[str, tuple[str, ...]]
     dependency_order: tuple[str, ...]
     content_sha256: str
+    contract: CompilationContract
     compiled: PackEntry | None = None
     assets: tuple[PackEntry, ...] = ()
+    libraries: tuple[PackEntry, ...] = ()
     origins: dict[str, str] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -86,6 +96,7 @@ class PackManifest:
             },
             "dependency_order": list(self.dependency_order),
             "content_sha256": self.content_sha256,
+            "contract": self.contract.as_dict(),
             "compiled": (
                 {
                     "path": self.compiled.path,
@@ -103,6 +114,14 @@ class PackManifest:
                 }
                 for entry in self.assets
             ],
+            "libraries": [
+                {
+                    "path": entry.path,
+                    "size": entry.size,
+                    "sha256": entry.sha256,
+                }
+                for entry in self.libraries
+            ],
             "origins": dict(sorted(self.origins.items())),
         }
 
@@ -116,6 +135,10 @@ class PackManifest:
                 "Versión de formato .pack no compatible: "
                 f"{format_version!r}."
             )
+        try:
+            contract = CompilationContract.from_dict(data.get("contract"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("El manifiesto no contiene un contrato compatible.") from exc
 
         raw_files = data.get("files")
         if not isinstance(raw_files, list):
@@ -199,6 +222,26 @@ class PackManifest:
                 raise ValueError("El manifiesto contiene metadata de asset inválida.")
             assets.append(PackEntry(asset_path, asset_size, asset_sha256))
 
+        raw_libraries = data.get("libraries", [])
+        if not isinstance(raw_libraries, list) or len(raw_libraries) > MAX_ASSET_FILES:
+            raise ValueError("El manifiesto contiene metadata de librerías inválida.")
+        libraries: list[PackEntry] = []
+        for raw in raw_libraries:
+            if not isinstance(raw, dict):
+                raise ValueError("El manifiesto contiene una librería inválida.")
+            library_path = raw.get("path")
+            library_size = raw.get("size")
+            library_sha256 = raw.get("sha256")
+            if (
+                not isinstance(library_path, str)
+                or not isinstance(library_size, int)
+                or library_size < 0
+                or not isinstance(library_sha256, str)
+                or len(library_sha256) != 64
+            ):
+                raise ValueError("El manifiesto contiene metadata de librería inválida.")
+            libraries.append(PackEntry(library_path, library_size, library_sha256))
+
         raw_origins = data.get("origins", {})
         if not isinstance(raw_origins, dict) or not all(
             isinstance(key, str) and isinstance(value, str) and value
@@ -218,8 +261,10 @@ class PackManifest:
             load_graph=load_graph,
             dependency_order=tuple(raw_order),
             content_sha256=content_sha256,
+            contract=contract,
             compiled=compiled,
             assets=tuple(assets),
+            libraries=tuple(libraries),
             origins=dict(raw_origins),
         )
 
@@ -397,10 +442,56 @@ def _collect_assets(
     return assets
 
 
+def _collect_libraries(
+    files: tuple[tuple[str, Path], ...],
+    root: Path,
+) -> dict[str, bytes]:
+    """Collect portable ``@LIBRARY`` packages referenced by project sources."""
+
+    libraries: dict[str, bytes] = {}
+    library_limit = resolve_limits().cap(MAX_ASSET_SIZE)
+    total_limit = resolve_limits().cap(MAX_TOTAL_UNCOMPRESSED)
+    total = 0
+    for relative, path in files:
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = _LIBRARY_RE.match(line)
+            if match is None:
+                continue
+            requested = Path(match.group(1)).expanduser()
+            if requested.is_absolute() or requested.suffix.lower() != ".riflib" or ".." in requested.parts:
+                raise ValueError(
+                    f"@LIBRARY inválido en {relative}:{line_number}: {match.group(1)!r}"
+                )
+            candidate = (path.parent / requested).resolve(strict=False)
+            try:
+                library_relative = candidate.relative_to(root.resolve())
+            except ValueError as exc:
+                raise ValueError(
+                    f"@LIBRARY intenta salir del proyecto en {relative}:{line_number}."
+                ) from exc
+            if not candidate.is_file():
+                raise FileNotFoundError(
+                    f"No se encontró la librería en {relative}:{line_number}: {candidate}"
+                )
+            key = PurePosixPath(library_relative.as_posix()).as_posix()
+            if candidate.stat().st_size > library_limit:
+                raise ValueError(f"La librería '{candidate}' excede el límite del paquete.")
+            data = candidate.read_bytes()
+            previous = libraries.get(key)
+            if previous is not None and previous != data:
+                raise ValueError(f"La librería '{key}' fue definida con bytes distintos.")
+            libraries[key] = data
+            total += len(data) if previous is None else 0
+            if len(libraries) > MAX_ASSET_FILES or total > total_limit:
+                raise ValueError("Las librerías exceden el límite del paquete.")
+    return libraries
+
+
 def _content_fingerprint(
     entrypoint: str,
     files: tuple[PackEntry, ...],
     assets: tuple[PackEntry, ...],
+    libraries: tuple[PackEntry, ...] = (),
 ) -> str:
     """Bind a compiled cache to every source and opaque input it represents."""
 
@@ -419,6 +510,10 @@ def _content_fingerprint(
             {"path": entry.path, "size": entry.size, "sha256": entry.sha256}
             for entry in assets
         ],
+        "libraries": [
+            {"path": entry.path, "size": entry.size, "sha256": entry.sha256}
+            for entry in libraries
+        ],
     }
     encoded = json.dumps(
         payload,
@@ -434,8 +529,11 @@ def _manifest_for(
     files: tuple[tuple[str, Path], ...],
     compiled_data: bytes | None = None,
     asset_data: dict[str, bytes] | None = None,
+    library_data: dict[str, bytes] | None = None,
     origins: dict[str, str] | None = None,
+    contract: CompilationContract | None = None,
 ) -> PackManifest:
+    contract = contract or current_contract()
     load_graph, dependency_order = _dependency_index(entrypoint, files)
     entries: list[PackEntry] = []
     for relative, path in files:
@@ -458,6 +556,14 @@ def _manifest_for(
         )
         for relative, data in sorted((asset_data or {}).items())
     )
+    library_entries = tuple(
+        PackEntry(
+            path=f"libraries/{relative}",
+            size=len(data),
+            sha256=_sha256(data),
+        )
+        for relative, data in sorted((library_data or {}).items())
+    )
     file_entries = tuple(entries)
     return PackManifest(
         name=entrypoint.stem,
@@ -467,8 +573,9 @@ def _manifest_for(
         load_graph=load_graph,
         dependency_order=dependency_order,
         content_sha256=_content_fingerprint(
-            entrypoint_key, file_entries, asset_entries
+            entrypoint_key, file_entries, asset_entries, library_entries
         ),
+        contract=contract,
         compiled=(
             PackEntry(
                 path="compiled/program.sqlite3",
@@ -479,11 +586,16 @@ def _manifest_for(
             else None
         ),
         assets=asset_entries,
+        libraries=library_entries,
         origins=dict(origins or {}),
     )
 
 
-def _build_compiled_database(entrypoint: Path, source_fingerprint: str) -> bytes:
+def _build_compiled_database(
+    entrypoint: Path,
+    source_fingerprint: str,
+    contract: CompilationContract,
+) -> bytes:
     """Compile a source project in an isolated global context."""
 
     try:
@@ -538,6 +650,7 @@ def _build_compiled_database(entrypoint: Path, source_fingerprint: str) -> bytes
             program,
             source_root=entrypoint.parent,
             source_fingerprint=source_fingerprint,
+            contract=contract,
         )
     finally:
         for name, value in previous.items():
@@ -566,9 +679,9 @@ def create_pack(
 ) -> Path:
     """Create a reproducible ``.pack`` from the project containing ``source``.
 
-    ``precompile=True`` adds the SQLite/MIR cache used by the normal ``rif
-    --pack`` command. The default remains source-only for low-level callers
-    that only need the archive and dependency graph.
+    ``precompile=True`` adds the SQLite/CompiledRuleSet cache used by the
+    normal ``rif --pack`` command. The default remains source-only for
+    low-level callers that only need the archive and dependency graph.
     """
 
     entrypoint = _canonical_path(source)
@@ -582,10 +695,16 @@ def create_pack(
     total_limit = limits.cap(MAX_TOTAL_UNCOMPRESSED)
     files = _project_files(entrypoint)
     asset_data = _collect_assets(files, entrypoint.parent)
+    library_data = _collect_libraries(files, entrypoint.parent)
     source_total = sum(path.stat().st_size for _, path in files)
-    total_size = source_total + sum(len(data) for data in asset_data.values())
+    total_size = (
+        source_total
+        + sum(len(data) for data in asset_data.values())
+        + sum(len(data) for data in library_data.values())
+    )
     if total_size > total_limit:
         raise ValueError("El contenido del paquete excede el límite configurado.")
+    contract = current_contract()
     origins = {
         f"{SOURCE_PREFIX}{relative}": str(path)
         for relative, path in files
@@ -601,10 +720,16 @@ def create_pack(
         files,
         None,
         asset_data,
+        library_data,
         origins,
+        contract,
     )
     compiled_data = (
-        _build_compiled_database(entrypoint, input_manifest.content_sha256)
+        _build_compiled_database(
+            entrypoint,
+            input_manifest.content_sha256,
+            contract,
+        )
         if precompile
         else None
     )
@@ -613,11 +738,14 @@ def create_pack(
         files,
         compiled_data,
         asset_data,
+        library_data,
         origins,
+        contract,
     )
     target = _canonical_path(output) if output is not None else entrypoint.with_suffix(".pack")
     protected = {entrypoint, *(path for _, path in files)}
     protected.update((entrypoint.parent / key).resolve(strict=False) for key in asset_data)
+    protected.update((entrypoint.parent / key).resolve(strict=False) for key in library_data)
     if target in protected:
         raise ValueError(f"La salida .pack no puede sobrescribir una entrada: {target}")
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -655,6 +783,8 @@ def create_pack(
                 )
             for relative, data in sorted(asset_data.items()):
                 archive.writestr(_zip_info(f"assets/{relative}"), data)
+            for relative, data in sorted(library_data.items()):
+                archive.writestr(_zip_info(f"libraries/{relative}"), data)
         os.replace(temporary, target)
     finally:
         if temporary.exists():
@@ -701,6 +831,24 @@ def _compiled_source_fingerprint(data: bytes) -> str:
     return row[0]
 
 
+def _compiled_contract_fingerprint(data: bytes) -> str:
+    """Read the contract identity without loading the compiled program."""
+
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.deserialize(data)
+        row = connection.execute(
+            "SELECT value FROM meta WHERE key = 'contract_fingerprint'"
+        ).fetchone()
+    except sqlite3.DatabaseError as exc:
+        raise ValueError("La base SQLite compilada no es válida.") from exc
+    finally:
+        connection.close()
+    if row is None or not isinstance(row[0], str):
+        raise ValueError("La base compilada no declara su contrato.")
+    return row[0]
+
+
 def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
     """Read and validate a bounded, self-consistent RIF package."""
 
@@ -727,14 +875,23 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
         if not isinstance(manifest_data, dict):
             raise ValueError("manifest.json debe contener un objeto JSON.")
         manifest = PackManifest.from_dict(manifest_data)
+        try:
+            require_compatible(manifest.contract)
+        except ContractError as exc:
+            raise ValueError(f"Contrato .pack incompatible: {exc}") from exc
         source_names = {entry.path for entry in manifest.files}
         asset_names = {entry.path for entry in manifest.assets}
-        if len(source_names) != len(manifest.files) or len(asset_names) != len(manifest.assets):
+        library_names = {entry.path for entry in manifest.libraries}
+        if (
+            len(source_names) != len(manifest.files)
+            or len(asset_names) != len(manifest.assets)
+            or len(library_names) != len(manifest.libraries)
+        ):
             raise ValueError("El manifiesto contiene rutas duplicadas.")
         if manifest.entrypoint not in source_names:
             raise ValueError("El entrypoint no está incluido en el paquete.")
 
-        declared = {MANIFEST_NAME, *source_names, *asset_names}
+        declared = {MANIFEST_NAME, *source_names, *asset_names, *library_names}
         if manifest.compiled is not None:
             declared.add(manifest.compiled.path)
         if any(path not in declared for path in manifest.origins):
@@ -789,10 +946,24 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
             if len(data) != asset.size or (verify and _sha256(data) != asset.sha256):
                 raise ValueError(f"Hash o tamaño inválido para {asset.path}")
 
+        for library in manifest.libraries:
+            normalized = PurePosixPath(library.path)
+            if (
+                not library.path.startswith("libraries/")
+                or normalized.is_absolute()
+                or ".." in normalized.parts
+                or library.size > resolve_limits().cap(MAX_ASSET_SIZE)
+            ):
+                raise ValueError(f"Ruta o tamaño de librería inválido: {library.path}")
+            data = _read_member(archive, library.path, maximum=limits.cap(MAX_ASSET_SIZE))
+            if len(data) != library.size or (verify and _sha256(data) != library.sha256):
+                raise ValueError(f"Hash o tamaño inválido para {library.path}")
+
         expected_fingerprint = _content_fingerprint(
             manifest.entrypoint,
             manifest.files,
             manifest.assets,
+            manifest.libraries,
         )
         if expected_fingerprint != manifest.content_sha256:
             raise ValueError("La huella de contenido del paquete es inválida.")
@@ -808,6 +979,10 @@ def read_pack(path: str | Path, *, verify: bool = True) -> PackManifest:
                 raise ValueError(
                     "La base SQLite compilada no corresponde al contenido del paquete."
                 )
+            if _compiled_contract_fingerprint(data) != manifest.contract.fingerprint():
+                raise ValueError(
+                    "La base SQLite compilada no corresponde al contrato del paquete."
+                )
 
     return manifest
 
@@ -821,6 +996,7 @@ class PackReader:
         self._archive = zipfile.ZipFile(self.path, mode="r")
         self._known_sources = {entry.path for entry in self.manifest.files}
         self._known_assets = {entry.path for entry in self.manifest.assets}
+        self._known_libraries = {entry.path for entry in self.manifest.libraries}
 
     def close(self) -> None:
         self._archive.close()
@@ -904,6 +1080,42 @@ class PackReader:
 
     def source_text(self, source: str | Path | None = None) -> str:
         return self.source_bytes(source).decode("utf-8")
+
+    def resolve_library(self, source: str | Path | None, requested: str) -> str:
+        """Resolve a packaged ``@LIBRARY`` relative to its declaring source."""
+
+        source_key = self._source_key(source)
+        requested_path = PurePosixPath(requested.replace("\\", "/"))
+        if (
+            Path(requested).is_absolute()
+            or requested_path.is_absolute()
+            or requested_path.suffix.lower() != ".riflib"
+            or ".." in requested_path.parts
+        ):
+            raise ValueError(f"@LIBRARY intenta salir del paquete: {requested!r}")
+        source_relative = PurePosixPath(source_key.removeprefix(SOURCE_PREFIX))
+        candidate = posixpath.normpath(
+            str(source_relative.parent / requested_path)
+        )
+        key = f"libraries/{candidate}"
+        if key not in self._known_libraries:
+            raise FileNotFoundError(f"Librería no incluida en el paquete: {requested}")
+        return f"packlib://{self.path.as_posix()}::{key}"
+
+    def open_library(self, library: str | Path) -> Any:
+        """Open one packaged library without exposing its ZIP to callers."""
+
+        from rif_library import LibraryReader
+
+        value = str(library)
+        key = value.rsplit("::", 1)[1] if "::" in value else value
+        if key not in self._known_libraries:
+            raise FileNotFoundError(f"Librería no incluida en el paquete: {library}")
+        entry = next(item for item in self.manifest.libraries if item.path == key)
+        data = _read_member(self._archive, key, maximum=resolve_limits().cap(MAX_ASSET_SIZE))
+        if len(data) != entry.size or _sha256(data) != entry.sha256:
+            raise ValueError(f"Hash o tamaño inválido para {key}")
+        return LibraryReader.from_bytes(data, name=value)
 
     def dependencies(self, source: str | Path | None = None) -> tuple[str, ...]:
         return self.manifest.load_graph[self._source_key(source)]

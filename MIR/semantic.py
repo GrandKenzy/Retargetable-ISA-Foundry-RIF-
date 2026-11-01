@@ -11,10 +11,25 @@ from rif_limits import resolve_limits
 from Frontend import globals
 
 from .instructions import CompiledRule, CompiledRuleSet, Instruction, Operand
+from .relocations import relocation_spec
 
 
 class MIRSemanticError(ValueError):
     """A source-level semantic error with a useful MIR location."""
+
+    def __init__(self, message: str, *, span: Any = None) -> None:
+        self.detail = message
+        self.span = span
+        super().__init__(f"{_where_span(span)}: {message}" if span else message)
+
+
+def _where_span(span: Any) -> str:
+    if span is None or getattr(span, "path", None) is None:
+        return "<memoria>"
+    path = span.path
+    if span.line is None:
+        return path
+    return f"{path}:{span.line}:{span.column or 0}"
 
 
 @dataclass(frozen=True)
@@ -45,17 +60,8 @@ class RuleRef:
     name: str
 
 
-def _where(instruction: Instruction) -> str:
-    span = instruction.span
-    if span.path is None:
-        return "<memoria>"
-    if span.line is None:
-        return span.path
-    return f"{span.path}:{span.line}:{span.column or 0}"
-
-
 def _error(instruction: Instruction, message: str) -> MIRSemanticError:
-    return MIRSemanticError(f"{_where(instruction)}: {message}")
+    return MIRSemanticError(message, span=instruction.span)
 
 
 def _resolve_token(instruction: Instruction, operand: Operand) -> Operand:
@@ -237,6 +243,9 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "fit": (1, 1),
     "fit_exact": (1, 1),
     "fit_not": (1, 1),
+    "fit_signed": (1, 1),
+    "fit_signed_exact": (1, 1),
+    "fit_signed_not": (1, 1),
     "vpad": (1, 1),
     "vreserve": (2, 2),
     "dpush": (1, 1),
@@ -299,8 +308,12 @@ def _validate_instruction(
         if operands[1].kind not in {"bool", "call"}:
             raise _error(instruction, "JMPIF requiere BOOL o #call como condición.")
     elif instruction.opcode == "fixup":
-        if operands[0].kind != "fixup_kind" or operands[0].value not in {"pc8", "pc32", "abs64"}:
-            raise _error(instruction, "FIXUP requiere pc8, pc32 o abs64.")
+        if operands[0].kind != "fixup_kind":
+            raise _error(instruction, "FIXUP requiere una clase de relocación.")
+        try:
+            relocation_spec(context, str(operands[0].value))
+        except ValueError as exc:
+            raise _error(instruction, str(exc)) from exc
         if operands[1].kind != "string" or not isinstance(operands[1].value, str) or not operands[1].value:
             raise _error(instruction, "FIXUP requiere el nombre de una reserva.")
     elif instruction.opcode in {"reserve", "vreserve"}:
@@ -311,7 +324,10 @@ def _validate_instruction(
         size = operands[0]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:
             raise _error(instruction, "VPAD requiere un tamaño entero mayor que cero.")
-    elif instruction.opcode in {"fit", "fit_exact", "fit_not"}:
+    elif instruction.opcode in {
+        "fit", "fit_exact", "fit_not",
+        "fit_signed", "fit_signed_exact", "fit_signed_not",
+    }:
         space = operands[0]
         if space.kind in {"number", "decimal"}:
             if not isinstance(space.value, int) or space.value <= 0 or space.value % 2:
@@ -370,6 +386,7 @@ def resolve_program(program: CompiledRuleSet) -> CompiledRuleSet:
             for name, rule in program.rules.items()
         },
         context=program.context,
+        contract=program.contract,
     )
 
 

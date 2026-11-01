@@ -53,6 +53,17 @@ The loader requires the `.rif` extension, resolves paths canonically, detects
 cycles, and preserves declaration scope. A loaded file can contain tables and
 Rules, but it cannot redefine root configuration or linker settings.
 
+For declarations shared across projects, create a `.riflib` and load it with
+`@LIBRARY`:
+
+```rif
+@LIBRARY "common-patterns.riflib"
+```
+
+Unlike a local `@LOAD`, a library is a reproducible package with its own
+manifest and content hash. It is embedded automatically when the consuming
+target is packed.
+
 ## Tables in Packages
 
 When a `.pack` is created, loaded source files are recorded in the package

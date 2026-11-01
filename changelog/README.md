@@ -16,6 +16,14 @@ The former dedicated block headers and dotted directive syntax are no longer
 accepted, and arbitrary blocks remain available through the compiled target
 context.
 
+The temporary `foot/` directory records concise x86-64, LLVM MC, and native RIF
+relocation reference tables used to feed and verify the examples. It is not a
+runtime dependency or a final product artifact and can be removed after the
+examples are stabilized.
+
+The AMD64 v3 example is now an operating-system-neutral bare-metal raw target;
+its fixtures and tests no longer require object headers or host execution.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

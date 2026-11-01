@@ -71,8 +71,8 @@ un reemplazo en esta revisión.
 `RIFMachine.symbols` conserva sus offsets físico/virtual relativos y
 `MIRCompilation.symbols` los expone como direcciones virtuales absolutas tras
 el layout. Su matcher fijo usa `MatchSeqSymbol`, que forma parte del
-subconjunto C/AOT de Gram. `section "nombre"` cambia el emisor activo dentro
-de un MIR con `AssemblyImage`. `fixup pc8|pc32|abs64 "reserva"` registra una
+subconjunto C/AOT de Gram. La directiva MIR `::RIF_SECTION nombre` cambia el
+emisor activo dentro de una `AssemblyImage`. `fixup pc8|pc32|abs64 "reserva"` registra una
 relocación diferida contra el símbolo actual; `MIR/external.py` la resuelve de
 forma transaccional después de ejecutar todas las líneas MIR y antes de los
 parches finales.

@@ -28,7 +28,7 @@ from .artifacts import (
 )
 from .pipeline import compile_definition
 from .preprocessor import MIRLine, RIFMetaDirective, preprocess_mir_lines
-from .runtime import ExecutionResult, RIFMachine
+from .runtime import ExecutionResult, RIFMachine, RIFRuntimeError
 from .storage import StorageError, load_storage_file
 
 
@@ -405,7 +405,20 @@ def compile_mir_tokens(
     def handle_directive(directive: RIFMetaDirective) -> None:
         nonlocal pcpi, pcpi_set_section, pcpi_set_offset
         if directive.name == "RIF_STORE":
-            _apply_meta_directive(directive, image, selected_section, mir_path)
+            _apply_meta_directive(
+                directive,
+                image,
+                machine.section_name or selected_section,
+                mir_path,
+            )
+            return
+        if directive.name == "RIF_SECTION":
+            if directive.section is None:
+                raise MIRInputError("::RIF_SECTION requiere el nombre de una sección.")
+            try:
+                machine.select_section(directive.section)
+            except RIFRuntimeError as exc:
+                raise MIRInputError(str(exc)) from exc
             return
         if directive.name == "RIF_INSERT":
             try:
@@ -443,9 +456,6 @@ def compile_mir_tokens(
     buffer_result = execute_preprocessor_buffer(
         line for line in lines if isinstance(line, RIFMetaDirective)
     )
-    for line in lines:
-        if isinstance(line, RIFMetaDirective):
-            handle_directive(line)
 
     if rule_name is not None:
         lines = ((
@@ -466,6 +476,7 @@ def compile_mir_tokens(
     resolved_index = 0
     for line in lines:
         if isinstance(line, RIFMetaDirective):
+            handle_directive(line)
             continue
         name = resolved_names[resolved_index]
         resolved_index += 1

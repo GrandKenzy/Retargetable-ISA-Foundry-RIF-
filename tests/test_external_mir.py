@@ -162,12 +162,6 @@ class ExternalMIRTests(unittest.TestCase):
                     "    default text\n    vaddr text 4096\n    vaddr data 8192\n",
                 )
                 + "\n"
-                "@rule use_data:\n"
-                ". IDENT\n"
-                '. section "data"\n'
-                "@rule use_text:\n"
-                ". IDENT\n"
-                '. section "text"\n'
                 "@rule mark:\n"
                 ". IDENT\n"
                 ". mark\n"
@@ -177,7 +171,10 @@ class ExternalMIRTests(unittest.TestCase):
             program = compile_definition(target)
             result = compile_mir_source(
                 program,
-                "use_data\nmark data_label\nuse_text\nmark text_label\n",
+                "::RIF_SECTION data\n"
+                "mark data_label\n"
+                "::RIF_SECTION text\n"
+                "mark text_label\n",
             )
 
         self.assertEqual(result.context.section_name, "text")

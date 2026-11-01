@@ -16,6 +16,7 @@ RIF_META_DIRECTIVES = frozenset(
         "RIF_BUFFER",
         "RIF_INSERT",
         "RIF_PATCH",
+        "RIF_SECTION",
     }
 )
 
@@ -169,6 +170,15 @@ def _directive(line: tuple[lexer.TokenType, ...]) -> RIFMetaDirective | None:
             payload=tuple(line[3:]),
             line=line_number,
         )
+    if name == "RIF_SECTION":
+        if len(line) != 4 or line[3].token not in {lexer.Token.IDENT, lexer.Token.KEYWORD}:
+            raise ValueError("::RIF_SECTION requiere el nombre de una sección.")
+        return RIFMetaDirective(
+            name,
+            operation="SECTION",
+            section=str(line[3].value),
+            line=line_number,
+        )
     if (
         len(line) != 7
         or line[3].token != lexer.Token.STRING
@@ -202,9 +212,9 @@ def preprocess_mir_lines(
     """Extract recognized metaprogramming lines before Rule dispatch.
 
     ``RIF_PCPI SET`` must be the first non-empty MIR line. The other closed
-    directives are consumed here and never reach Rule dispatch. Binary
-    insertion and acquisition are applied before Rules; patches are deferred
-    until the final layout exists.
+    directives are consumed here and never reach Rule dispatch. The external
+    compiler applies stateful directives such as ``RIF_SECTION`` in source
+    order; patches remain deferred until the final layout exists.
     """
 
     result: list[MIRLine] = []

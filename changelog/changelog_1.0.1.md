@@ -11,7 +11,7 @@
 - Añadida la cola de relocaciones diferidas `fixup pc8`, `fixup pc32` y
   `fixup abs64`, con resolución transaccional después del MIR para soportar
   referencias adelantadas y validación de rangos sin parches parciales.
-- Añadida la instrucción nativa `section "nombre"` para cambiar el emisor
+- Añadida la directiva MIR `::RIF_SECTION nombre` para cambiar el emisor
   activo entre secciones de una `AssemblyImage`; el ejemplo AMD64 ya no usa
   `select_text`, `select_data` ni `link_image` mediante Python.
 

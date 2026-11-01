@@ -137,15 +137,6 @@
 . write_res "slot_demo" "1010101111001101"
 . drop_res "slot_demo"
 
-; Native section selectors persist across MIR lines.
-@rule use_text:
-. IDENT
-. section "text"
-
-@rule use_data:
-. IDENT
-. section "data"
-
 ; Reservation metadata: stores the VIRTUAL bit position of this physical slot.
 ; Note: resvdir is bit-relative within the selected section, not an ELF VA.
 @rule reserve_position_demo:

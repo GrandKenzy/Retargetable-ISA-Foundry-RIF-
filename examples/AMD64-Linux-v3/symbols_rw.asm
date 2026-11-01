@@ -1,5 +1,5 @@
 ; ELF64 Linux with RX .text, RW .data and a virtual-only allocation.
-use_data
+::RIF_SECTION data
 mark counter
 dq 0
 mark message
@@ -8,7 +8,7 @@ db 105
 db 10
 mark scratch
 virtual_scratch
-use_text
+::RIF_SECTION text
 _start
 mov rax, 42
 storerip64 rax, counter

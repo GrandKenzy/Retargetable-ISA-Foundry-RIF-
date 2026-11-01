@@ -491,7 +491,7 @@ class RIFMachine:
             virtual_offset_bits=self.emitter.virtual_position,
         )
 
-    def _select_section(self, name: str) -> None:
+    def select_section(self, name: str) -> None:
         if self.image is None:
             raise RIFRuntimeError(
                 "SECTION requiere una AssemblyImage asociada al runtime."
@@ -669,10 +669,6 @@ class RIFMachine:
 
         if opcode == "fixup":
             self._record_fixup(str(operands[0].value), str(operands[1].value))
-            return
-
-        if opcode == "section":
-            self._select_section(str(operands[0].value))
             return
 
         if opcode == "table_matcher":

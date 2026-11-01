@@ -72,8 +72,8 @@ loadrip64 r10, label      ; MOV r10, [rip + rel32]
 storerip64 rax, label     ; MOV [rip + rel32], rax
 movaddr64 r9, label       ; MOVABS r9, dir.virtual.64
 dqaddr label              ; emite dirección virtual de 64 bits
-use_data                  ; seleccionar .data de forma nativa
-use_text                  ; seleccionar .text de forma nativa
+::RIF_SECTION data        ; seleccionar .data en la entrada MIR
+::RIF_SECTION text        ; seleccionar .text en la entrada MIR
 db 72                     ; emitir un byte
 dq 42                     ; emitir uint64 en little-endian
 virtual_scratch           ; vreserve 256 bits, no bytes físicos

@@ -248,7 +248,6 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "valign": (1, 1),
     "mark": (0, 0),
     "fixup": (2, 2),
-    "section": (1, 1),
 }
 
 
@@ -304,9 +303,6 @@ def _validate_instruction(
             raise _error(instruction, "FIXUP requiere pc8, pc32 o abs64.")
         if operands[1].kind != "string" or not isinstance(operands[1].value, str) or not operands[1].value:
             raise _error(instruction, "FIXUP requiere el nombre de una reserva.")
-    elif instruction.opcode == "section":
-        if operands[0].kind != "string" or not isinstance(operands[0].value, str) or not operands[0].value:
-            raise _error(instruction, "SECTION requiere el nombre de una sección.")
     elif instruction.opcode in {"reserve", "vreserve"}:
         size = operands[1]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:

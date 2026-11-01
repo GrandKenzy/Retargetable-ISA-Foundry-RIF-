@@ -14,7 +14,7 @@ INSTRUCTION_OPCODES = {
         "drop_res", "emit_res", "frame",
         "pad", "align", "fit", "fit_exact", "fit_not",
         "vpad", "vreserve", "dpush", "dget", "dpop",
-        "bits", "read_bits", "patch_bits", "valign", "mark",
+        "bits", "read_bits", "patch_bits", "valign", "mark", "fixup",
     )
 }
 INSTRUCTION_OPCODES.update({"KW": "kw", "JUMP": "jump"})

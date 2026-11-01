@@ -1,7 +1,8 @@
 ; Dynamic symbol definitions and relocations on AMD64 Linux.
-; A reserve captures the exact 32/64-bit relocation slot; funcs.py stores
-; its location and resolves it once all MIR lines have been emitted.
-; mark is a native RIF symbol definition; fixups remain a later migration step.
+; A reserve captures the exact relocation slot; native FIXUP resolves it after
+; all MIR lines have emitted their symbols.
+; mark and PC32 fixups are native; the remaining relocation families still use
+; the legacy Python experiment below.
 
 ; mark NAME: defines a symbol at the current virtual byte address.
 @rule mark:
@@ -14,7 +15,7 @@
 . IDENT
 . bits 233 8
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 
@@ -22,7 +23,7 @@
 . IDENT
 . bits 232 8
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 
@@ -34,7 +35,7 @@
 . bits 15 8
 . bits $conditions.jopcode 8
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 
@@ -58,7 +59,7 @@
 . bits 139 8
 . JUMP encode_modrm_rip
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 
@@ -70,7 +71,7 @@
 . bits 137 8
 . JUMP encode_modrm_rip
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 
@@ -82,7 +83,7 @@
 . bits 141 8
 . JUMP encode_modrm_rip
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 

@@ -8,6 +8,9 @@
   `MIRCompilation.symbols` con direcciones virtuales absolutas tras el layout;
   las consultas de labels nativas reutilizan esos símbolos y los duplicados se
   rechazan.
+- Añadida la cola de relocaciones diferidas `fixup pc8`, `fixup pc32` y
+  `fixup abs64`, con resolución transaccional después del MIR para soportar
+  referencias adelantadas y validación de rangos sin parches parciales.
 
 ## Syntax
 

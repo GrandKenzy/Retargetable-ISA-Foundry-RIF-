@@ -477,6 +477,16 @@ def compile_mir_tokens(
             )
         executions.append(result)
 
+    if machine.fixups:
+        image.layout()
+        machine.finalize_fixups(
+            virtual_bases={
+                name: image.section_virtual_base(name)
+                for name in image.sections
+            }
+        )
+        image.invalidate_layout()
+
     apply_patch_directives(
         image,
         machine,

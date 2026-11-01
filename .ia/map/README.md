@@ -71,7 +71,10 @@ un reemplazo en esta revisión.
 `RIFMachine.symbols` conserva sus offsets físico/virtual relativos y
 `MIRCompilation.symbols` los expone como direcciones virtuales absolutas tras
 el layout. Su matcher fijo usa `MatchSeqSymbol`, que forma parte del
-subconjunto C/AOT de Gram.
+subconjunto C/AOT de Gram. `fixup pc8|pc32|abs64 "reserva"` registra una
+relocación diferida contra el símbolo actual; `MIR/external.py` la resuelve de
+forma transaccional después de ejecutar todas las líneas MIR y antes de los
+parches finales.
 
 Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 `dpush`, `dget`, `dpop`, `dpeek` y `ddepth`. La instrucción `CALL` fue retirada;
@@ -90,7 +93,8 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 - `MIR/pipeline.py`: reseteo de contexto, parseo, procesamiento y compilación.
   `MIR/compiled.py` serializa contextos y programas en bases SQLite de packs.
 - `MIR/runtime.py`, `MIR/emitter.py`, `MIR/bitbuffer.py` y `MIR/output.py`:
-  ejecución de Rules, emisión bit a bit, símbolos nativos y layout de secciones.
+  ejecución de Rules, emisión bit a bit, símbolos, relocaciones nativas y
+  layout de secciones.
 - `MIR/functions/`: funciones nativas con contratos compatibles con C;
   `calc.py` contiene la aritmética de `#:calc` y `reqsts.py` descarga bytes
   `.bin` desde rutas GitHub validadas.

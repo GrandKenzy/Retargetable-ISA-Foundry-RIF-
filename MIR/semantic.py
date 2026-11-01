@@ -247,6 +247,7 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "patch_bits": (3, 3),
     "valign": (1, 1),
     "mark": (0, 0),
+    "fixup": (2, 2),
 }
 
 
@@ -297,6 +298,11 @@ def _validate_instruction(
     elif instruction.opcode == "jumpif":
         if operands[1].kind not in {"bool", "call"}:
             raise _error(instruction, "JMPIF requiere BOOL o #call como condición.")
+    elif instruction.opcode == "fixup":
+        if operands[0].kind != "fixup_kind" or operands[0].value not in {"pc8", "pc32", "abs64"}:
+            raise _error(instruction, "FIXUP requiere pc8, pc32 o abs64.")
+        if operands[1].kind != "string" or not isinstance(operands[1].value, str) or not operands[1].value:
+            raise _error(instruction, "FIXUP requiere el nombre de una reserva.")
     elif instruction.opcode in {"reserve", "vreserve"}:
         size = operands[1]
         if size.kind not in {"number", "decimal"} or not isinstance(size.value, int) or size.value <= 0:

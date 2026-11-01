@@ -1,11 +1,10 @@
 """Linking experiment for RIF on Linux AMD64.
 
 The RIF source defines the instruction encodings and reserves every relocation
-slot. This optional, explicit Python escape computes final signed PC-relative
-and virtual-address fixups because RIF 1.0.1 cannot yet express a dynamic
-.patch offset or generic arithmetic over two arbitrary MIR labels. The
-``link_image`` hook is reached through an explicit MIR Rule, never through
-``::RIF_PATCH``.
+slot. This optional, explicit Python escape remains for the legacy example's
+section switching and link orchestration; native RIF now records and resolves
+``mark`` plus ``fixup pc8|pc32|abs64``. The ``link_image`` hook is reached
+through an explicit MIR Rule, never through ``::RIF_PATCH``.
 
 State is stored on *this compilation's* machine, never in module globals.
 """

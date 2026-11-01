@@ -95,6 +95,10 @@ contiene las direcciones virtuales absolutas de los símbolos definidos por
 `mark` durante la compilación. `compile_mir` acepta texto o un iterable de
 tokens.
 
+Las Rules pueden registrar relocaciones con `fixup pc8`, `fixup pc32` o
+`fixup abs64`; el runtime las resuelve después de todas las líneas MIR y antes
+de aplicar `::RIF_PATCH`.
+
 También está disponible el pipeline de bajo nivel:
 
 ```python

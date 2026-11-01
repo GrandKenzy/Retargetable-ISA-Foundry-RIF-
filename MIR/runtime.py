@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from gram import lexer
 from rif_limits import resolve_limits
@@ -75,6 +75,19 @@ class SymbolAddress:
         return self.virtual_offset_bits // 8
 
 
+@dataclass(frozen=True)
+class Fixup:
+    """A deferred patch against one named symbol and reserved bit range."""
+
+    kind: str
+    symbol: str
+    reservation: str
+    section: str | None
+    offset_bits: int
+    width_bits: int
+    next_virtual_bits: int
+
+
 @dataclass
 class _RuleTraceState:
     name: str
@@ -115,6 +128,7 @@ class RIFMachine:
         self.rule_addresses: dict[str, int] = {}
         self.virtual_rule_addresses: dict[str, int] = {}
         self.symbols: dict[str, SymbolAddress] = {}
+        self.fixups: list[Fixup] = []
         self.variant_stack: list[str] = []
         self._trace_stack: list[_RuleTraceState] = []
         self._rule_depth = 0
@@ -146,6 +160,7 @@ class RIFMachine:
         self.rule_addresses.clear()
         self.virtual_rule_addresses.clear()
         self.symbols.clear()
+        self.fixups.clear()
         self.variant_stack.clear()
         self._trace_stack.clear()
         self._rule_depth = 0
@@ -459,6 +474,8 @@ class RIFMachine:
             raise RIFRuntimeError(
                 f"MARK requiere un identificador de símbolo; recibió {name!r}."
             )
+        if self.emitter.virtual_position % 8:
+            raise RIFRuntimeError("MARK requiere una posición virtual alineada a bytes.")
         if name in self.symbols:
             raise RIFRuntimeError(f"El símbolo '{name}' ya está definido.")
         self.symbols[name] = SymbolAddress(
@@ -469,6 +486,103 @@ class RIFMachine:
             physical_offset_bits=self.emitter.buffer.bit_length,
             virtual_offset_bits=self.emitter.virtual_position,
         )
+
+    def _record_fixup(self, kind: str, reservation: str) -> None:
+        token = self._current()
+        symbol = token.value
+        if not isinstance(symbol, str) or not symbol.isidentifier():
+            raise RIFRuntimeError(
+                f"FIXUP requiere un identificador de símbolo; recibió {symbol!r}."
+            )
+        widths = {"pc8": 8, "pc32": 32, "abs64": 64}
+        try:
+            width_bits = widths[kind]
+        except KeyError as exc:
+            raise RIFRuntimeError(f"Clase de FIXUP desconocida: {kind!r}.") from exc
+        try:
+            span = self.emitter.buffer.query(reservation).span
+        except KeyError as exc:
+            raise RIFRuntimeError(
+                f"No existe la reserva de FIXUP '{reservation}'."
+            ) from exc
+        if span.offset % 8 or span.width % 8:
+            raise RIFRuntimeError("La reserva de FIXUP debe estar alineada a bytes.")
+        if span.width != width_bits:
+            raise RIFRuntimeError(
+                f"FIXUP {kind} requiere una reserva de {width_bits} bits; "
+                f"'{reservation}' tiene {span.width}."
+            )
+        if self.emitter.virtual_position % 8:
+            raise RIFRuntimeError("FIXUP requiere una posición virtual alineada a bytes.")
+        section = self.section_name or (
+            self.context.config.defaultsection if self.context.config else None
+        )
+        start = span.offset
+        end = span.offset + span.width
+        for previous in self.fixups:
+            if previous.section != section:
+                continue
+            previous_end = previous.offset_bits + previous.width_bits
+            if start < previous_end and previous.offset_bits < end:
+                raise RIFRuntimeError("Las relocaciones FIXUP se solapan.")
+        self.fixups.append(
+            Fixup(
+                kind=kind,
+                symbol=symbol,
+                reservation=reservation,
+                section=section,
+                offset_bits=span.offset,
+                width_bits=span.width,
+                next_virtual_bits=self.emitter.virtual_position,
+            )
+        )
+
+    def finalize_fixups(self, *, virtual_bases: Mapping[str, int] | None = None) -> None:
+        """Resolve all deferred symbol fixups atomically after MIR execution."""
+
+        if not self.fixups:
+            return
+        bases = dict(virtual_bases or {})
+        widths = {"pc8": 8, "pc32": 32, "abs64": 64}
+        planned: list[tuple[Fixup, int]] = []
+        for fixup in self.fixups:
+            symbol = self.symbols.get(fixup.symbol)
+            if symbol is None:
+                raise RIFRuntimeError(f"Símbolo no definido: {fixup.symbol}.")
+            if symbol.virtual_offset_bits % 8:
+                raise RIFRuntimeError(
+                    f"El símbolo '{fixup.symbol}' no está alineado a bytes."
+                )
+            target_base = bases.get(symbol.section, 0)
+            next_base = bases.get(fixup.section, 0)
+            target = target_base + symbol.virtual_offset
+            next_ip = next_base + fixup.next_virtual_bits // 8
+            if fixup.kind in {"pc8", "pc32"}:
+                value = target - next_ip
+                limit = 1 << (widths[fixup.kind] - 1)
+                if not -limit <= value < limit:
+                    raise RIFRuntimeError(
+                        f"{fixup.kind}: desplazamiento {value} fuera del rango signed "
+                        f"de {widths[fixup.kind]} bits para {fixup.symbol}."
+                    )
+                encoded = value & ((1 << widths[fixup.kind]) - 1)
+            else:
+                value = target
+                if not 0 <= value < (1 << widths[fixup.kind]):
+                    raise RIFRuntimeError(
+                        f"{fixup.kind}: dirección virtual inválida: {value}."
+                    )
+                encoded = value
+            planned.append((fixup, encoded))
+
+        with self.emitter.buffer.transaction():
+            for fixup, value in planned:
+                try:
+                    self.emitter.patch_bits(fixup.offset_bits, fixup.width_bits, value)
+                except (TypeError, ValueError) as exc:
+                    raise RIFRuntimeError(
+                        f"No se pudo aplicar FIXUP {fixup.kind} en {fixup.offset_bits // 8}: {exc}"
+                    ) from exc
 
     def _execute_rule(self, rule_name: str) -> None:
         if self._rule_depth >= MAX_RULE_CALL_DEPTH:
@@ -518,6 +632,10 @@ class RIFMachine:
 
         if opcode == "mark":
             self._mark_symbol()
+            return
+
+        if opcode == "fixup":
+            self._record_fixup(str(operands[0].value), str(operands[1].value))
             return
 
         if opcode == "table_matcher":
@@ -762,4 +880,5 @@ __all__ = [
     "RuleTrace",
     "RIFMachine",
     "SymbolAddress",
+    "Fixup",
 ]

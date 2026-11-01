@@ -25,7 +25,14 @@ from .semantic import (
     resolve_program,
     resolve_rule,
 )
-from .runtime import ExecutionResult, RIFMachine, RIFRuntimeError, RuleTrace, SymbolAddress
+from .runtime import (
+    ExecutionResult,
+    Fixup,
+    RIFMachine,
+    RIFRuntimeError,
+    RuleTrace,
+    SymbolAddress,
+)
 from .functions import CalcError, ReqstsError, calc, reqsts
 from .buffer import BufferError, BufferResult, execute_buffer
 from .preprocessor import MIRLine, RIFMetaDirective, RIF_META_DIRECTIVES, preprocess_mir_lines
@@ -101,6 +108,7 @@ __all__ = [
     "resolve_rule",
     "resolve_program",
     "ExecutionResult",
+    "Fixup",
     "RuleTrace",
     "RIFMachine",
     "RIFRuntimeError",

@@ -487,6 +487,21 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             if rest:
                 raise RuntimeError("MARK no acepta operandos; usa el token actual como símbolo.")
             operands = ()
+        elif opcode == "fixup":
+            if (
+                len(rest) != 2
+                or str(rest[0].value) not in {"pc8", "pc32", "abs64"}
+                or rest[1].token.name != "STRING"
+            ):
+                raise RuntimeError(
+                    "FIXUP requiere una clase pc8, pc32 o abs64 y el nombre STRING de una reserva."
+                )
+            kind = rest[0]
+            reservation = rest[1]
+            operands = (
+                Operand("fixup_kind", str(kind.value), _source_lexeme(kind, source_path)),
+                Operand("string", reservation.value, _source_lexeme(reservation, source_path)),
+            )
         else:
             raise RuntimeError(f"Instrucción RIF no reconocida: {opcode!r}.")
 

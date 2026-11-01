@@ -86,15 +86,18 @@ reserve_position_demo    ; reserva + resvdir (bit offset virtual)
 . IDENT
 . bits 233 8
 . reserve "fix32" 32
-. CALL #call[record_pc32]
+. fixup pc32 "fix32"
 . drop_res "fix32"
 . IDENT
 ```
 
 - `reserve` añade **cuatro bytes cero** al código máquina y crea un rango nombrado.
-- `#call[record_pc32]` recibe el nombre del símbolo aún sin consumir, guarda offset del rango y dirección virtual de la instrucción **siguiente**. No escribe la relocación todavía.
+- `fixup pc32 "fix32"` recibe el nombre del símbolo aún sin consumir y registra
+  el rango junto con la dirección virtual de la instrucción **siguiente**. La
+  resolución nativa ocurre después de todas las líneas MIR.
 - `drop_res` libera el *nombre* para reutilizarlo en la siguiente instrucción sin eliminar los cuatro bytes reservados.
-- La línea MIR `link_image` ejecuta una Rule explícita que llama al hook Python `link_image`; resuelve **todas** las referencias contra la tabla de símbolos, valida los rangos y reemplaza el binario.
+- La línea MIR `link_image` sigue llamando al hook Python para las familias del
+  ejemplo que todavía no fueron migradas; `pc32` ya no depende de ese hook.
 - La fase final del preprocesador MIR aplica únicamente los parches **nativos** de cabecera ELF con `::RIF_PATCH`, usando `#:qvsize`, `#:qssize` y `#:qvssize`.
 
 Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango signed 32-bit y se emite el complemento a dos en little-endian; `PC8` usa signed 8-bit. Para `ABS64`, se emite la VA absoluta de 64 bits.
@@ -110,7 +113,7 @@ Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango 
 
 ## Detalles y límites encontrados
 
-1. **Actualmente el enlace dinámico necesita el escape Python (`funcs.py`).** RIF 1.0.1 sí conoce `reserve`, `write_res` y consultas virtuales; `::RIF_PATCH` usa un *offset de destino literal*, y sus expresiones nativas todavía no ofrecen un mapa de símbolos MIR dinámico con operandos arbitrarios. La Rule MIR `link_image` llama explícitamente a `funcs.py`; no es una capacidad nativa que debamos atribuir a RIF.
+1. **El ejemplo todavía conserva un escape Python (`funcs.py`) para la orquestación restante.** RIF ya ofrece `mark` y `fixup pc8|pc32|abs64` nativos; la Rule MIR `link_image` y la selección dinámica de secciones del ejemplo siguen siendo parte del experimento Python y no deben atribuirse al núcleo nativo.
 2. **`write_res` escribe bits en el orden de bitstream, no serializa un entero little-endian.** `reserve_position_demo` captura `resvdir` (medido **en bits**, sección-local) y demuestra esta diferencia. Para relocaciones Intel usamos `int.to_bytes(..., 'little')` en el enlace.
 3. **Cambiar entre `.text` y `.data` dentro de un único MIR requiere un callback** que selecciona el `BitEmitter` correspondiente. La API estándar `compile_mir_source` inicializa un único `section`. Esta técnica sirve como experimento y puede alterar la interpretación de `RuleTrace` alrededor de los cambios de sección; no es una directiva nativa de MIR.
 4. `main_rw.rif` fija `.data` en `0x401000` y offset de fichero `0x1000`; los textos mayores de una página se rechazan para evitar solapamientos. Es un layout ilustrativo, no un asignador flexible de segmentos. El programa MIR debe volver a `.text` al terminar si usa la consulta nativa de `_start` en la cabecera.
@@ -120,8 +123,8 @@ Para `PC32`, se calcula `target_va - next_instruction_va`, se verifica el rango 
 
 ## Recomendaciones al núcleo RIF
 
-- Operación nativa de **símbolo MIR** (definición, consulta por nombre y sección).
-- `patchrel`/`fixup` de tipo `PC8`, `PC32`, `ABS64` con validación de signo y desbordamiento; preferentemente con valores reservados reutilizables.
+- Orquestación nativa para seleccionar secciones durante un mismo MIR y
+  publicar relocaciones entre ellas sin un callback externo.
 - Selección nativa de sección por instrucción MIR sin alterar internamente `RIFMachine.emitter` desde Python.
 - API con offsets dinámicos para `::RIF_PATCH`, o fixups basados en regiones.
 - Especificar en la documentación las diferencias de orden de bits entre `write_res` y emisión de enteros little-endian.

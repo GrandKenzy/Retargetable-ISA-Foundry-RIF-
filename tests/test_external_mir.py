@@ -9,6 +9,7 @@ from Frontend import globals as rif_globals
 from MIR import (
     MIRInputError,
     PCPIPitAddress,
+    RIFRuntimeError,
     compile_definition,
     compile_mir_file,
     compile_mir_source,
@@ -105,6 +106,51 @@ class ExternalMIRTests(unittest.TestCase):
 
         self.assertEqual(result.symbols, {"label": 4097})
         self.assertEqual(result.context.symbols["label"].section, "text")
+
+    def test_native_pc32_fixup_resolves_forward_and_backward_symbols(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(
+                TARGET.replace("    default text\n", "    default text\n    vaddr text 4096\n")
+                + "\n"
+                "@rule mark:\n"
+                ". IDENT\n"
+                ". mark\n"
+                ". IDENT\n"
+                "@rule jmp:\n"
+                ". IDENT\n"
+                ". bits 233 8\n"
+                '. reserve "fix32" 32\n'
+                '. fixup pc32 "fix32"\n'
+                '. drop_res "fix32"\n'
+                ". IDENT\n",
+                encoding="utf-8",
+            )
+            program = compile_definition(target)
+            forward = compile_mir_source(program, "jmp target\nmark target\n")
+            backward = compile_mir_source(program, "mark target\njmp target\n")
+
+        self.assertEqual(forward.binary, b"\xE9\x00\x00\x00\x00")
+        self.assertEqual(backward.binary, b"\xE9\xFB\xFF\xFF\xFF")
+        self.assertEqual(forward.context.fixups[0].kind, "pc32")
+
+    def test_native_pc32_fixup_rejects_unresolved_symbol_before_patching(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(
+                TARGET
+                + "\n@rule jmp:\n"
+                ". IDENT\n"
+                ". bits 233 8\n"
+                '. reserve "fix32" 32\n'
+                '. fixup pc32 "fix32"\n'
+                '. drop_res "fix32"\n'
+                ". IDENT\n",
+                encoding="utf-8",
+            )
+            program = compile_definition(target)
+            with self.assertRaisesRegex(RIFRuntimeError, "Símbolo no definido"):
+                compile_mir_source(program, "jmp missing\n")
 
     def test_metaprogramming_directives_are_recognized_without_emission(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

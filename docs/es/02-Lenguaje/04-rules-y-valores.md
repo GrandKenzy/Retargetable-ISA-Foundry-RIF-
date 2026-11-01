@@ -86,6 +86,19 @@ La tabla queda disponible en `RIFMachine.symbols` con offsets relativos y en
 `MIRCompilation.symbols` con direcciones virtuales absolutas después del
 layout. Los nombres duplicados se rechazan.
 
+Una relocación diferida usa la reserva física y el símbolo del token actual:
+
+```rif
+. reserve "fix32" 32
+. fixup pc32 "fix32"
+. drop_res "fix32"
+```
+
+`pc8` y `pc32` escriben desplazamientos signed relativos a la siguiente
+instrucción; `abs64` escribe una dirección virtual absoluta. Se validan y
+aplican juntas después del MIR, permitiendo símbolos definidos más adelante
+sin dejar parches parciales.
+
 ## Ajuste de inmediatos
 
 ```rif

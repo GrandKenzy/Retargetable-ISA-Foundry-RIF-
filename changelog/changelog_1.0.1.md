@@ -66,7 +66,7 @@
 - El demo declarativo general que estuvo bajo `examples/RIF-Core-Demo/` fue
   retirado al quedar cubierto por las suites de pruebas; la raíz del
   repositorio ya no contiene fuentes `.rif` de ejemplo ni el `main.pack`
-  generado; `foot/` sigue reservado para datos temporales de referencia.
+  generado; `food/` sigue reservado para datos temporales de referencia.
 
 - Añadido `examples/amd64-friendlysyntaxs/`, un paquete AMD64 raw que declara
   una sintaxis alternativa (`set`, `copy`, `load`, `store`, `return`, etc.) con

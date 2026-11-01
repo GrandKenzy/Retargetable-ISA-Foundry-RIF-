@@ -156,6 +156,6 @@ vnma run examples/GBA-Bouncing-Ball/verify_cpu.py
 - Use `GBA-Bouncing-Ball` for variants, assets, ROM layout and a non-AMD64
   target-generation pipeline.
 
-The external reference material under `foot/` is temporary input data for these
+The external reference material under `food/` is temporary input data for these
 examples. It is not a RIF backend, not a package dependency, and not part of
 the final example contract.

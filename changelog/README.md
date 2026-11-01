@@ -16,7 +16,7 @@ The former dedicated block headers and dotted directive syntax are no longer
 accepted, and arbitrary blocks remain available through the compiled target
 context.
 
-The temporary `foot/` directory records concise x86-64, LLVM MC, and native RIF
+The temporary `food/` directory records concise x86-64, LLVM MC, and native RIF
 relocation reference tables used to feed and verify the examples. It is not a
 runtime dependency or a final product artifact and can be removed after the
 examples are stabilized.

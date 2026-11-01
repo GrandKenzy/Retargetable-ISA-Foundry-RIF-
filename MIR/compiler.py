@@ -483,6 +483,10 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             if rest:
                 raise RuntimeError("BREAK no acepta operandos.")
             operands = ()
+        elif opcode == "mark":
+            if rest:
+                raise RuntimeError("MARK no acepta operandos; usa el token actual como símbolo.")
+            operands = ()
         else:
             raise RuntimeError(f"Instrucción RIF no reconocida: {opcode!r}.")
 

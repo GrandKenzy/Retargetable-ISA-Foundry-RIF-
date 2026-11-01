@@ -90,8 +90,10 @@ result = compile_mir_source(target, source, section="text")
 ```
 
 `MIRCompilation` expone `binary`, `image`, `executions`, `program`, `context`,
-`section_binary` y el nombre de la sección seleccionada. `compile_mir` acepta texto o un
-iterable de tokens.
+`section_binary`, `symbols` y el nombre de la sección seleccionada. `symbols`
+contiene las direcciones virtuales absolutas de los símbolos definidos por
+`mark` durante la compilación. `compile_mir` acepta texto o un iterable de
+tokens.
 
 También está disponible el pipeline de bajo nivel:
 

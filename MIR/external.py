@@ -104,6 +104,17 @@ class MIRCompilation:
 
         return self.image.final_binary(self.section)
 
+    @property
+    def symbols(self) -> dict[str, int]:
+        """Return native symbols as absolute virtual byte addresses."""
+
+        self.image.layout()
+        return {
+            name: self.image.section_virtual_base(symbol.section or self.section)
+            + symbol.virtual_offset
+            for name, symbol in self.context.symbols.items()
+        }
+
 
 def tokenize_mir(source: str, name: str = "<memory>") -> tuple[lexer.TokenType, ...]:
     """Tokenize MIR once for callers that do not already have tokens."""

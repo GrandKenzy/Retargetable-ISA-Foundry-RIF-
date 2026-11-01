@@ -92,6 +92,20 @@ class ExternalMIRTests(unittest.TestCase):
             self.assertEqual(token_direct.binary, direct.binary)
             self.assertEqual(len(direct.executions), 2)
 
+    def test_native_mark_exposes_absolute_virtual_symbol_address(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "main.rif"
+            target.write_text(
+                TARGET.replace("    default text\n", "    default text\n    vaddr text 4096\n")
+                + "\n@rule mark:\n. IDENT\n. eword 1\n. mark\n. IDENT\n",
+                encoding="utf-8",
+            )
+            program = compile_definition(target)
+            result = compile_mir_source(program, "mark label\n")
+
+        self.assertEqual(result.symbols, {"label": 4097})
+        self.assertEqual(result.context.symbols["label"].section, "text")
+
     def test_metaprogramming_directives_are_recognized_without_emission(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

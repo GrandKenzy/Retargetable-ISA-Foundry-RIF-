@@ -67,6 +67,12 @@ Las operaciones binarias usan los nombres canónicos `nibbles`, `emit`,
 `drop_res`. `reserve` y `vreserve` conservan sus nombres porque no recibieron
 un reemplazo en esta revisión.
 
+`mark` define un símbolo nativo en la posición actual sin consumir el token.
+`RIFMachine.symbols` conserva sus offsets físico/virtual relativos y
+`MIRCompilation.symbols` los expone como direcciones virtuales absolutas tras
+el layout. Su matcher fijo usa `MatchSeqSymbol`, que forma parte del
+subconjunto C/AOT de Gram.
+
 Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 `dpush`, `dget`, `dpop`, `dpeek` y `ddepth`. La instrucción `CALL` fue retirada;
 `#call[...]` queda reservado para funciones nativas cerradas.
@@ -84,7 +90,7 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 - `MIR/pipeline.py`: reseteo de contexto, parseo, procesamiento y compilación.
   `MIR/compiled.py` serializa contextos y programas en bases SQLite de packs.
 - `MIR/runtime.py`, `MIR/emitter.py`, `MIR/bitbuffer.py` y `MIR/output.py`:
-  ejecución de Rules, emisión bit a bit y layout de secciones.
+  ejecución de Rules, emisión bit a bit, símbolos nativos y layout de secciones.
 - `MIR/functions/`: funciones nativas con contratos compatibles con C;
   `calc.py` contiene la aritmética de `#:calc` y `reqsts.py` descarga bytes
   `.bin` desde rutas GitHub validadas.

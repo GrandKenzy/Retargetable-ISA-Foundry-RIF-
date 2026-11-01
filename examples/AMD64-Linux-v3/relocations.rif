@@ -1,12 +1,12 @@
 ; Dynamic symbol definitions and relocations on AMD64 Linux.
 ; A reserve captures the exact 32/64-bit relocation slot; funcs.py stores
 ; its location and resolves it once all MIR lines have been emitted.
-; RIF CALL is the documented Python escape, not a native symbol linker.
+; mark is a native RIF symbol definition; fixups remain a later migration step.
 
 ; mark NAME: defines a symbol at the current virtual byte address.
 @rule mark:
 . IDENT
-. CALL #call[define_symbol]
+. mark
 . IDENT
 
 ; jmp_label NAME: JMP rel32, valid for both forward and backward labels.

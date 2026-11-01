@@ -53,6 +53,28 @@ class RuleTrace:
         return self.bits
 
 
+@dataclass(frozen=True)
+class SymbolAddress:
+    """A user-defined symbol captured at one physical/virtual cursor pair."""
+
+    name: str
+    section: str | None
+    physical_offset_bits: int
+    virtual_offset_bits: int
+
+    @property
+    def physical_offset(self) -> int:
+        """Return the physical byte offset when the cursor is byte-aligned."""
+
+        return self.physical_offset_bits // 8
+
+    @property
+    def virtual_offset(self) -> int:
+        """Return the virtual byte offset when the cursor is byte-aligned."""
+
+        return self.virtual_offset_bits // 8
+
+
 @dataclass
 class _RuleTraceState:
     name: str
@@ -92,6 +114,7 @@ class RIFMachine:
         self.last_rule_trace: RuleTrace | None = None
         self.rule_addresses: dict[str, int] = {}
         self.virtual_rule_addresses: dict[str, int] = {}
+        self.symbols: dict[str, SymbolAddress] = {}
         self.variant_stack: list[str] = []
         self._trace_stack: list[_RuleTraceState] = []
         self._rule_depth = 0
@@ -122,6 +145,7 @@ class RIFMachine:
         self.last_rule_trace = None
         self.rule_addresses.clear()
         self.virtual_rule_addresses.clear()
+        self.symbols.clear()
         self.variant_stack.clear()
         self._trace_stack.clear()
         self._rule_depth = 0
@@ -283,6 +307,12 @@ class RIFMachine:
                 address = regions[name].offset
             elif not virtual and name in self.rule_addresses:
                 address = self.rule_addresses[name]
+            elif name in self.symbols:
+                symbol = self.symbols[name]
+                address = (
+                    symbol.virtual_offset_bits if virtual
+                    else symbol.physical_offset_bits
+                )
             else:
                 raise RIFRuntimeError(f"No existe una reserva o etiqueta llamada '{name}'.")
         if kind in {"reservation_width", "reservation_vwidth"}:
@@ -422,6 +452,24 @@ class RIFMachine:
             )
         raise RIFRuntimeError("La condición no es booleana ni una llamada nativa.")
 
+    def _mark_symbol(self) -> None:
+        token = self._current()
+        name = token.value
+        if not isinstance(name, str) or not name.isidentifier():
+            raise RIFRuntimeError(
+                f"MARK requiere un identificador de símbolo; recibió {name!r}."
+            )
+        if name in self.symbols:
+            raise RIFRuntimeError(f"El símbolo '{name}' ya está definido.")
+        self.symbols[name] = SymbolAddress(
+            name=name,
+            section=self.section_name or (
+                self.context.config.defaultsection if self.context.config else None
+            ),
+            physical_offset_bits=self.emitter.buffer.bit_length,
+            virtual_offset_bits=self.emitter.virtual_position,
+        )
+
     def _execute_rule(self, rule_name: str) -> None:
         if self._rule_depth >= MAX_RULE_CALL_DEPTH:
             raise RIFRuntimeError(
@@ -466,6 +514,10 @@ class RIFMachine:
 
         if opcode == "consumer":
             self._consume_token(operands[0].resolved)
+            return
+
+        if opcode == "mark":
+            self._mark_symbol()
             return
 
         if opcode == "table_matcher":
@@ -709,4 +761,5 @@ __all__ = [
     "ExecutionResult",
     "RuleTrace",
     "RIFMachine",
+    "SymbolAddress",
 ]

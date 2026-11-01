@@ -124,6 +124,36 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(result.buffer, b"\xAA\xAA")
             self.assertNotIn("slot", machine.emitter.buffer.regions)
 
+    def test_mark_defines_native_symbol_without_consuming_identifier(self) -> None:
+        source = (
+            "@rule mark:\n"
+            ". IDENT\n"
+            ". eword 1\n"
+            ". mark\n"
+            ". IDENT\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            program = self.compile(source, Path(directory) / "main.rif")
+            machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
+            result = machine.execute("mark", self.tokenize("mark label"))
+
+        self.assertEqual(result.position, 2)
+        symbol = machine.symbols["label"]
+        self.assertEqual(symbol.physical_offset_bits, 8)
+        self.assertEqual(symbol.virtual_offset_bits, 8)
+        self.assertEqual(symbol.physical_offset, 1)
+        self.assertEqual(symbol.virtual_offset, 1)
+
+    def test_mark_rejects_duplicate_symbols_across_external_lines(self) -> None:
+        source = "@rule mark:\n. IDENT\n. mark\n. IDENT\n"
+        with tempfile.TemporaryDirectory() as directory:
+            program = self.compile(source, Path(directory) / "main.rif")
+            machine = RIFMachine(program, emitter=BitEmitter(wordsize=8))
+            machine.execute_line("mark", self.tokenize("mark label"))
+
+            with self.assertRaisesRegex(RIFRuntimeError, "ya está definido"):
+                machine.execute_line("mark", self.tokenize("mark label"))
+
     def test_emitfr_keeps_rows_and_jmpif_can_use_boolean(self) -> None:
         source = (
             "@rule target:\n"

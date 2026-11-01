@@ -246,6 +246,7 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "read_bits": (2, 2),
     "patch_bits": (3, 3),
     "valign": (1, 1),
+    "mark": (0, 0),
 }
 
 

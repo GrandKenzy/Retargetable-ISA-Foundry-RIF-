@@ -70,6 +70,22 @@ una palabra de `word_size`; y `frame`, un frame multilinea con cualquier
 `emit_res` copia la reserva al cursor y `drop_res` quita su nombre sin limpiar los
 bits ya emitidos.
 
+## Símbolos nativos
+
+`mark` registra el token actual como símbolo en la posición física y virtual
+actual. No consume ese token; una Rule puede conservar el contrato habitual:
+
+```rif
+@rule mark:
+. IDENT
+. mark
+. IDENT
+```
+
+La tabla queda disponible en `RIFMachine.symbols` con offsets relativos y en
+`MIRCompilation.symbols` con direcciones virtuales absolutas después del
+layout. Los nombres duplicados se rechazan.
+
 ## Ajuste de inmediatos
 
 ```rif

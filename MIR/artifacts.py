@@ -311,6 +311,9 @@ def _label_offsets(machine: RIFMachine, *, virtual: bool = False) -> dict[str, i
         labels.setdefault(name, offset // 8)
     for name, span in regions.items():
         labels.setdefault(name, span.offset // 8)
+    for name, symbol in machine.symbols.items():
+        offset = symbol.virtual_offset_bits if virtual else symbol.physical_offset_bits
+        labels.setdefault(name, offset // 8)
     return labels
 
 

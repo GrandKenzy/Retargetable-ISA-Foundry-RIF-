@@ -128,6 +128,10 @@ class AOTFrontendTests(unittest.TestCase):
             "@end\n"
             "@rule mov:\n"
             ". $registers.name, IDENT\n"
+            "@rule mark:\n"
+            ". IDENT\n"
+            ". mark\n"
+            ". IDENT\n"
         )
         with TemporaryDirectory(prefix="rif-aot-parity-") as directory:
             root = Path(directory)

@@ -1,5 +1,14 @@
 # RIF 1.0.1 · Security hardening and resource controls
 
+## Símbolos nativos
+
+- Añadido el opcode AOT-safe `mark`, basado en `MatchSeqSymbol`, para registrar
+  el identificador MIR actual en la posición física y virtual del emisor.
+- Las compilaciones MIR exponen `RIFMachine.symbols` con offsets relativos y
+  `MIRCompilation.symbols` con direcciones virtuales absolutas tras el layout;
+  las consultas de labels nativas reutilizan esos símbolos y los duplicados se
+  rechazan.
+
 ## Syntax
 
 - Made the root `main.rif` the target control center: configuration blocks are

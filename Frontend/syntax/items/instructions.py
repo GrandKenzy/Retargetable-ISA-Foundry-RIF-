@@ -33,6 +33,10 @@ _FRAME_END = cmb.Seq(
     cmb.MatchToken(lexer.Token.NEWLINE),
 )
 
+# A fixed MatchSeqSymbol is part of Gram's C/AOT subset. Literal is not
+# suitable here because it intentionally rejects KEYWORD tokens.
+_MARK_OPCODE = cmb.MatchSeqSymbol(symbols=["mark"], case_sensitive=True)
+
 
 def _split_lines(tokens: tuple[lexer.TokenType, ...]) -> tuple[tuple[lexer.TokenType, ...], ...]:
     lines: list[tuple[lexer.TokenType, ...]] = []
@@ -129,6 +133,11 @@ class INSTRUCTION(cmb.RuleItem):
             cmb.MatchToken(lexer.Token.DOT),
             cmb.MatchSeqSymbol(symbols=["frame"], case_sensitive=True),
             cmb.CaptureRaw(_FRAME_END, consume_target=True),
+        ),
+        cmb.Seq(
+            cmb.MatchToken(lexer.Token.DOT),
+            _MARK_OPCODE,
+            cmb.CaptureRaw(cmb.MatchToken(lexer.Token.NEWLINE), consume_target=True),
         ),
         cmb.Seq(
             cmb.MatchToken(lexer.Token.DOT),

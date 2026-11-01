@@ -182,8 +182,9 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
 - `tests/`: lanzador compatible para que `vnma test` ejecute la suite esencial;
   `test/` contiene las suites organizadas por nivel.
   `examples/`: targets y demostraciones completas, incluyendo el demo
-  agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs` y su variante QEMU,
-  AMD64 bare metal, ELF64 y GBA. El target
+  agnóstico `RIF-Core-Demo`, `amd64-friendlysyntaxs` y sus probes QEMU,
+  AMD64 bare metal, ELF64 y GBA. Los ejemplos ELF64 y MiniOS viven bajo
+  `examples/probe/`. El target
   `AMD64_Baremetal` emite imágenes raw y no asume un sistema operativo,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
   del repositorio. Sus programas MIR externos y fixtures están en
@@ -388,9 +389,9 @@ Rule `_start` con `. mark` antes de consumir el identificador. La configuración
 declara el entrypoint, mientras `mark` materializa el símbolo nativo que llega
 al mapa de salida y a las relocaciones.
 
-### MiniOSExample
+### MiniOS probe
 
-`examples/MiniOsExample/` es el primer sistema operativo AMD64 arrancable.
+`examples/probe/probe_minios/` es el primer sistema operativo AMD64 arrancable.
 `mini_os_iso_header.pci` usa PCP-I para declarar el área de sistema, los cuatro
 sectores de cabecera ISO/El Torito y tres pits para volumen, raíz y entrada de
 boot. `ZERO n` representa bytes estáticos cero y no crea un pit; `[n]` sigue

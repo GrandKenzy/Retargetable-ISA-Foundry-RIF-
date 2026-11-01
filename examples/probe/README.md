@@ -10,3 +10,7 @@ used by `AMD64_Baremetal` and by the Friendly Syntax equivalence checks.
 `probe_friendlysyntax/` contains the external Friendly Syntax programs used by
 the base target. `probe_friendlysyntax_qemu/` contains the QEMU target,
 boot-specific MIR and its target-local assets.
+
+`probe_elf64/` contains the Linux ELF64 image-construction probe. `probe_minios/`
+contains the PCP-I, cursor-storage and bootable ISO probe used by the QEMU
+Friendly target.

@@ -14,8 +14,8 @@ import sys
 
 import vendor.__bootstrap__  # From VNMA.
 
-ROOT = Path(__file__).resolve().parents[2]
-MINI = ROOT / "examples" / "MiniOsExample"
+ROOT = Path(__file__).resolve().parents[3]
+MINI = ROOT / "examples" / "probe" / "probe_minios"
 QEMU = ROOT / "examples" / "probe" / "probe_friendlysyntax_qemu"
 BUILD = MINI / "build"
 

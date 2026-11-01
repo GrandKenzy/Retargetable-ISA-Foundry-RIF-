@@ -129,13 +129,13 @@ The repository includes an ELF64 demonstration that emits a small Linux x86-64 e
 
 ```powershell
 # Process an existing RIF definition and its input
-vnma run rif.py examples/ELF64/main.rif examples/ELF64/main.asm -o exit
+vnma run rif.py examples/probe/probe_elf64/main.rif examples/probe/probe_elf64/main.asm -o exit
 
 # Package a user-defined target
-vnma run rif.py --pack examples/ELF64/main.rif -o target.pack
+vnma run rif.py --pack examples/probe/probe_elf64/main.rif -o target.pack
 
 # Reuse the packaged rules
-vnma run rif.py target.pack examples/ELF64/main.asm -o exit-from-pack
+vnma run rif.py target.pack examples/probe/probe_elf64/main.asm -o exit-from-pack
 ```
 
 Resource limits can be selected per invocation, in MiB, for example

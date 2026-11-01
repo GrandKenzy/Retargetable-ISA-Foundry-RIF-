@@ -20,7 +20,7 @@ and `README.TXT;1`. Launch it with:
 
 ```powershell
 qemu-system-x86_64 `
-  -cdrom examples/MiniOsExample/build/mini_os.iso `
+  -cdrom examples/probe/probe_minios/build/mini_os.iso `
   -boot order=d `
   -m 128M `
   -no-reboot `
@@ -37,13 +37,13 @@ No external `xorriso` or `mkisofs` dependency is required.
 From the RIF root:
 
 ```powershell
-vnma run examples/MiniOsExample/build_qemu_iso.py
+vnma run examples/probe/probe_minios/build_qemu_iso.py
 
 vnma run rif.py --doctor-pcpi `
-  examples/MiniOsExample/build/mini_os_iso_header.pcic
+  examples/probe/probe_minios/build/mini_os_iso_header.pcic
 
 vnma run rif.py --doctor-storage `
-  examples/MiniOsExample/build/cursor_assets.storage.bin
+  examples/probe/probe_minios/build/cursor_assets.storage.bin
 ```
 
 The script performs the complete chain: PCP-I and storage compilation, RIF

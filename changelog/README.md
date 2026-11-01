@@ -28,6 +28,9 @@ its fixtures and tests no longer require object headers or host execution.
 declaration-only `.riflib` with `rif --library target.pack`. The Friendly QEMU
 example consumes that layer and keeps its QEMU blocks and boot Rules local.
 
+The ELF64 and MiniOS test examples now live under `examples/probe/` with the
+other target probes.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

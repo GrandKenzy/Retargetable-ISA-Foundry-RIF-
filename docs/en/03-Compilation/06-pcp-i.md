@@ -207,8 +207,8 @@ is performed both while compiling the source and when loading an existing
 Compile a source template:
 
 ```powershell
-vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
-  -o examples/MiniOsExample/build/mini_os_iso_header.pcic
+vnma run rif.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
+  -o examples/probe/probe_minios/build/mini_os_iso_header.pcic
 ```
 
 The output path must not overwrite the source `.pci`. If `-o` is omitted, RIF
@@ -218,7 +218,7 @@ Validate and inspect a compiled container without modifying it:
 
 ```powershell
 vnma run rif.py --doctor-pcpi `
-  examples/MiniOsExample/build/mini_os_iso_header.pcic
+  examples/probe/probe_minios/build/mini_os_iso_header.pcic
 ```
 
 The doctor reports the version, signature, byte-order metadata, raw image size,
@@ -443,7 +443,7 @@ The format is implemented by:
 - `MIR/external.py`: container insertion and pit address reporting;
 - `test/dedicated_suite/test_pcpi.py`: format, alignment, filling, and rejection
   tests;
-- `examples/MiniOsExample/`: a header-only ISO/El Torito template and an
+- `examples/probe/probe_minios/`: a header-only ISO/El Torito template and an
   independent external cursor payload.
 
 When changing PCP-I, update the source compiler, binary validator, MIR

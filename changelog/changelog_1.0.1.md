@@ -24,7 +24,7 @@
   QEMU 11 BIOS; the RIF boot checkpoint is a real-mode VBE/PS/2-mouse cursor
   stage, without a full kernel.
 
-- Added `examples/MiniOsExample/` with a PCP-I ISO/El Torito descriptor
+- Added `examples/probe/probe_minios/` with a PCP-I ISO/El Torito descriptor
   template, a
   public-domain 14x22 arrow cursor source, and a `.store` manifest compiled to
   an indexed `storage.bin` payload. The example documents the QEMU BIOS launch

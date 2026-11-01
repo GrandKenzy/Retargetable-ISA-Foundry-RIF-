@@ -75,7 +75,7 @@ protected or long mode. `qemu/boot_stage.s` is only a human-readable
 verification reference; the target emits the fixed bytes from the
 `boot_stage_mouse` Rule, so the `.pack + .mir` pipeline remains canonical.
 
-The source cursor remains RGBA8888 in `MiniOsExample`; the `.store` compiler
+The source cursor remains RGBA8888 in `probe_minios`; the `.store` compiler
 also produces the target-ready `cursor_arrow_bgrx8888` payload, composited over
 black for this first framebuffer checkpoint.
 
@@ -93,19 +93,19 @@ That command emits the RIF raw layout (20 descriptor blocks plus the one-block
 boot image). To finish the QEMU artifact as a real ISO-9660 volume, run:
 
 ```powershell
-vnma run examples/MiniOsExample/build_qemu_iso.py
+vnma run examples/probe/probe_minios/build_qemu_iso.py
 ```
 
 The script consumes the RIF output, fills the PCP-I layout fields, appends
 path tables and a root directory, and writes
-`examples/MiniOsExample/build/mini_os.iso`. The ISO contains the boot image at
+`examples/probe/probe_minios/build/mini_os.iso`. The ISO contains the boot image at
 LBA 20 and is structurally checked before it is written.
 
 Rebuild the local PCP-I asset from its canonical source when the header
 changes:
 
 ```powershell
-vnma run rif.py --comp-pcpi examples/MiniOsExample/mini_os_iso_header.pci `
+vnma run rif.py --comp-pcpi examples/probe/probe_minios/mini_os_iso_header.pci `
   -o examples/probe/probe_friendlysyntax_qemu/assets/mini_os_iso_header.pcic
 ```
 

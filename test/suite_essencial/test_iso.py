@@ -8,7 +8,7 @@ from pcpi_compiler import compile_pcpi_source
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "examples" / "MiniOsExample" / "mini_os_iso_header.pci"
+TEMPLATE = ROOT / "examples" / "probe" / "probe_minios" / "mini_os_iso_header.pci"
 
 
 class ISOTests(unittest.TestCase):

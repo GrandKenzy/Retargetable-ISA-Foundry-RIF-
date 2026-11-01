@@ -39,12 +39,12 @@ __pycache__/
 !examples/probe/probe_friendlysyntax_qemu/assets/mini_os_iso_header.pcic
 !examples/probe/probe_friendlysyntax_qemu/assets/cursor_assets.storage.bin
 
-# MiniOS keeps these two binary checkpoints as intentional example artifacts.
-!examples/MiniOsExample/build/mini_os_iso_header.pcic
-!examples/MiniOsExample/build/cursor_assets.storage.bin
-/examples/MiniOsExample/build/*.iso
-/examples/MiniOsExample/build/mini_os_rif_output.bin
-/examples/MiniOsExample/build/qemu*.log
+# MiniOS keeps these two binary checkpoints as intentional probe artifacts.
+!examples/probe/probe_minios/build/mini_os_iso_header.pcic
+!examples/probe/probe_minios/build/cursor_assets.storage.bin
+/examples/probe/probe_minios/build/*.iso
+/examples/probe/probe_minios/build/mini_os_rif_output.bin
+/examples/probe/probe_minios/build/qemu*.log
 
 # --- VNMA (Vendor Manager) ---
 /vendor/

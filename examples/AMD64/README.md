@@ -21,7 +21,7 @@ Resultado esperado:
 ## Compilar
 
 ```powershell
-vnma run rif.py examples/AMD64/main.rif examples/AMD64/main.mir `
+vnma run rif.py examples/AMD64/main.rif examples/probe/probe_amd64/main.mir `
   -o examples/AMD64/output.bin
 Format-Hex examples/AMD64/output.bin
 ```
@@ -31,7 +31,7 @@ También puede precompilarse como paquete:
 ```powershell
 vnma run rif.py --pack examples/AMD64/main.rif `
   -o examples/AMD64/amd64.pack
-vnma run rif.py examples/AMD64/amd64.pack examples/AMD64/main.mir `
+vnma run rif.py examples/AMD64/amd64.pack examples/probe/probe_amd64/main.mir `
   -o examples/AMD64/output-from-pack.bin
 ```
 
@@ -41,8 +41,8 @@ little-endian.
 
 ## Comparación de sintaxis
 
-El programa `main.mir` es la versión convencional del programa usado por
-`examples/amd64-friendlysyntaxs/equivalent.mir`. La prueba diferencial compila
+El programa `examples/probe/probe_amd64/main.mir` es la versión convencional
+del programa usado por `examples/amd64-friendlysyntaxs/equivalent.mir`. La prueba diferencial compila
 ambos targets desde `.rif` y desde `.pack` y verifica que las cuatro salidas
 sean los mismos 15 bytes:
 

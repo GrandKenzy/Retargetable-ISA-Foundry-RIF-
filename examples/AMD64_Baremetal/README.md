@@ -16,11 +16,9 @@ familias de encoding que este target declara.
   aritmética, control, enteros y prefijos.
 - `relocations.rif`: símbolos, `pc8`, `pc32`, `abs64`, referencias RIP-relative,
   reservas y posiciones virtuales.
-- `symbols.mir`: símbolos y branches forward/backward sobre una imagen raw.
-- `sections.mir`: layout de `text`/`data`, referencias entre secciones y
-  `vreserve` sin bytes físicos.
-- `advanced.mir`, `conditional.mir`, `runtime.mir`, `smoke.mir`: fixtures raw
-  de familias AMD64; no se ejecutan en el host.
+- Los programas MIR y fixtures raw viven fuera del target, en
+  `examples/probe/probe_amd64/`; este directorio conserva solo la definición
+  AMD64, sus pruebas y los paquetes compilados.
 
 ## Perfil cubierto por este ejemplo
 
@@ -64,10 +62,10 @@ vnma run rif.py --pack examples/AMD64_Baremetal/main_rw.rif \
   -o examples/AMD64_Baremetal/amd64-rw.pack
 
 vnma run rif.py examples/AMD64_Baremetal/amd64.pack \
-  examples/AMD64_Baremetal/symbols.mir \
+  examples/probe/probe_amd64/symbols.mir \
   -o examples/AMD64_Baremetal/symbols.bin
 vnma run rif.py examples/AMD64_Baremetal/amd64-rw.pack \
-  examples/AMD64_Baremetal/sections.mir \
+  examples/probe/probe_amd64/sections.mir \
   -o examples/AMD64_Baremetal/sections.bin
 ```
 

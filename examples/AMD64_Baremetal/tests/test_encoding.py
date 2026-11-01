@@ -12,6 +12,7 @@ import sys
 import time
 
 BASE = Path(__file__).resolve().parents[1]
+PROBE = BASE.parents[0] / 'probe' / 'probe_amd64'
 REGS = 'rax rcx rdx rbx rsp rbp rsi rdi r8 r9 r10 r11 r12 r13 r14 r15'.split()
 OPS_RR = {'movrr': b'\x8b','addrr': b'\x03','subrr': b'\x2b', 'cmprr': b'\x3b',
           'xorrr': b'\x33','andrr': b'\x23','orrr': b'\x0b',
@@ -123,12 +124,12 @@ def main():
     ap.add_argument('--rif-root',type=Path,required=True)
     args=ap.parse_args()
     mir,expected,counts=build_tests()
-    (BASE/'tests'/'all_encodings.mir').write_text(mir)
+    (PROBE/'all_encodings.mir').write_text(mir)
     t0=time.monotonic()
-    p=run(args.rif_root,BASE/'tests'/'all_encodings.mir',BASE/'tests'/'all_encodings.bin')
+    p=run(args.rif_root,PROBE/'all_encodings.mir',PROBE/'all_encodings.bin')
     if p.returncode:
         sys.exit('FALLO RIF: '+p.stdout+' '+p.stderr)
-    image=(BASE/'tests'/'all_encodings.bin').read_bytes()
+    image=(PROBE/'all_encodings.bin').read_bytes()
     # This input deliberately contains only raw instruction bytes. Host image
     # headers and execution are outside this target's contract.
     actual=image
@@ -141,8 +142,8 @@ def main():
     for family,count in counts.items():
         print(f'  {family}: {count}')
     for invalid in ('loadx64 rax, rbx, rsp, 2, 16','loadx64 rax, rbx, rcx, 3, 16','addrr rax, notregister'):
-        (BASE/'tests'/'negative.mir').write_text('_start\n'+invalid+'\n')
-        p=run(args.rif_root,BASE/'tests'/'negative.mir',BASE/'tests'/'negative.bin')
+        (PROBE/'negative.mir').write_text('_start\n'+invalid+'\n')
+        p=run(args.rif_root,PROBE/'negative.mir',PROBE/'negative.bin')
         if p.returncode==0:
             sys.exit('ERROR debería fallar: '+invalid)
         print('OK rechazado:',invalid)

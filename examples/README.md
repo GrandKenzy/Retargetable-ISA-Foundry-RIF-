@@ -5,6 +5,9 @@ example is a target project, not a built-in architecture backend: its `.rif`
 sources declare tables, Rules, matching, layout and emission policy; the RIF
 core only executes those declarations.
 
+External MIR programs and target probes live under `examples/probe/`; they are
+kept separate from target definitions and compiled packages.
+
 ## The common model
 
 Every target follows the same conceptual contract:
@@ -131,7 +134,8 @@ noop
 return
 ```
 
-`equivalent.mir` rewrites the existing `examples/AMD64/main.mir` program as:
+`equivalent.mir` rewrites the existing
+`examples/probe/probe_amd64/main.mir` program as:
 
 ```text
 set R0 = 42

@@ -29,9 +29,9 @@ __pycache__/
 
 # Resultados raw y MIR generados por el target AMD64 bare metal.
 /examples/AMD64_Baremetal/*.bin
-/examples/AMD64_Baremetal/tests/*.bin
-/examples/AMD64_Baremetal/tests/all_encodings.mir
-/examples/AMD64_Baremetal/tests/negative.mir
+/examples/probe/probe_amd64/*.bin
+/examples/probe/probe_amd64/all_encodings.mir
+/examples/probe/probe_amd64/negative.mir
 /examples/AMD64/*.bin
 
 # Salidas generadas por el paquete AMD64 de sintaxis amigable.

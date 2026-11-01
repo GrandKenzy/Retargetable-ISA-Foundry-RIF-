@@ -178,6 +178,9 @@
   `/2` de `callmem64_*`, que estaba reutilizando erróneamente el `/4` de los
   saltos indirectos. NASM y LLVM MC siguen siendo oráculos opcionales, sin
   convertirse en dependencias de RIF.
+- Separados los programas MIR externos del target: los probes AMD64 viven en
+  `examples/probe/probe_amd64/` y `examples/AMD64_Baremetal/` conserva solo
+  sus definiciones, pruebas y paquetes.
 
 ## Syntax
 

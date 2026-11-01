@@ -177,7 +177,9 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   AMD64 bare metal, ELF64 y GBA. El target
   `AMD64_Baremetal` emite imágenes raw y no asume un sistema operativo,
   formato de objeto ni ABI externo. Los `.rif` de ejemplo no viven en la raíz
-  del repositorio.
+  del repositorio. Sus programas MIR externos y fixtures están en
+  `examples/probe/probe_amd64/`; el target conserva la definición `.rif`, las
+  pruebas y los paquetes compilados.
 
 El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
 `integer.rif` y `prefixes.rif` declaran las Rules de enteros y prefijos, mientras

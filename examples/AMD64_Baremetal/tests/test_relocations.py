@@ -9,7 +9,8 @@ import argparse
 from pathlib import Path
 import sys
 
-BASE = Path(__file__).resolve().parents[1]
+TARGET = Path(__file__).resolve().parents[1]
+PROBE = TARGET.parents[0] / 'probe' / 'probe_amd64'
 
 
 def checks(rif_root: Path, gram_root: Path | None = None) -> None:
@@ -20,14 +21,14 @@ def checks(rif_root: Path, gram_root: Path | None = None) -> None:
 
     checked = 0
     for variant in ('main', 'main_rw'):
-        pack = BASE / ('amd64.pack' if variant == 'main' else 'amd64-rw.pack')
+        pack = TARGET / ('amd64.pack' if variant == 'main' else 'amd64-rw.pack')
         target = prepare_target(pack)
         assert len(target.program.rules) >= 40
         print(f'{variant}: {len(target.program.rules)} Rules; pack {pack.stat().st_size:,} bytes')
 
-    text = prepare_target(BASE / 'amd64.pack')
-    rw = prepare_target(BASE / 'amd64-rw.pack')
-    hello = (BASE / 'symbols.mir').read_text()
+    text = prepare_target(TARGET / 'amd64.pack')
+    rw = prepare_target(TARGET / 'amd64-rw.pack')
+    hello = (PROBE / 'symbols.mir').read_text()
     result = compile_mir_source(text, hello)
     symbols = result.symbols
     fixups = result.context.fixups
@@ -74,7 +75,7 @@ jmp8_label data
     assert any(fixup.kind == 'abs64' for fixup in result2.context.fixups)
 
     # Two raw sections and a virtual-only reservation.
-    result3 = compile_mir_source(rw, (BASE/'sections.mir').read_text())
+    result3 = compile_mir_source(rw, (PROBE/'sections.mir').read_text())
     rdata = result3.image.sections['data']
     assert rdata.virtual_base == 0x1000
     assert rdata.file_offset == 0x1000

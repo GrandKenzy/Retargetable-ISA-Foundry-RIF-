@@ -65,7 +65,7 @@ syntax is target data rather than a built-in parser mode.
 ## Syntax equivalence test
 
 `equivalent.mir` is the same small bare-metal program as
-`examples/AMD64/main.mir`, rewritten with the friendly vocabulary. The
+`examples/probe/probe_amd64/main.mir`, rewritten with the friendly vocabulary. The
 dedicated comparison compiles both targets from source and from `.pack`:
 
 ```powershell

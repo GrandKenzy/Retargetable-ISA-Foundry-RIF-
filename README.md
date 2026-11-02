@@ -4,7 +4,7 @@
 
 **Define the rules. Control the bits. Build anything binary.**
 
-> **Version:** `1.0.1` · **Runtime:** Python 3.10+ · **Parser dependency:** [Gram](https://github.com/GrandKenzy/Gram)
+> **Version:** `1.0.0` · **Runtime:** Python 3.10+ · **Parser dependency:** [Gram](https://github.com/GrandKenzy/Gram)
 
 **RIF is an architecture-agnostic, bit-precise binary processing engine.** It lets you define rules for producing, reading, positioning, and modifying binary data without writing a new binary-processing engine for every format.
 
@@ -209,8 +209,8 @@ RIF's documentation is available in English and Spanish:
 - [02. Lenguaje y reglas](docs/es/02-Lenguaje/index.md)
 - [03. Compilación y paquetes](docs/es/03-Compilacion/index.md)
 - [04. Ejecución y memoria binaria](docs/es/04-Ejecucion/index.md)
-- [05. Herramientas PCP-I](docs/en/05-PCPI%20Tools/index.md)
-- [06. Herramientas STORE](docs/en/06-STORE%20Tools/index.md)
+- [05. Herramientas PCP-I](docs/es/05-PCPI/index.md)
+- [06. Herramientas STORE](docs/es/06-STORE/index.md)
 
 Additional resources:
 - [Architecture and terminology](docs/en/01-Introduction/03-architecture.md)

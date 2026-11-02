@@ -1,6 +1,6 @@
 # Documentación de RIF
 
-> **Versión:** `1.0.1`
+> **Versión:** `1.0.0`
 > **Runtime:** Python 3.10+ con Gram
 
 RIF es un framework retargetable para describir conjuntos de instrucciones,
@@ -53,13 +53,20 @@ Memoria de bits, datastack, variantes, trazas, diagnóstico y pruebas.
 - [04. Diagnóstico y pruebas](./04-Ejecucion/04-diagnostico-y-pruebas.md)
 - [05. Inserts y parches](./04-Ejecucion/05-inserts-y-parches.md)
 
-### 05. Herramientas PCP-I y STORE
+### [05. Herramientas PCP-I](./05-PCPI/index.md)
 
-Las guías operativas actuales de estas herramientas están disponibles en
-inglés:
+Plantillas binarias declarativas, pits rellenables, inspección y uso desde MIR.
 
-- [PCP-I Tools](../en/05-PCPI%20Tools/index.md)
-- [STORE Tools](../en/06-STORE%20Tools/index.md)
+- [01. Crear plantillas PCP-I](./05-PCPI/01-crear-plantillas.md)
+- [02. Compilar, inspeccionar y rellenar](./05-PCPI/02-compilar-inspeccionar-y-rellenar.md)
+
+### [06. Herramientas STORE](./06-STORE/index.md)
+
+Valores tipados, payloads raw, media, archivos, contenedores y consumo desde
+MIR.
+
+- [01. Crear fuentes STORE](./06-STORE/01-crear-fuentes-store.md)
+- [02. Compilar y consumir storage](./06-STORE/02-compilar-y-consumir-storage.md)
 
 ## Inicio rápido
 

@@ -1,6 +1,6 @@
 [project]
 name = "RIF"
-version = "1.0.1"
+version = "1.0.0"
 
 [dependencies]
 gram-framework = { git = "https://github.com/GrandKenzy/Gram.git", branch = "main" }

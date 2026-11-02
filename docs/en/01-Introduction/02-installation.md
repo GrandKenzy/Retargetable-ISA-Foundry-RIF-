@@ -7,7 +7,7 @@ path:
 ```toml
 [project]
 name = "RIF"
-version = "1.0.1"
+version = "1.0.0"
 
 [dependencies]
 gram = { path = "~/Desktop/Gram", editable = true }

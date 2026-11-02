@@ -1,6 +1,6 @@
 # RIF Documentation
 
-> **Version:** `1.0.1`
+> **Version:** `1.0.0`
 > **Runtime:** Python 3.10+ with Gram
 
 RIF is a retargetable instruction format and compilation framework. A RIF

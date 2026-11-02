@@ -9,119 +9,44 @@
 
 ## Current release
 
-### Unreleased · Canonical generic blocks
+### [`1.0.0`](changelog_1.0.0.md) · Official stable release
 
-RIF now materializes `config` and `linker` through the generic `@block` form.
-The former dedicated block headers and dotted directive syntax are no longer
-accepted, and arbitrary blocks remain available through the compiled target
-context.
+RIF `1.0.0` is the canonical official stable version. It is the reference
+contract for the current frontend, MIR compiler, packages, PCP-I tools, STORE
+containers, examples, and documentation.
 
-The temporary `food/` directory records concise x86-64, LLVM MC, and native RIF
-relocation reference tables used to feed and verify the examples. It is not a
-runtime dependency or a final product artifact and can be removed after the
-examples are stabilized.
+This release includes the complete definition-to-binary workflow, the explicit
+frontend session model, the FFI AOT CLI route, reusable `.pack` and `.riflib`
+artifacts, AMD64 and Friendly Syntax probes, PCP-I templates, versioned STORE
+containers, and the documented `main.py` entrypoint.
 
-The AMD64 v3 example is now an operating-system-neutral bare-metal raw target;
-its fixtures and tests no longer require object headers or host execution.
+## Patch policy
 
-`.pack` targets can now publish their explicitly loaded Rules and tables as a
-declaration-only `.riflib` with `main.py --library target.pack`. The Friendly QEMU
-example consumes that layer and keeps its QEMU blocks and boot Rules local.
+RIF remains version `1.0.0` while patches are released for small corrections
+that do not change compilation behavior. A patch may correct documentation,
+diagnostics, launcher behavior, cleanup, test robustness, or an internal error
+that cannot alter accepted syntax, target resolution, layout, emitted bytes,
+package compatibility, or storage format semantics.
 
-`main.py` is the canonical and only entrypoint for packaging, MIR compilation,
-PCP-I, storage, inspection, and library operations. `rif_tools/cli.py` owns the
-dispatch implementation.
-
-The ELF64 and MiniOS test examples now live under `examples/probe/` with the
-other target probes.
-
-The obsolete `RIF-Core-Demo` example was removed; frontend and runtime
-coverage remains in the essential, aggressive and dedicated suites.
-
-The QEMU-independent Friendly AMD64 example now carries the complete raw
-AMD64 profile from `AMD64_Baremetal` and validates it with the same encoding,
-relocation, integer/prefix and external-oracle checks, while retaining its
-readable aliases.
-
-The AMD64 targets now keep shared BSWAP and 32-bit address-register metadata in
-the canonical register tables instead of repeating those rows in integer and
-prefix sources; the CL-only shift-count table remains intentionally narrow.
-The two AMD64 image roots now share their declaration load through `profile.rif`;
-only root configuration and the optional data alignment remain layout-specific.
-
-Table declarations now support compile-time joins with
-`%[selector]=table.column%` derived headers and indexed cell references in the
-form `%table.selector[key].column%`. Dependencies are resolved before the
-immutable table context is exposed to MIR, AOT, or precompiled `.pack` files.
-
-The frontend now builds each target through an explicit `CompilationSession`
-and freezes it into an immutable `TargetContext`; loads, libraries, variants,
-table resolution, MIR compilation, and pack precompilation no longer snapshot
-and restore mutable frontend globals. The public CLI is FFI AOT-only, while
-the Python frontend remains an internal parity oracle. The cached shared
-library is rebuilt with GCC or Clang only when invalidated.
-
-Legacy frontend globals are now copied into a short-lived compatibility
-session and published only for old introspection callers. Pending tables,
-source activity, and load tracking are owned exclusively by the session during
-modern processing.
-
-`.store` now accepts `@ITEM BINARY` for opaque named payloads. Binary files are
-copied without image/audio plugins and can be consumed by `::RIF_STORE` using
-the same bounded label index.
-
-`.store` VERSION 2 also accepts exact typed byte literals (`str`, fixed-width
-integers, and IEEE-754 floats), bounded `@REQST` downloads, and label-selected
-`@CONTAINER` imports from validated `RIFSTOR` files. VERSION 1 remains the
-simple local/raw format.
-
-The GBA ROM example now consumes the shared PCP-I header template from
-`examples/headers/GBA_ROM_arm7tdmi_little.pcpi`; its build creates the
-compiled `.pcic` image and fills only the declared pits instead of carrying a
-second raw header copy.
-
-`::RIF_STORE` now supports local aliases, so a MIR source can declare
-`::RIF_STORE AS name "path.storage.bin"` once and reuse `name` for subsequent
-payload insertions. The path-first form remains accepted. Aliases can also set
-`ORDER` and `ENDIANNESS` once for typed values; opaque payloads remain
-byte-for-byte.
-
-STORE now reports oversized `float32` literals as controlled source errors
-instead of leaking a native packing exception, and VERSION 2 rejects alignment
-padding that would overlap its inline type metadata. The STORE documentation
-also distinguishes payload insertion from future operand-symbol resolution.
-
-The public documentation now uses `vnma run main.py` consistently, documents
-the optional `rif.cmd` wrapper, exposes the PCP-I and STORE tool guides from
-the main indexes, and removes obsolete direct-entry examples.
-
-### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
-
-RIF `1.0.1` strengthens path validation, resource controls, package safety,
-concurrent compilation isolation, and verification coverage.
-
-### [`1.0.0`](changelog_1.0.0.md) · Initial stable release
-
-RIF `1.0.0` provides the complete definition-to-binary pipeline, including
-external MIR compilation, bit-addressable output, target packages, tables,
-variants, Python functions, and independent physical and virtual memory state.
+A change that modifies the compiler contract, accepted language, Rule
+resolution, binary output, package format, or target semantics requires a new
+versioned release instead of being treated as a `1.0.0` patch.
 
 ## Release timeline
 
 | Version | Date | Main focus | Notes |
 | --- | --- | --- | --- |
-| [`1.0.1`](changelog_1.0.1.md) | 2026-10-26 | Security hardening and resource controls | Current |
-| [`1.0.0`](changelog_1.0.0.md) | 2026-10-26 | Complete RIF compilation pipeline | Superseded |
+| [`1.0.0`](changelog_1.0.0.md) | 2026-11-01 | Official stable RIF contract | Current |
 
 ## How to read these notes
 
-Each release has a `changelog_*.md` file. Entries are grouped by impact:
+The release file uses these sections:
 
 - **Added:** new public capabilities and language constructs.
-- **Changed:** modifications to existing behavior.
-- **Fixed:** corrected bugs and regressions.
+- **Changed:** intentional behavior or architecture changes within the release.
+- **Fixed:** corrected defects that preserve the stable compilation contract.
 - **Documentation:** synchronized English and Spanish guides.
-- **Verification:** tests, stress runs, and compatibility checks.
+- **Verification:** tests, probes, benchmarks, and audits used during release work.
 
-Keep the version in the changelog filename, heading, and `vnma.toml` metadata
-synchronized when preparing a release.
+Keep the version in the changelog filename, heading, `vnma.toml` metadata, and
+the public contract synchronized.

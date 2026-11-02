@@ -1,8 +1,8 @@
 """Carga y controla las variantes ISA declaradas por un programa RIF.
 
-Las variantes se procesan en el mismo contexto global que el archivo raíz. El
-archivo de una variante solamente añade ``@define`` y ``@rule``; no crea un
-segundo ``Session`` ni un segundo espacio semántico.
+Las variantes se procesan en la misma ``CompilationSession`` que el archivo
+raíz. El archivo de una variante solamente añade ``@define`` y ``@rule``; no
+crea un segundo target ni un segundo espacio semántico.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from rif_core.limits import resolve_limits
 from .parsing import SourceParser
 
@@ -35,11 +36,14 @@ def resolve_variant(
     name: str,
     root_path: str | Path,
     project_root: str | Path | None = None,
+    *,
+    session: CompilationSession | None = None,
 ) -> Path:
     """Resuelve ``<name>.rif`` respetando ``search_path`` del linker."""
 
     root = Path(root_path).expanduser()
-    linker = globals.LINKER
+    state = session or CompilationSession.from_globals(project_root=project_root)
+    linker = state.linker
     search_path: tuple[str, ...] | bool = ("",)
     if linker is not None:
         search_path = linker.search_path
@@ -70,6 +74,7 @@ def resolve_variant(
 def _load_variant(
     variant: globals.AsmVariantData,
     root_path: Path | str,
+    session: CompilationSession,
     source_provider=None,
     project_root: str | Path | None = None,
     backend: str = "aot",
@@ -77,18 +82,24 @@ def _load_variant(
 ) -> None:
     """Carga recursivamente el archivo asociado a una variante."""
 
+    source_provider = source_provider if source_provider is not None else session.source_provider
     if source_provider is not None:
-        search_path = globals.LINKER.search_path if globals.LINKER is not None else ("",)
+        search_path = session.linker.search_path if session.linker is not None else ("",)
         path_key = source_provider.resolve_variant(variant.name, search_path)
         path = None
     else:
-        path = resolve_variant(variant.name, root_path, project_root)
+        path = resolve_variant(
+            variant.name,
+            root_path,
+            project_root,
+            session=session,
+        )
         path_key = canonical_path(path)
 
-    if path_key in globals.ACTIVE_SOURCES:
-        cycle = " -> ".join((*globals.ACTIVE_SOURCES, path_key))
+    if path_key in session.active_sources:
+        cycle = " -> ".join((*session.active_sources, path_key))
         raise RuntimeError(f"Ciclo de variantes detectado: {cycle}")
-    if path_key in globals.LOADED_SOURCES:
+    if path_key in session.loaded_sources:
         return
     if path is not None and not path.is_file():
         raise FileNotFoundError(
@@ -100,17 +111,21 @@ def _load_variant(
     from . import process
 
     source_parser = parser or SourceParser(backend=backend)
-    globals.ACTIVE_SOURCES.append(path_key)
+    session.active_sources.append(path_key)
     try:
         if path is not None and path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La variante excede el límite de tamaño: {path}")
         if path is None:
             source = source_provider.source_text(path_key)
+            session.source_texts[path_key] = source
             ast = source_parser.parse_text(source, path_key)
         elif backend == "aot":
             ast = source_parser.parse_file(path)
+            session.source_texts[path_key] = path.read_text(encoding="utf-8")
         else:
-            ast = source_parser.parse_text(path.read_text(encoding="utf-8"), path_key)
+            source = path.read_text(encoding="utf-8")
+            session.source_texts[path_key] = source
+            ast = source_parser.parse_text(source, path_key)
         process(
             ast,
             source_path=path_key,
@@ -120,23 +135,25 @@ def _load_variant(
             project_root=project_root,
             backend=backend,
             parser=source_parser,
+            session=session,
         )
-        globals.LOADED_SOURCES[path_key] = variant.name
+        session.loaded_sources[path_key] = variant.name
     finally:
-        if globals.ACTIVE_SOURCES and globals.ACTIVE_SOURCES[-1] == path_key:
-            globals.ACTIVE_SOURCES.pop()
-        elif path_key in globals.ACTIVE_SOURCES:
-            globals.ACTIVE_SOURCES.remove(path_key)
+        if session.active_sources and session.active_sources[-1] == path_key:
+            session.active_sources.pop()
+        elif path_key in session.active_sources:
+            session.active_sources.remove(path_key)
 
 
-def validate_variant_rules() -> None:
+def validate_variant_rules(session: CompilationSession | None = None) -> None:
     """Verifica que las Rules de entrada y salida estén disponibles."""
 
-    for variant in globals.ASM_VARIANTS.values():
+    state = session or CompilationSession.from_globals()
+    for variant in state.asm_variants.values():
         missing = [
             rule
             for rule in (variant.enter_rule, variant.exit_rule)
-            if rule not in globals.RULES
+            if rule not in state.rules
         ]
         if missing:
             raise RuntimeError(
@@ -151,24 +168,39 @@ def load_variants(
     project_root: str | Path | None = None,
     backend: str = "aot",
     parser: SourceParser | None = None,
+    *,
+    session: CompilationSession | None = None,
 ) -> None:
     """Carga todos los archivos de variantes y valida sus reglas."""
 
+    owns_session = session is None
+    state = session or CompilationSession.from_globals(
+        backend=backend,
+        parser=parser,
+        source_provider=source_provider,
+        project_root=project_root,
+    )
+    provider = source_provider if source_provider is not None else state.source_provider
     root = Path(root_path).expanduser()
     root_key = canonical_path(root)
-    if root_key not in globals.LOADED_SOURCES:
-        globals.LOADED_SOURCES[root_key] = "root"
+    if root_key not in state.loaded_sources:
+        state.loaded_sources[root_key] = "root"
 
-    for variant in tuple(globals.ASM_VARIANTS.values()):
-        _load_variant(
-            variant,
-            root,
-            source_provider=source_provider,
-            project_root=project_root,
-            backend=backend,
-            parser=parser,
-        )
-    validate_variant_rules()
+    try:
+        for variant in tuple(state.asm_variants.values()):
+            _load_variant(
+                variant,
+                root,
+                state,
+                source_provider=provider,
+                project_root=project_root,
+                backend=backend,
+                parser=parser,
+            )
+        validate_variant_rules(state)
+    finally:
+        if owns_session:
+            state.sync_to_globals()
 
 
 def enter_variant(
@@ -176,11 +208,15 @@ def enter_variant(
     source_path: str | Path,
     token_position: int,
     return_rule: str | None = None,
+    *,
+    session: CompilationSession | None = None,
 ) -> globals.VariantFrame:
-    """Abre un frame de variante conservando el contexto global."""
+    """Abre un frame de variante dentro de la sesión recibida."""
 
+    owns_session = session is None
+    state = session or CompilationSession.from_globals()
     try:
-        variant = globals.ASM_VARIANTS[name]
+        variant = state.asm_variants[name]
     except KeyError as exc:
         raise KeyError(f"Variante ISA desconocida: {name}") from exc
     frame = globals.VariantFrame(
@@ -189,28 +225,42 @@ def enter_variant(
         return_rule=return_rule,
         token_position=token_position,
     )
-    globals.VARIANT_STACK.append(frame)
+    state.variant_stack.append(frame)
+    if owns_session:
+        state.sync_to_globals()
     return frame
 
 
-def exit_variant(expected: str | None = None) -> globals.VariantFrame:
+def exit_variant(
+    expected: str | None = None,
+    *,
+    session: CompilationSession | None = None,
+) -> globals.VariantFrame:
     """Cierra el frame actual y comprueba opcionalmente su nombre."""
 
-    if not globals.VARIANT_STACK:
+    owns_session = session is None
+    state = session or CompilationSession.from_globals()
+    if not state.variant_stack:
         raise RuntimeError("No hay una variante activa para cerrar.")
-    frame = globals.VARIANT_STACK.pop()
+    frame = state.variant_stack.pop()
     if expected is not None and frame.variant.name != expected:
         raise RuntimeError(
             f"Se intentó cerrar '{expected}', pero la variante activa es "
             f"'{frame.variant.name}'."
         )
+    if owns_session:
+        state.sync_to_globals()
     return frame
 
 
-def current_variant() -> globals.VariantFrame | None:
+def current_variant(
+    *,
+    session: CompilationSession | None = None,
+) -> globals.VariantFrame | None:
     """Devuelve el frame activo sin modificar el stack."""
 
-    return globals.VARIANT_STACK[-1] if globals.VARIANT_STACK else None
+    state = session or CompilationSession.from_globals()
+    return state.variant_stack[-1] if state.variant_stack else None
 
 
 __all__ = [

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
@@ -127,8 +127,8 @@ class ConfigData:
     labelend: str
     datasection: str
     defaultsection: str
-    sectionflags: dict[str, str]
-    sectionalign: dict[str, int]
+    sectionflags: Mapping[str, str]
+    sectionalign: Mapping[str, int]
     wordsize: int
     addresssize: int
     endianness: str
@@ -140,7 +140,12 @@ class ConfigData:
     strict: bool
     allowemptysections: bool
     bitorder: str = "msb"
-    sectionvaddr: dict[str, int] = field(default_factory=dict)
+    sectionvaddr: Mapping[str, int] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "sectionflags", MappingProxyType(dict(self.sectionflags)))
+        object.__setattr__(self, "sectionalign", MappingProxyType(dict(self.sectionalign)))
+        object.__setattr__(self, "sectionvaddr", MappingProxyType(dict(self.sectionvaddr)))
 
 
 @dataclass(frozen=True)
@@ -221,46 +226,29 @@ class TargetContext:
     defines: frozenset[str] = frozenset()
     stack_size: int | None = None
     tables: Mapping[str, TableData] = field(default_factory=dict)
-    supports: dict[str, SupportData] = field(default_factory=dict)
-    asm_variants: dict[str, AsmVariantData] = field(default_factory=dict)
-    loaded_sources: dict[str, str] = field(default_factory=dict)
-    blocks: dict[str, tuple[BlockData, ...]] = field(default_factory=dict)
+    supports: Mapping[str, SupportData] = field(default_factory=dict)
+    asm_variants: Mapping[str, AsmVariantData] = field(default_factory=dict)
+    loaded_sources: Mapping[str, str] = field(default_factory=dict)
+    blocks: Mapping[str, tuple[BlockData, ...]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "tables", MappingProxyType(dict(self.tables)))
+        object.__setattr__(self, "supports", MappingProxyType(dict(self.supports)))
+        object.__setattr__(self, "asm_variants", MappingProxyType(dict(self.asm_variants)))
+        object.__setattr__(self, "loaded_sources", MappingProxyType(dict(self.loaded_sources)))
+        object.__setattr__(
+            self,
+            "blocks",
+            MappingProxyType({name: tuple(items) for name, items in self.blocks.items()}),
+        )
 
 
 def snapshot_target_context() -> TargetContext:
     """Return a detached copy of the target currently built by visitors."""
 
-    config = CONFIG
-    if config is not None:
-        config = replace(
-            config,
-            sectionflags=dict(config.sectionflags),
-            sectionalign=dict(config.sectionalign),
-            sectionvaddr=dict(config.sectionvaddr),
-        )
-    tables = {
-        name: TableData(
-            name=table.name,
-            headers=tuple(table.headers),
-            matrix=tuple(tuple(row) for row in table.matrix),
-            columns=dict(table.columns),
-        )
-        for name, table in TABLES.items()
-    }
-    return TargetContext(
-        config=config,
-        linker=LINKER,
-        defines=frozenset(DEFINES),
-        stack_size=STACK_SIZE,
-        tables=tables,
-        supports=dict(SUPPORTS),
-        asm_variants=dict(ASM_VARIANTS),
-        loaded_sources=dict(LOADED_SOURCES),
-        blocks={name: tuple(items) for name, items in BLOCKS.items()},
-    )
+    from Frontend.session import CompilationSession
+
+    return CompilationSession.from_globals().freeze()
 
 
 def activate_target_context(context: TargetContext) -> None:
@@ -271,7 +259,7 @@ def activate_target_context(context: TargetContext) -> None:
     later calls to this helper.
     """
 
-    global STACK, STACK_SIZE, CONFIG, LINKER
+    global STACK, STACK_SIZE, CONFIG, LINKER, PROCESS_DEPTH, SOURCE_PROVIDER
     STACK_SIZE = context.stack_size
     STACK = {} if STACK_SIZE is not None else None
     CONFIG = context.config
@@ -280,6 +268,9 @@ def activate_target_context(context: TargetContext) -> None:
     DEFINES.update(context.defines)
     TABLES.clear()
     TABLES.update(context.tables)
+    PENDING_TABLES.clear()
+    PROCESS_DEPTH = 0
+    SOURCE_PROVIDER = None
     SUPPORTS.clear()
     SUPPORTS.update(context.supports)
     ASM_VARIANTS.clear()
@@ -288,6 +279,7 @@ def activate_target_context(context: TargetContext) -> None:
     LOADED_SOURCES.update(context.loaded_sources)
     BLOCKS.clear()
     BLOCKS.update({name: list(items) for name, items in context.blocks.items()})
+    ACTIVE_SOURCES.clear()
     VARIANT_STACK.clear()
 
 
@@ -303,6 +295,13 @@ DEFINES: set[str] = set()
 # al materializarse; el diccionario global solo cambia durante el frontend.
 TABLES: dict[str, TableData] = {}
 
+# Compatibilidad legacy únicamente. Las declaraciones pendientes viven en
+# CompilationSession y nunca se consultan durante una compilación moderna.
+PENDING_TABLES: dict[str, Any] = {}
+
+# Compatibilidad legacy únicamente; el anidamiento de loaders usa la sesión.
+PROCESS_DEPTH = 0
+
 # Reglas localizadas por nombre. Su AST se conserva para la fase de ejecución.
 RULES: dict[str, RuleData] = {}
 
@@ -312,7 +311,8 @@ CONFIG: ConfigData | None = None
 # Configuración única del linker.
 LINKER: LinkerData | None = None
 
-# Variantes y archivos cargados comparten el mismo contexto semántico.
+# El contexto publicado para introspección legacy conserva estas vistas; el
+# frontend moderno las mantiene dentro de CompilationSession.
 SUPPORTS: dict[str, SupportData] = {}
 ASM_VARIANTS: dict[str, AsmVariantData] = {}
 LOADED_SOURCES: dict[str, str] = {}
@@ -334,6 +334,8 @@ __all__ = [
     "TableData",
     "TableKey",
     "TABLES",
+    "PENDING_TABLES",
+    "PROCESS_DEPTH",
     "RuleData",
     "RULES",
     "ConfigData",

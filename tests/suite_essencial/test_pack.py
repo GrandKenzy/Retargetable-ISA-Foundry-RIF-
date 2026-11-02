@@ -10,6 +10,7 @@ from pathlib import Path
 from rif_core.pack import PackReader, create_pack, read_pack
 from main import main as rif_main
 from rif_core.contract import current_contract
+from MIR.pipeline import compile_pack
 
 
 class PackTests(unittest.TestCase):
@@ -165,6 +166,31 @@ class PackTests(unittest.TestCase):
                     )
                 finally:
                     connection.close()
+
+    def test_precompiled_pack_stores_resolved_table_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main = root / "main.rif"
+            main.write_text(
+                "@table result\n"
+                "| name | %[name]=source.value% |\n"
+                "__\n"
+                "| rax |\n"
+                "@end\n"
+                "@table source\n"
+                "| name | value |\n"
+                "__\n"
+                "| rax | 42 |\n"
+                "@end\n"
+                "@rule sample:\n"
+                ". $result.name, IDENT\n",
+                encoding="utf-8",
+            )
+            package = create_pack(main, precompile=True)
+            compiled = compile_pack(package)
+
+            self.assertEqual(compiled.context.tables["result"].headers, ("name", "value"))
+            self.assertEqual(compiled.context.tables["result"].matrix, (("rax", 42),))
 
     def test_read_pack_detects_tampered_source(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

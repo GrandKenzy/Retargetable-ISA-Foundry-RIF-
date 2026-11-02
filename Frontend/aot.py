@@ -178,15 +178,9 @@ class GIRAdapter:
 @dataclass
 class AOTParser:
     output_dir: Path
-    library: Path
+    ffi_path: Path
     session: Any
     _ffi: Any = field(default=None, init=False, repr=False)
-
-    @property
-    def executable(self) -> Path:
-        """Compatibility name for the cached native AOT library path."""
-
-        return self.library
 
     @staticmethod
     def default_cache_dir() -> Path:
@@ -385,10 +379,10 @@ class AOTParser:
     def _ffi_library(self) -> Any:
         if self._ffi is not None:
             return self._ffi
-        if not self.library.is_file():
-            raise AOTError(f"No se encontró la biblioteca AOT: {self.library}")
+        if not self.ffi_path.is_file():
+            raise AOTError(f"No se encontró la biblioteca FFI AOT: {self.ffi_path}")
         try:
-            library = ctypes.CDLL(str(self.library))
+            library = ctypes.CDLL(str(self.ffi_path))
             compile_source = library.gram_compile_source_to_ir
             compile_source.argtypes = [
                 ctypes.c_void_p,
@@ -402,7 +396,7 @@ class AOTParser:
             free_blob.restype = None
         except (AttributeError, OSError) as exc:
             raise AOTError(
-                f"No se pudo cargar la FFI AOT desde '{self.library}': {exc}"
+                f"No se pudo cargar la FFI AOT desde '{self.ffi_path}': {exc}"
             ) from exc
         self._ffi = (library, compile_source, free_blob)
         return self._ffi

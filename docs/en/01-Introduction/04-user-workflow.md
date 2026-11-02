@@ -87,19 +87,12 @@ fixups declared by the Rules. The output is committed atomically. A failed
 Rule, layout check, or relocation cannot leave a partially valid binary as the
 successful result.
 
-## Choosing a backend
+## Frontend route
 
-The default frontend backend is the in-memory Gram C/AOT parser. It parses
-the RIF source into GIR and RIF then applies its normal target semantics. The
-Python parser remains available for explicit comparison and troubleshooting:
-
-```powershell
-vnma run main.py --backend aot target/main.rif program.mir
-vnma run main.py --backend python target/main.rif program.mir
-```
-
-The backend choice affects parsing of the target definition. It does not
-change the target's declarative meaning or the external MIR contract.
+The public CLI always uses Gram's in-memory C/AOT FFI. The shared library is
+cached under `.rif-cache/aot`; GCC or Clang is invoked only to build or
+invalidate that library, never for each cached parse. Python remains available
+inside parity tests and diagnostics, but it is not a public CLI backend.
 
 ## A useful project layout
 

@@ -7,25 +7,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from Frontend import globals
 from MIR import compile_source
 from rif_core.pack import create_pack, read_pack
-
-
-def reset_globals() -> None:
-    globals.STACK = None
-    globals.STACK_SIZE = None
-    globals.DEFINES.clear()
-    globals.TABLES.clear()
-    globals.RULES.clear()
-    globals.CONFIG = None
-    globals.LINKER = None
-    globals.SUPPORTS.clear()
-    globals.ASM_VARIANTS.clear()
-    globals.LOADED_SOURCES.clear()
-    globals.ACTIVE_SOURCES.clear()
-    globals.VARIANT_STACK.clear()
-    globals.SOURCE_PROVIDER = None
 
 
 def make_project(root: Path, count: int = 32) -> Path:
@@ -43,11 +26,9 @@ def make_project(root: Path, count: int = 32) -> Path:
 
 
 def measure(label: str, function, rounds: int = 3) -> tuple[str, list[float]]:
-    reset_globals()
     function()
     samples: list[float] = []
     for _ in range(rounds):
-        reset_globals()
         start = time.perf_counter()
         function()
         samples.append((time.perf_counter() - start) * 1000)

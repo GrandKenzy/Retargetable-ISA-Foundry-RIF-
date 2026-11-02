@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 
 from .config import visit as visit_config
 from .linker import visit as visit_linker
@@ -62,7 +63,12 @@ def _entries(node: Any) -> tuple[globals.BlockEntryData, ...]:
     return tuple(result)
 
 
-def visit(node: Any, source_path: str | None = None) -> None:
+def visit(
+    node: Any,
+    source_path: str | None = None,
+    *,
+    session: CompilationSession,
+) -> None:
     """Validate, preserve, and dispatch one generic block."""
 
     block_name = str(getattr(node, "block_name", "")).lower()
@@ -70,11 +76,11 @@ def visit(node: Any, source_path: str | None = None) -> None:
         raise RuntimeError("Un bloque genérico requiere un nombre.")
     entries = _entries(node)
     block = globals.BlockData(block_name, entries, source_path)
-    globals.BLOCKS.setdefault(block_name, []).append(block)
+    session.blocks.setdefault(block_name, []).append(block)
     if block_name == "config":
-        visit_config(block)
+        visit_config(block, session)
     elif block_name == "linker":
-        visit_linker(block)
+        visit_linker(block, session)
 
 
 __all__ = ["visit"]

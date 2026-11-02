@@ -9,10 +9,10 @@ from typing import Iterable
 from Frontend import RIF_LANG_SESSION, globals
 from Frontend.processor import process
 from Frontend.processor.parsing import SourceParser
+from Frontend.session import CompilationSession
 from rif_core.pack import PackReader
 from rif_core.limits import COMPILATION_LOCK, resolve_limits
 
-from . import compiler as compiler_module
 from .compiler import compile_rules
 from .compiled import load_database
 from .diagnostics import DiagnosticBag
@@ -29,25 +29,6 @@ class Compilation:
     source_path: Path
     program: CompiledRuleSet
     image: AssemblyImage | None = None
-
-
-def _reset_context() -> None:
-    """Start an independent target compilation in the process."""
-
-    globals.STACK = None
-    globals.STACK_SIZE = None
-    globals.DEFINES.clear()
-    globals.TABLES.clear()
-    globals.RULES.clear()
-    globals.CONFIG = None
-    globals.LINKER = None
-    globals.SUPPORTS.clear()
-    globals.ASM_VARIANTS.clear()
-    globals.LOADED_SOURCES.clear()
-    globals.ACTIVE_SOURCES.clear()
-    globals.VARIANT_STACK.clear()
-    globals.SOURCE_PROVIDER = None
-    globals.BLOCKS.clear()
 
 
 def parse_source(
@@ -87,20 +68,32 @@ def _compile_source(path: str | Path, *, backend: str = "aot") -> CompiledRuleSe
     external MIR program that those Rules will consume in the next phase.
     """
     with COMPILATION_LOCK:
-        _reset_context()
         source_path = Path(path).expanduser().resolve()
         if source_path.suffix.lower() == ".pack":
             return compile_pack(source_path, backend=backend)
         source_parser = SourceParser(backend=backend, session=RIF_LANG_SESSION)
         ast, source_path = parse_source(path, backend=backend, parser=source_parser)
+        session = CompilationSession(
+            backend=backend,
+            parser=source_parser,
+            project_root=source_path.parent,
+        )
+        session.source_texts[str(source_path)] = source_path.read_text(encoding="utf-8")
         process(
             ast,
             source_path=source_path,
             project_root=source_path.parent,
             backend=backend,
             parser=source_parser,
+            session=session,
         )
-        return compile_rules(resolve=True)
+        target_context = session.finalize()
+        return compile_rules(
+            tuple(session.rules.values()),
+            context=target_context,
+            source_texts=session.source_texts,
+            resolve=True,
+        )
 
 
 def compile_source(
@@ -113,7 +106,12 @@ def compile_source(
 
     bag = diagnostics if diagnostics is not None else DiagnosticBag()
     try:
-        return _compile_source(path, backend=backend)
+        program = _compile_source(path, backend=backend)
+        # Transitional introspection adapter for callers that still inspect
+        # Frontend.globals after a public compile. Production consumers use
+        # ``program.context`` directly.
+        globals.activate_target_context(program.context)
+        return program
     except Exception as exc:
         phase = "rules" if type(exc).__name__ == "MIRSemanticError" else "frontend"
         bag.add_exception(exc, phase=phase, path=str(path))
@@ -127,7 +125,6 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
         raise ValueError(f"Backend de RIF desconocido: {backend!r}.")
 
     with COMPILATION_LOCK:
-        _reset_context()
         package_path = Path(path).expanduser().resolve()
         with PackReader(package_path) as package:
             compiled_database = package.compiled_database()
@@ -137,35 +134,43 @@ def compile_pack(path: str | Path, *, backend: str = "aot") -> CompiledRuleSet:
                     expected_fingerprint=package.manifest.content_sha256,
                     expected_contract=package.manifest.contract,
                 )
-            previous_sources = dict(compiler_module.SOURCE_TEXTS)
-            compiler_module.SOURCE_TEXTS.update(
+            source_name = package.virtual_path()
+            source = package.source_text()
+            # Source-only packs are indexed through virtual ``pack://`` paths.
+            # The canonical AOT FFI accepts their source bytes directly;
+            # Python remains an explicit comparison backend.
+            pack_parser = SourceParser(
+                backend=backend,
+                session=RIF_LANG_SESSION,
+            )
+            session = CompilationSession(
+                backend=backend,
+                parser=pack_parser,
+                source_provider=package,
+            )
+            session.source_texts.update(
                 {
                     package.virtual_path(entry.path): package.source_text(entry.path)
                     for entry in package.manifest.files
                 }
             )
-            source_name = package.virtual_path()
-            source = package.source_text()
-            try:
-                # Source-only packs are indexed through virtual ``pack://``
-                # paths. The canonical AOT FFI accepts their source bytes
-                # directly; Python remains an explicit comparison backend.
-                pack_parser = SourceParser(
-                    backend=backend,
-                    session=RIF_LANG_SESSION,
-                )
-                ast = pack_parser.parse_text(source, source_name)
-                process(
-                    ast,
-                    source_path=source_name,
-                    source_provider=package,
-                    backend=backend,
-                    parser=pack_parser,
-                )
-                return compile_rules(resolve=True)
-            finally:
-                compiler_module.SOURCE_TEXTS.clear()
-                compiler_module.SOURCE_TEXTS.update(previous_sources)
+            session.source_texts[source_name] = source
+            ast = pack_parser.parse_text(source, source_name)
+            process(
+                ast,
+                source_path=source_name,
+                source_provider=package,
+                backend=backend,
+                parser=pack_parser,
+                session=session,
+            )
+            target_context = session.finalize()
+            return compile_rules(
+                tuple(session.rules.values()),
+                context=target_context,
+                source_texts=session.source_texts,
+                resolve=True,
+            )
 
 
 def compile_definition(

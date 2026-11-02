@@ -40,6 +40,32 @@ RIF materializes the table as an immutable matrix and builds constant-time
 indexes for every column. Auxiliary columns may contain duplicates; a column
 must be unique only when it is used to select a row.
 
+## Table operations
+
+Table declarations can derive columns from another table. The selector in
+brackets is taken from the current row, and the source column becomes the
+derived column name:
+
+```rif
+@table membase
+| name | %[name]=registers.lo% | %[name]=registers.hi% | sib |
+__
+| rax | %othertable.name[r12].sib% |
+@end
+```
+
+`%[name]=registers.lo%` looks up `registers.name` using the current row's
+`name` and copies `registers.lo`. Derived columns are omitted from row cells;
+the remaining cells fill the literal columns in header order. A cell lookup
+such as `%othertable.name[r12].sib%` selects the unique row whose `name` is
+`r12` and copies its `sib` value.
+
+Operations are resolved while tables are materialized. Forward references are
+allowed, but missing tables, missing columns, missing keys, duplicate selector
+keys, and dependency cycles are errors. The resulting `.pack` stores only the
+resolved immutable matrix, so the runtime and AOT backend do not need a second
+table-expression evaluator.
+
 ## Loading Additional Sources
 
 `@LOAD` includes another `.rif` source relative to the current source:

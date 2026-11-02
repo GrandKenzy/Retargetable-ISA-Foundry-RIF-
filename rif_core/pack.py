@@ -596,69 +596,26 @@ def _build_compiled_database(
     source_fingerprint: str,
     contract: CompilationContract,
 ) -> bytes:
-    """Compile a source project in an isolated global context."""
+    """Compile a source project in its own frontend session."""
 
     try:
         # Direct ``main.py --pack`` must bootstrap the VNMA vendor projection before
         # importing MIR/Gram. Under ``vnma run`` this is already initialized.
         import vendor  # noqa: F401
-        from Frontend import globals as rif_globals
         from MIR import compile_source
         from MIR.compiled import build_database
-        from MIR import compiler as compiler_module
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "No se pudo precompilar el paquete: instala Gram con 'vnma install'."
         ) from exc
 
-    mutable_names = (
-        "DEFINES",
-        "TABLES",
-        "RULES",
-        "SUPPORTS",
-        "ASM_VARIANTS",
-        "LOADED_SOURCES",
-        "ACTIVE_SOURCES",
-        "VARIANT_STACK",
+    program = compile_source(entrypoint)
+    return build_database(
+        program,
+        source_root=entrypoint.parent,
+        source_fingerprint=source_fingerprint,
+        contract=contract,
     )
-    previous = {
-        "STACK": rif_globals.STACK,
-        "STACK_SIZE": rif_globals.STACK_SIZE,
-        "CONFIG": rif_globals.CONFIG,
-        "LINKER": rif_globals.LINKER,
-        "SOURCE_PROVIDER": rif_globals.SOURCE_PROVIDER,
-        **{name: getattr(rif_globals, name) for name in mutable_names},
-        "SOURCE_TEXTS": dict(compiler_module.SOURCE_TEXTS),
-    }
-    try:
-        rif_globals.STACK = None
-        rif_globals.STACK_SIZE = None
-        rif_globals.CONFIG = None
-        rif_globals.LINKER = None
-        rif_globals.SOURCE_PROVIDER = None
-        rif_globals.DEFINES = set()
-        rif_globals.TABLES = {}
-        rif_globals.RULES = {}
-        rif_globals.SUPPORTS = {}
-        rif_globals.ASM_VARIANTS = {}
-        rif_globals.LOADED_SOURCES = {}
-        rif_globals.ACTIVE_SOURCES = []
-        rif_globals.VARIANT_STACK = []
-        compiler_module.SOURCE_TEXTS.clear()
-        program = compile_source(entrypoint)
-        return build_database(
-            program,
-            source_root=entrypoint.parent,
-            source_fingerprint=source_fingerprint,
-            contract=contract,
-        )
-    finally:
-        for name, value in previous.items():
-            if name == "SOURCE_TEXTS":
-                compiler_module.SOURCE_TEXTS.clear()
-                compiler_module.SOURCE_TEXTS.update(value)
-            else:
-                setattr(rif_globals, name, value)
 
 
 def _zip_info(name: str) -> zipfile.ZipInfo:

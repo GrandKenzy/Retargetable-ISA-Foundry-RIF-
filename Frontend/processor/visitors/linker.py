@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 
 
 def _value(entry: globals.BlockEntryData) -> str | bool:
@@ -14,10 +15,10 @@ def _value(entry: globals.BlockEntryData) -> str | bool:
     raise RuntimeError(f"La entrada '{entry.name}' requiere un string o booleano.")
 
 
-def visit(block: globals.BlockData) -> None:
+def visit(block: globals.BlockData, session: CompilationSession) -> None:
     """Validate and materialize the canonical generic ``linker`` block."""
 
-    if globals.LINKER is not None:
+    if session.linker is not None:
         raise RuntimeError("Solo puede declararse un bloque @block linker por programa.")
 
     extension: str | None = None
@@ -58,7 +59,7 @@ def visit(block: globals.BlockData) -> None:
         )
     assert extension is not None
 
-    globals.LINKER = globals.LinkerData(
+    session.linker = globals.LinkerData(
         extension=extension,
         search_path=False if search_disabled else tuple(search_paths),
     )

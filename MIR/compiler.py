@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any, Iterable
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from Frontend.syntax.items.instructions import RawInstruction
 
 from .instructions import CompiledRule, CompiledRuleSet, Instruction, Operand, SourceSpan
@@ -30,12 +32,6 @@ _NAMED_VALUE_KINDS = {
     "reswidth": "reservation_width",
     "vreswidth": "reservation_vwidth",
 }
-
-# Fuentes virtuales cargadas desde un .pack. Gram conserva el valor numérico
-# ya convertido, pero el MIR también necesita el lexema original (por ejemplo,
-# ``0000``) para conservar anchos explícitos.
-SOURCE_TEXTS: dict[str, str] = {}
-
 
 def _children(node: Any) -> tuple[Any, ...]:
     if isinstance(node, (list, tuple)):
@@ -71,7 +67,11 @@ def _named(node: Any, name: str) -> tuple[Any, ...]:
     return tuple(current for current in _walk(node) if getattr(current, "name", None) == name)
 
 
-def _source_lexeme(node: Any, source_path: str | None) -> str | None:
+def _source_lexeme(
+    node: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> str | None:
     token = _token(node)
     if token is None:
         return None
@@ -79,8 +79,8 @@ def _source_lexeme(node: Any, source_path: str | None) -> str | None:
     column = getattr(token, "col", None)
     if not source_path or not isinstance(line, int) or not isinstance(column, int):
         return str(getattr(token, "value", ""))
-    if source_path in SOURCE_TEXTS:
-        lines = SOURCE_TEXTS[source_path].splitlines()
+    if source_texts is not None and source_path in source_texts:
+        lines = source_texts[source_path].splitlines()
     else:
         path = Path(source_path)
         if not path.is_file():
@@ -105,26 +105,38 @@ def _span(node: Any, source_path: str | None) -> SourceSpan:
     return SourceSpan(source_path, None, None)
 
 
-def _literal_operand(node: Any, source_path: str | None) -> Operand:
+def _literal_operand(
+    node: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Operand:
     kind = _token_kind(node)
     value = _token_value(node)
-    raw = _source_lexeme(node, source_path)
+    raw = _source_lexeme(node, source_path, source_texts)
     width = None
     if kind in {"NUMBER", "DECIMAL"} and isinstance(raw, str) and raw.isdigit():
         width = len(raw)
     return Operand(kind=(kind or "VALUE").lower(), value=value, raw=raw, width=width)
 
 
-def _token_operand(node: Any, source_path: str | None) -> Operand:
+def _token_operand(
+    node: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Operand:
     leaves = tuple(current for current in _walk(node) if _token_kind(current) in {"KEYWORD", "NUMBER", "DECIMAL"})
     if len(leaves) != 1:
         raise RuntimeError("La referencia TOKEN debe contener un único nombre o número.")
     leaf = leaves[0]
     value = _token_value(leaf)
-    return Operand("token", value, _source_lexeme(leaf, source_path))
+    return Operand("token", value, _source_lexeme(leaf, source_path, source_texts))
 
 
-def _value_operand(node: Any, source_path: str | None) -> Operand:
+def _value_operand(
+    node: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Operand:
     if _named(node, "DLOAD_VALUE"):
         return Operand("data_pop", None)
     if _named(node, "DPEEK_VALUE"):
@@ -186,7 +198,7 @@ def _value_operand(node: Any, source_path: str | None) -> Operand:
     leaves = tuple(current for current in _walk(node) if _token_kind(current) in _VALUE_KINDS)
     if len(leaves) != 1:
         raise RuntimeError("VALUE debe contener un único literal o acceso.")
-    return _literal_operand(leaves[0], source_path)
+    return _literal_operand(leaves[0], source_path, source_texts)
 
 
 def _direct_leaves(node: Any) -> tuple[Any, ...]:
@@ -198,42 +210,66 @@ def _direct_leaves(node: Any) -> tuple[Any, ...]:
     )
 
 
-def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]:
+def _compile_operands(
+    node: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> tuple[Operand, ...]:
     name = getattr(node, "name", None)
     if name == "TABLE_MATCHER":
         return (
-            _value_operand(_named(node, "TABLE_ACCESS")[0], source_path),
-            _token_operand(_named(node, "TOKEN")[0], source_path),
+            _value_operand(_named(node, "TABLE_ACCESS")[0], source_path, source_texts),
+            _token_operand(_named(node, "TOKEN")[0], source_path, source_texts),
         )
     if name == "CONSUMER" or isinstance(node, list):
         tokens = _named(node, "TOKEN")
-        return tuple(_token_operand(token, source_path) for token in tokens)
+        return tuple(_token_operand(token, source_path, source_texts) for token in tokens)
     if name == "STORE":
         arrays = tuple(current for current in _walk(node) if hasattr(current, "items"))
         if not arrays:
             return ()
-        return tuple(_token_operand(item, source_path) for item in _named(arrays[0], "TOKEN"))
+        return tuple(
+            _token_operand(item, source_path, source_texts)
+            for item in _named(arrays[0], "TOKEN")
+        )
     if name in {"NIBBLES", "EMIT", "EWORD", "WRITE_RES"}:
         values = _named(node, "VALUE")
-        operands = [_value_operand(value, source_path) for value in values]
+        operands = [_value_operand(value, source_path, source_texts) for value in values]
         if name == "WRITE_RES":
             strings = tuple(current for current in _walk(node) if _token_kind(current) == "STRING")
-            return (Operand("string", _token_value(strings[0]), _source_lexeme(strings[0], source_path)), *operands)
+            return (
+                Operand(
+                    "string",
+                    _token_value(strings[0]),
+                    _source_lexeme(strings[0], source_path, source_texts),
+                ),
+                *operands,
+            )
         return tuple(operands)
     if name == "JUMPIF":
         identifiers = tuple(current for current in _walk(node) if _token_kind(current) == "IDENT")
         conditions = tuple(
-            _value_operand(current, source_path)
+            _value_operand(current, source_path, source_texts)
             for current in _walk(node)
             if _token_kind(current) == "BOOL"
-        ) + tuple(_value_operand(current, source_path) for current in _named(node, "CALL_VALUE"))
+        ) + tuple(
+            _value_operand(current, source_path, source_texts)
+            for current in _named(node, "CALL_VALUE")
+        )
         return (Operand("rule", _token_value(identifiers[0])), *conditions)
     if name in {"KW", "SAVE", "LOAD", "RESERVE", "DROP_RES", "EMIT_RES", "ERROR"}:
         strings = tuple(current for current in _walk(node) if _token_kind(current) == "STRING")
-        operands = [Operand("string", _token_value(item), _source_lexeme(item, source_path)) for item in strings]
+        operands = [
+            Operand(
+                "string",
+                _token_value(item),
+                _source_lexeme(item, source_path, source_texts),
+            )
+            for item in strings
+        ]
         if name == "RESERVE":
             operands.extend(
-                _literal_operand(current, source_path)
+                _literal_operand(current, source_path, source_texts)
                 for current in _walk(node)
                 if _token_kind(current) in {"NUMBER", "DECIMAL"}
             )
@@ -246,7 +282,7 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
         rows: list[tuple[Operand, ...]] = []
         if len(children) > 2:
             first_values = tuple(
-                _value_operand(item, source_path)
+                _value_operand(item, source_path, source_texts)
                 for item in _children(children[2])
                 if getattr(item, "name", None) == "VALUE"
             )
@@ -255,7 +291,7 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
         if len(children) > 4:
             for line in _children(children[4]):
                 values = tuple(
-                    _value_operand(item, source_path)
+                    _value_operand(item, source_path, source_texts)
                     for item in _walk(line)
                     if getattr(item, "name", None) == "VALUE"
                 )
@@ -264,25 +300,41 @@ def _compile_operands(node: Any, source_path: str | None) -> tuple[Operand, ...]
         return (Operand("frame", tuple(rows)),)
 
     return tuple(
-        _literal_operand(current, source_path)
+        _literal_operand(current, source_path, source_texts)
         for current in _direct_leaves(node)
         if _token_kind(current) not in {"KEYWORD", "NEWLINE"}
     )
 
 
-def _raw_literal(token: Any, source_path: str | None) -> Operand:
-    kind = getattr(getattr(token, "token", None), "name", None)
-    return _literal_operand(type("TokenNode", (), {"token": token})(), source_path)
+def _raw_literal(
+    token: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Operand:
+    return _literal_operand(
+        type("TokenNode", (), {"token": token})(),
+        source_path,
+        source_texts,
+    )
 
 
-def _raw_token_reference(token: Any, source_path: str | None) -> Operand:
+def _raw_token_reference(
+    token: Any,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Operand:
     kind = getattr(getattr(token, "token", None), "name", None)
     if kind not in {"KEYWORD", "NUMBER", "DECIMAL"}:
         raise RuntimeError("Una instrucción debe referenciar un nombre de token o número.")
-    return Operand("token", token.value, _source_lexeme(token, source_path))
+    return Operand("token", token.value, _source_lexeme(token, source_path, source_texts))
 
 
-def _raw_value(tokens: tuple[Any, ...], index: int, source_path: str | None) -> tuple[Operand, int]:
+def _raw_value(
+    tokens: tuple[Any, ...],
+    index: int,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> tuple[Operand, int]:
     token = tokens[index]
     kind = getattr(getattr(token, "token", None), "name", None)
     if kind == "COLON":
@@ -342,23 +394,31 @@ def _raw_value(tokens: tuple[Any, ...], index: int, source_path: str | None) -> 
             raise RuntimeError("CALL_VALUE está incompleto.")
         return Operand("call", tokens[index + 3].value), index + 5
     if kind in _VALUE_KINDS:
-        return _raw_literal(token, source_path), index + 1
+        return _raw_literal(token, source_path, source_texts), index + 1
     raise RuntimeError(f"VALUE no reconocido: {kind}.")
 
 
-def _raw_values(tokens: tuple[Any, ...], source_path: str | None) -> tuple[Operand, ...]:
+def _raw_values(
+    tokens: tuple[Any, ...],
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> tuple[Operand, ...]:
     values: list[Operand] = []
     index = 0
     while index < len(tokens):
         if tokens[index].token.name in {"COMMA", "NEWLINE"}:
             index += 1
             continue
-        value, index = _raw_value(tokens, index, source_path)
+        value, index = _raw_value(tokens, index, source_path, source_texts)
         values.append(value)
     return tuple(values)
 
 
-def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
+def _compile_raw(
+    node: RawInstruction,
+    source_path: str | None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Instruction:
     first = node.lines[0]
     body = first[1:-1]
     opcode = node.opcode
@@ -367,7 +427,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
     if opcode == "consumer":
         if len(body) != 1:
             raise RuntimeError("CONSUMER acepta exactamente una referencia TOKEN.")
-        operands = (_raw_token_reference(body[0], source_path),)
+        operands = (_raw_token_reference(body[0], source_path, source_texts),)
     elif opcode == "table_matcher":
         if len(body) != 6 or body[0].token.name != "DOLLAR" or body[1].token.name not in _NAME_KINDS or body[2].token.name != "DOT" or body[3].token.name not in _NAME_KINDS or body[4].token.name != "COMMA":
             raise RuntimeError(
@@ -375,7 +435,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             )
         operands = (
             Operand("table_access", (body[1].value, body[3].value)),
-            _raw_token_reference(body[5], source_path),
+            _raw_token_reference(body[5], source_path, source_texts),
         )
     elif opcode == "store":
         if len(body) < 3 or body[0].token.name != "LBRACKET" or body[-1].token.name != "RBRACKET":
@@ -385,7 +445,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
         expect_value = True
         for token in candidate_tokens:
             if expect_value:
-                candidates.append(_raw_token_reference(token, source_path))
+                candidates.append(_raw_token_reference(token, source_path, source_texts))
             elif token.token.name != "COMMA":
                 raise RuntimeError("STORE requiere comas entre referencias TOKEN.")
             expect_value = not expect_value
@@ -401,11 +461,11 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             raise RuntimeError("FRAME debe terminar con '. frameend' sin elementos extra.")
         rows = []
         first_values = tuple(token for token in body[1:] if token.token.name not in {"COMMA"})
-        rows.append(_raw_values(first_values, source_path))
+        rows.append(_raw_values(first_values, source_path, source_texts))
         for line in node.lines[1:-1]:
             values = tuple(token for token in line if token.token.name != "NEWLINE")
             if values:
-                rows.append(_raw_values(values, source_path))
+                rows.append(_raw_values(values, source_path, source_texts))
         operands = (Operand("frame", tuple(rows)),)
     elif opcode == "dget":
         rest = body[1:]
@@ -440,11 +500,19 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
                 first_string = rest[0]
                 value_tokens = rest[1:]
                 operands = (
-                    Operand("string", first_string.value, _source_lexeme(first_string, source_path)),
-                    *_raw_values(tuple(token for token in value_tokens if token.token.name != "COMMA"), source_path),
+                    Operand(
+                        "string",
+                        first_string.value,
+                        _source_lexeme(first_string, source_path, source_texts),
+                    ),
+                    *_raw_values(
+                        tuple(token for token in value_tokens if token.token.name != "COMMA"),
+                        source_path,
+                        source_texts,
+                    ),
                 )
             else:
-                operands = _raw_values(rest, source_path)
+                operands = _raw_values(rest, source_path, source_texts)
         elif opcode in {"kw", "save", "load", "error"}:
             expected = ("COMMA", "STRING") if opcode == "error" else ("STRING",)
             if tuple(token.token.name for token in rest) != expected:
@@ -454,7 +522,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
                 )
             token = rest[-1]
             operands = (
-                Operand("string", token.value, _source_lexeme(token, source_path)),
+                Operand("string", token.value, _source_lexeme(token, source_path, source_texts)),
             )
         elif opcode == "jump":
             if len(rest) != 1 or rest[0].token.name != "IDENT":
@@ -463,7 +531,7 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
         elif opcode == "jumpif":
             if len(rest) < 3 or rest[0].token.name != "IDENT" or rest[1].token.name != "COMMA":
                 raise RuntimeError("JUMPIF requiere 'Rule, BOOL|#call[nombre]'.")
-            condition, consumed = _raw_value(rest, 2, source_path)
+            condition, consumed = _raw_value(rest, 2, source_path, source_texts)
             if consumed != len(rest):
                 raise RuntimeError("JUMPIF contiene elementos extra después de la condición.")
             operands = (Operand("rule", rest[0].value), condition)
@@ -471,17 +539,19 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             if not rest or rest[0].token.name != "STRING":
                 raise RuntimeError(f"{opcode.upper()} requiere nombre string y tamaño.")
             operands = (
-                Operand("string", rest[0].value, _source_lexeme(rest[0], source_path)),
-                *_raw_values(rest[1:], source_path),
+                Operand("string", rest[0].value, _source_lexeme(rest[0], source_path, source_texts)),
+                *_raw_values(rest[1:], source_path, source_texts),
             )
         elif opcode in {"drop_res", "emit_res"}:
             if len(rest) != 1 or rest[0].token.name != "STRING":
                 raise RuntimeError(f"{opcode.upper()} requiere exactamente un nombre STRING.")
-            operands = (Operand("string", rest[0].value, _source_lexeme(rest[0], source_path)),)
+            operands = (
+                Operand("string", rest[0].value, _source_lexeme(rest[0], source_path, source_texts)),
+            )
         elif opcode == "dpop":
             if rest:
                 raise RuntimeError("DPOP no acepta operandos.")
-            operands = _raw_values(rest, source_path)
+            operands = _raw_values(rest, source_path, source_texts)
         elif opcode == "break":
             if rest:
                 raise RuntimeError("BREAK no acepta operandos.")
@@ -502,8 +572,16 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
             kind = rest[0]
             reservation = rest[1]
             operands = (
-                Operand("fixup_kind", str(kind.value), _source_lexeme(kind, source_path)),
-                Operand("string", reservation.value, _source_lexeme(reservation, source_path)),
+                Operand(
+                    "fixup_kind",
+                    str(kind.value),
+                    _source_lexeme(kind, source_path, source_texts),
+                ),
+                Operand(
+                    "string",
+                    reservation.value,
+                    _source_lexeme(reservation, source_path, source_texts),
+                ),
             )
         else:
             raise RuntimeError(f"Instrucción RIF no reconocida: {opcode!r}.")
@@ -517,9 +595,13 @@ def _compile_raw(node: RawInstruction, source_path: str | None) -> Instruction:
     return Instruction(opcode, operands, span, source_node=node)
 
 
-def compile_instruction(node: Any, source_path: str | None = None) -> Instruction:
+def compile_instruction(
+    node: Any,
+    source_path: str | None = None,
+    source_texts: Mapping[str, str] | None = None,
+) -> Instruction:
     if isinstance(node, RawInstruction):
-        return _compile_raw(node, source_path)
+        return _compile_raw(node, source_path, source_texts)
     name = getattr(node, "name", None)
     if name is None and isinstance(node, (list, tuple)):
         name = "CONSUMER"
@@ -527,16 +609,23 @@ def compile_instruction(node: Any, source_path: str | None = None) -> Instructio
         raise RuntimeError("No se pudo identificar el opcode de una instrucción.")
     return Instruction(
         opcode=name.lower(),
-        operands=_compile_operands(node, source_path),
+        operands=_compile_operands(node, source_path, source_texts),
         span=_span(node, source_path),
         source_node=node,
     )
 
 
-def compile_rule(rule: globals.RuleData) -> CompiledRule:
+def compile_rule(
+    rule: globals.RuleData,
+    *,
+    source_texts: Mapping[str, str] | None = None,
+) -> CompiledRule:
     return CompiledRule(
         name=rule.name,
-        instructions=tuple(compile_instruction(node, rule.source_path) for node in rule.instructions),
+        instructions=tuple(
+            compile_instruction(node, rule.source_path, source_texts)
+            for node in rule.instructions
+        ),
         source_path=rule.source_path,
     )
 
@@ -544,13 +633,35 @@ def compile_rule(rule: globals.RuleData) -> CompiledRule:
 def compile_rules(
     rules: Iterable[globals.RuleData] | None = None,
     *,
+    context: globals.TargetContext | None = None,
+    session: CompilationSession | None = None,
+    source_texts: Mapping[str, str] | None = None,
     resolve: bool = False,
 ) -> CompiledRuleSet:
-    selected = tuple(rules) if rules is not None else tuple(globals.RULES.values())
-    compiled = {rule.name: compile_rule(rule) for rule in selected}
+    if session is not None:
+        if rules is not None or context is not None:
+            raise ValueError("session no puede combinarse con rules o context.")
+        selected = tuple(session.rules.values())
+        selected_context = session.freeze()
+        selected_source_texts = session.source_texts if source_texts is None else source_texts
+    elif rules is not None:
+        selected = tuple(rules)
+        selected_context = context or globals.snapshot_target_context()
+        selected_source_texts = source_texts
+    else:
+        # Transitional compatibility for callers that still use the legacy
+        # frontend globals directly. Production pipelines pass a session.
+        legacy = CompilationSession.from_globals()
+        selected = tuple(legacy.rules.values())
+        selected_context = context or legacy.freeze()
+        selected_source_texts = legacy.source_texts if source_texts is None else source_texts
+    compiled = {
+        rule.name: compile_rule(rule, source_texts=selected_source_texts)
+        for rule in selected
+    }
     program = CompiledRuleSet(
         compiled,
-        context=globals.snapshot_target_context(),
+        context=selected_context,
     )
     if resolve:
         from .semantic import resolve_program

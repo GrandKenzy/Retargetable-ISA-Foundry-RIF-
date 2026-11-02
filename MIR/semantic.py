@@ -362,15 +362,13 @@ def _validate_instruction(
 
 def resolve_rule(
     rule: CompiledRule,
-    context: globals.TargetContext | None = None,
-    rule_names: frozenset[str] | None = None,
+    context: globals.TargetContext,
+    rule_names: frozenset[str],
 ) -> CompiledRule:
-    selected_context = context or globals.snapshot_target_context()
-    selected_rules = rule_names or frozenset(globals.RULES)
     return replace(
         rule,
         instructions=tuple(
-            _validate_instruction(instruction, selected_context, selected_rules)
+            _validate_instruction(instruction, context, rule_names)
             for instruction in rule.instructions
         ),
     )

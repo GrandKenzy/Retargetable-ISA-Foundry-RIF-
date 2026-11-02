@@ -132,7 +132,7 @@ class FrontendBenchmarkTests(unittest.TestCase):
             )
 
         self.assertIsNotNone(ast)
-        self.assertEqual(parser.executable, cached_parser.executable)
+        self.assertEqual(parser.ffi_path, cached_parser.ffi_path)
         self.assertIn("set", rif_globals.RULES)
 
     @unittest.skipUnless(

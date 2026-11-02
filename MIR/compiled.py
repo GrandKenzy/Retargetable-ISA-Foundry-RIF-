@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -112,7 +113,7 @@ def _encode(value: Any) -> Any:
         return {"__type__": "tuple", "items": [_encode(item) for item in value]}
     if isinstance(value, list):
         return {"__type__": "list", "items": [_encode(item) for item in value]}
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {
             "__type__": "dict",
             "items": [[_encode(key), _encode(item)] for key, item in value.items()],
@@ -277,8 +278,8 @@ def _config_to_dict(config: globals.ConfigData | None) -> dict[str, Any] | None:
         "labelend": config.labelend,
         "datasection": config.datasection,
         "defaultsection": config.defaultsection,
-        "sectionflags": config.sectionflags,
-        "sectionalign": config.sectionalign,
+        "sectionflags": dict(config.sectionflags),
+        "sectionalign": dict(config.sectionalign),
         "wordsize": config.wordsize,
         "addresssize": config.addresssize,
         "endianness": config.endianness,
@@ -290,7 +291,7 @@ def _config_to_dict(config: globals.ConfigData | None) -> dict[str, Any] | None:
         "strict": config.strict,
         "allowemptysections": config.allowemptysections,
         "bitorder": config.bitorder,
-        "sectionvaddr": config.sectionvaddr,
+        "sectionvaddr": dict(config.sectionvaddr),
     }
 
 

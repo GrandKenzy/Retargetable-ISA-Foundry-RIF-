@@ -28,8 +28,10 @@ Solo puede contener definiciones y Rules:
 . KW "endthumb"
 ```
 
-Las tablas, configuración, linker y demás contexto global siguen siendo los
-de la raíz.
+Las tablas, configuración, linker y demás contexto pertenecen a la misma
+`CompilationSession` de la raíz. La variante no crea otro target ni copia
+tablas: sus declaraciones se registran en esa sesión y llegan juntas al
+`TargetContext` final.
 
 ## Modos
 

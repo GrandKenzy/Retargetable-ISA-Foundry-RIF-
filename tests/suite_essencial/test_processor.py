@@ -17,6 +17,8 @@ class StackProcessorTests(unittest.TestCase):
         rif_globals.STACK_SIZE = None
         rif_globals.DEFINES.clear()
         rif_globals.TABLES.clear()
+        rif_globals.PENDING_TABLES.clear()
+        rif_globals.PROCESS_DEPTH = 0
         rif_globals.RULES.clear()
         rif_globals.CONFIG = None
         rif_globals.LINKER = None
@@ -31,6 +33,8 @@ class StackProcessorTests(unittest.TestCase):
         rif_globals.STACK_SIZE = None
         rif_globals.DEFINES.clear()
         rif_globals.TABLES.clear()
+        rif_globals.PENDING_TABLES.clear()
+        rif_globals.PROCESS_DEPTH = 0
         rif_globals.RULES.clear()
         rif_globals.CONFIG = None
         rif_globals.LINKER = None
@@ -129,6 +133,71 @@ class StackProcessorTests(unittest.TestCase):
         self.assertEqual(table.lookup_unique("key", 1), 0)
         self.assertEqual(table.lookup_unique("key", True), 1)
         self.assertEqual(table.lookup_unique("key", 1.0), 2)
+
+    def test_table_operations_materialize_joins_and_indexed_cells(self) -> None:
+        process(
+            self.parse(
+                "@table membase\n"
+                "| name | %[name]=registers.lo% | %[name]=registers.hi% | sib |\n"
+                "__\n"
+                "| rax | %othertable.name[r12].sib% |\n"
+                "__\n"
+                "| rsp | 1 |\n"
+                "@end\n"
+                "@table registers\n"
+                "| name | lo | hi |\n"
+                "__\n"
+                "| rax | 10 | 11 |\n"
+                "__\n"
+                "| rsp | 20 | 21 |\n"
+                "@end\n"
+                "@table othertable\n"
+                "| name | sib |\n"
+                "__\n"
+                "| r12 | 77 |\n"
+                "@end\n"
+            )
+        )
+
+        table = rif_globals.TABLES["membase"]
+        self.assertEqual(table.headers, ("name", "lo", "hi", "sib"))
+        self.assertEqual(
+            table.matrix,
+            (("rax", 10, 11, 77), ("rsp", 20, 21, 1)),
+        )
+
+    def test_table_operations_reject_cycles_and_missing_keys(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "Ciclo de operaciones de tabla"):
+            process(
+                self.parse(
+                    "@table left\n"
+                    "| name | %[name]=right.value% |\n"
+                    "__\n"
+                    "| x |\n"
+                    "@end\n"
+                    "@table right\n"
+                    "| name | %[name]=left.value% |\n"
+                    "__\n"
+                    "| x |\n"
+                    "@end\n"
+                )
+            )
+
+        with self.assertRaisesRegex(RuntimeError, "no existe en"):
+            process(
+                self.parse(
+                    "@table source\n"
+                    "| name | value |\n"
+                    "__\n"
+                    "| known | 1 |\n"
+                    "@end\n"
+                    "@table result\n"
+                    "| name | value |\n"
+                    "__\n"
+                    "| x | %source.name[missing].value% |\n"
+                    "@end\n"
+                )
+            )
 
     def test_duplicate_table_is_fatal(self) -> None:
         ast = self.parse(

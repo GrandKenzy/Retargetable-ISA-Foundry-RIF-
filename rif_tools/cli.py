@@ -89,12 +89,6 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"máximo de elementos repetidos por sección (1-{10_000}; default: {MAX_REPORT_ITEMS})",
     )
     parser.add_argument(
-        "--backend",
-        choices=("python", "aot"),
-        default="aot",
-        help="backend del frontend RIF; 'aot' usa el parser C de Gram",
-    )
-    parser.add_argument(
         "--plimit",
         metavar="MiB",
         type=parse_mib,
@@ -269,7 +263,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.mir,
                 output=output,
                 map_output=args.map_output,
-                backend=args.backend,
             )
         except (FileNotFoundError, OSError, ValueError, RuntimeError) as exc:
             print(f"rif: error: {exc}", file=sys.stderr)

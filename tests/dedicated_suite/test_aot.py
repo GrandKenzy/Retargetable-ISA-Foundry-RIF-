@@ -70,8 +70,10 @@ class AOTFrontendTests(unittest.TestCase):
             rif_globals.ACTIVE_SOURCES,
             rif_globals.VARIANT_STACK,
             rif_globals.BLOCKS,
+            rif_globals.PENDING_TABLES,
         ):
             collection.clear()
+        rif_globals.PROCESS_DEPTH = 0
 
     @unittest.skipUnless(
         shutil.which("gcc") or shutil.which("clang"),
@@ -207,6 +209,51 @@ class AOTFrontendTests(unittest.TestCase):
         self.assertEqual(native_context, python_context)
         self.assertEqual(native_rules, python_rules)
 
+    def test_table_operations_keep_python_and_aot_contexts_equal(self):
+        source_text = (
+            "@table membase\n"
+            "| name | %[name]=registers.lo% | sib |\n"
+            "__\n"
+            "| rax | %other.name[r12].sib% |\n"
+            "@end\n"
+            "@table registers\n"
+            "| name | lo |\n"
+            "__\n"
+            "| rax | 10 |\n"
+            "@end\n"
+            "@table other\n"
+            "| name | sib |\n"
+            "__\n"
+            "| r12 | 77 |\n"
+            "@end\n"
+        )
+        with TemporaryDirectory(prefix="rif-aot-table-ops-") as directory:
+            source_path = Path(directory) / "table-ops.rif"
+            source_path.write_text(source_text, encoding="utf-8")
+            parser = AOTParser.build(AOTParser.default_cache_dir(), RIF_LANG_SESSION)
+            native_ast = GIRAdapter(parser.parse_file(source_path)).ast()
+
+            RIF_LANG_SESSION.load()
+            python_ast = RIF_LANG_SESSION.parse(
+                RIF_LANG_SESSION.tokenize(source_text, str(source_path)),
+                str(source_path),
+            )
+            self.assertEqual(_ast_signature(native_ast), _ast_signature(python_ast))
+
+            self._clear_globals()
+            process(native_ast, source_path=source_path, backend="aot")
+            native_context = rif_globals.snapshot_target_context()
+
+            self._clear_globals()
+            process(python_ast, source_path=source_path, backend="python")
+            python_context = rif_globals.snapshot_target_context()
+
+        self.assertEqual(native_context, python_context)
+        self.assertEqual(
+            native_context.tables["membase"].matrix,
+            (("rax", 10, 77),),
+        )
+
     def test_aot_backend_propagates_through_load(self):
         with TemporaryDirectory(prefix="rif-aot-load-") as directory:
             root = Path(directory)
@@ -248,11 +295,11 @@ class AOTFrontendTests(unittest.TestCase):
     def test_aot_parser_reuses_compiled_cache(self):
         output = AOTParser.default_cache_dir()
         first = AOTParser.build(output, RIF_LANG_SESSION)
-        first_mtime = first.executable.stat().st_mtime_ns
+        first_mtime = first.ffi_path.stat().st_mtime_ns
         second = AOTParser.build(output, RIF_LANG_SESSION)
-        second_mtime = second.executable.stat().st_mtime_ns
+        second_mtime = second.ffi_path.stat().st_mtime_ns
 
-        self.assertEqual(first.executable, second.executable)
+        self.assertEqual(first.ffi_path, second.ffi_path)
         self.assertEqual(first_mtime, second_mtime)
         manifest = json.loads(
             (output / "rif_aot_build.json").read_text(encoding="utf-8")
@@ -261,6 +308,20 @@ class AOTFrontendTests(unittest.TestCase):
         self.assertEqual(manifest["cache_format_version"], 2)
         self.assertEqual(manifest["contract"]["aot_mode"], "ffi-memory")
         self.assertEqual(len(manifest["contract"]["compiler_source_fingerprint"]), 64)
+
+    @unittest.skipUnless(
+        shutil.which("gcc") or shutil.which("clang"),
+        "se requiere gcc o clang para probar el frontend AOT",
+    )
+    def test_cached_ffi_parse_does_not_spawn_a_compiler(self):
+        parser = AOTParser.build(AOTParser.default_cache_dir(), RIF_LANG_SESSION)
+        with patch(
+            "Frontend.aot.subprocess.run",
+            side_effect=AssertionError("un cache hit FFI no debe invocar el compilador"),
+        ):
+            cached = AOTParser.build(AOTParser.default_cache_dir(), RIF_LANG_SESSION)
+            cached.parse_source("@define cache_hit\n", "cache-hit.rif")
+        self.assertEqual(parser.ffi_path, cached.ffi_path)
 
     @unittest.skipUnless(
         shutil.which("gcc") or shutil.which("clang"),

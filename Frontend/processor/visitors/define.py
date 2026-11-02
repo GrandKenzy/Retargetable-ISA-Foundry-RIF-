@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 
 
 def _define_name(node: Any) -> str:
@@ -21,13 +22,13 @@ def _define_name(node: Any) -> str:
     raise RuntimeError("No se encontró el nombre de @define en el AST.")
 
 
-def visit(node: Any) -> None:
+def visit(node: Any, session: CompilationSession) -> None:
     """Registra una etiqueta de palabra declarada con @define."""
     name = _define_name(node)
-    if name in globals.DEFINES:
+    if name in session.defines:
         raise RuntimeError(f"El nombre '{name}' ya fue declarado con @define.")
 
-    globals.DEFINES.add(name)
+    session.defines.add(name)
 
 
 __all__ = ["visit"]

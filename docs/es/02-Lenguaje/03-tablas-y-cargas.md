@@ -39,6 +39,33 @@ constantes para todas sus columnas. Las columnas auxiliares pueden repetir
 valores; una columna solo debe ser única cuando se usa para seleccionar una
 fila.
 
+## Operaciones de tablas
+
+Las declaraciones pueden derivar columnas desde otra tabla. El selector entre
+corchetes se toma de la fila actual y la columna de origen se convierte en el
+nombre de la columna derivada:
+
+```rif
+@table membase
+| name | %[name]=registers.lo% | %[name]=registers.hi% | sib |
+__
+| rax | %othertable.name[r12].sib% |
+@end
+```
+
+`%[name]=registers.lo%` busca en `registers.name` usando el `name` de la fila
+actual y copia `registers.lo`. Las columnas derivadas se omiten de las filas;
+las celdas restantes llenan las columnas literales en el orden de la cabecera.
+Una consulta como `%othertable.name[r12].sib%` selecciona la fila única cuyo
+`name` es `r12` y copia su valor `sib`.
+
+Las operaciones se resuelven al materializar las tablas. Se permiten
+referencias hacia adelante, pero son errores las tablas o columnas inexistentes,
+las claves ausentes, las claves selectoras duplicadas y los ciclos de
+dependencias. El `.pack` guarda solamente la matriz inmutable ya resuelta, por
+lo que el runtime y el backend AOT no necesitan otro evaluador de expresiones
+de tablas.
+
 ## Cargar fuentes
 
 ```rif

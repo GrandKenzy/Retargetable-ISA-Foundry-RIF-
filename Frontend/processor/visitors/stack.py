@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 
 
 def _stack_size(node: Any) -> int:
@@ -24,17 +25,17 @@ def _stack_size(node: Any) -> int:
 
     raise RuntimeError("No se encontró el tamaño de @stack en el AST.")
 
-def visit(node: Any) -> None:
+def visit(node: Any, session: CompilationSession) -> None:
     """Procesa la declaración única de stack del programa."""
-    if globals.STACK is not None:
+    if session.stack is not None:
         raise RuntimeError("Solo puede declararse un @stack por programa.")
 
     size = _stack_size(node)
     if size <= 0:
         raise RuntimeError("El tamaño de @stack debe ser mayor que cero.")
 
-    globals.STACK = {}
-    globals.STACK_SIZE = size
+    session.stack = {}
+    session.stack_size = size
 
 
 __all__ = ["visit"]

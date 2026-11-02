@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from Frontend.syntax.items.instructions import normalize_instruction
 
 
@@ -32,17 +33,22 @@ def _instructions(node: Any) -> tuple[Any, ...]:
         raise RuntimeError("@rule debe contener una lista de instrucciones.")
     return tuple(normalize_instruction(instruction) for instruction in children[5])
 
-def visit(node: Any, source_path: str | None = None) -> None:
+def visit(
+    node: Any,
+    source_path: str | None = None,
+    *,
+    session: CompilationSession,
+) -> None:
     """Registra una regla y deja su ejecución para una fase posterior."""
     name = _rule_name(node)
-    if name in globals.RULES:
-        previous = globals.RULES[name].source_path or "<memoria>"
+    if name in session.rules:
+        previous = session.rules[name].source_path or "<memoria>"
         current = source_path or "<memoria>"
         raise RuntimeError(
             f"La regla '{name}' ya fue declarada ({previous} y {current})."
         )
 
-    globals.RULES[name] = globals.RuleData(
+    session.rules[name] = globals.RuleData(
         name=name,
         node=node,
         instructions=_instructions(node),

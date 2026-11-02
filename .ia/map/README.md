@@ -78,6 +78,13 @@ necesite, con las columnas y tipos de datos que requiera. Se materializan como
 matrices de tuplas inmutables. `TableData` preconstruye índices tipados para
 todas las columnas y solo exige unicidad cuando una operación usa una columna
 como selector; el `TargetContext` expone el mapa de tablas como solo lectura.
+Las cabeceras pueden declarar columnas derivadas con
+`%[selector]=tabla.columna%` y las celdas pueden copiar un valor con
+`%tabla.selector[clave].columna%`. `Frontend/processor/visitors/table.py`
+resuelve estas dependencias después de cargar el árbol completo, admite
+referencias hacia adelante y rechaza claves/columnas inexistentes, selectores
+duplicados y ciclos. Las tablas calculadas llegan a MIR, AOT y `.pack` como
+matrices ordinarias ya materializadas.
 
 `main.rif` es el centro de control. Solo la fuente raíz puede materializar
 `config` y `linker`; opcionalmente puede cargar directamente un `config.rif`
@@ -132,9 +139,16 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   contiene el bloque genérico.
 - `Frontend/processor/`: orden de pasadas y visitors para config, linker,
   tablas, Rules, variantes, inserts y bloques.
-- `Frontend/globals.py`: dataclasses y estado temporal de frontend; el estado
-  se copia a `TargetContext` para que programas compilados sean independientes.
-- `MIR/pipeline.py`: reseteo de contexto, parseo, procesamiento y compilación.
+- `Frontend/session.py`: `CompilationSession` mutable por compilación; recibe
+  el parser, proveedor, fuentes, declaraciones pendientes y todas las tablas,
+  Rules, bloques y variantes mientras se construye el target.
+- `Frontend/globals.py`: dataclasses y adaptadores de compatibilidad; solo
+  `TargetContext` llega al programa compilado y sus mapas son de solo lectura.
+  `PENDING_TABLES`, `PROCESS_DEPTH`, `ACTIVE_SOURCES` y `LOADED_SOURCES` son
+  vistas legacy: el frontend moderno no las usa para resolver ni detectar
+  ciclos.
+- `MIR/pipeline.py`: parseo FFI, construcción del grafo, resolución explícita,
+  congelación del contexto y compilación MIR.
   `MIR/compiled.py` serializa contextos y programas en bases SQLite de packs.
 - `MIR/runtime.py`, `MIR/emitter.py`, `MIR/bitbuffer.py` y `MIR/output.py`:
   ejecución de Rules, emisión bit a bit, símbolos, relocaciones nativas y
@@ -281,15 +295,14 @@ además recompone las instrucciones que el emisor C aplana dentro de `RULE`.
 Los terminales normales y los tokens de `CaptureRaw` se obtienen mediante la
 API de Gram; RIF ya no re-tokeniza la fuente con el lexer Python.
 
-El pipeline expone `backend="python"` y `backend="aot"`; la CLI selecciona
-el segundo con `main.py --backend aot`. El parser generado se guarda bajo
-`.rif-cache/aot/`; AOT es ahora el backend predeterminado. La FFI AOT en
-memoria es el camino canónico: la biblioteca compartida vive en ese cache, su
-construcción se serializa con un lock entre procesos y
+El pipeline conserva `backend="python"` únicamente para paridad y diagnóstico
+internos; la CLI no expone selector de backend y siempre usa FFI AOT. El parser
+generado se guarda bajo `.rif-cache/aot/`; la biblioteca compartida
+`rif-gram-aot.dll`/`librif-gram-aot.so` se construye con GCC o Clang solo cuando
+la caché se invalida. La FFI en memoria es el camino canónico:
 `gram_compile_source_to_ir` entrega GIR que se copia y adapta sin crear
-archivos `.gir` temporales. Python se conserva como ruta explícita de
-comparación mediante `--backend python`; los `.pack` fuente-only también
-pueden usar AOT porque sus bytes entran directamente por la misma FFI.
+archivos `.gir` ni procesos durante un parseo cacheado. Los `.pack`
+fuente-only entran por la misma FFI.
 
 El cache AOT guarda formato, modo, huella del contrato, Gram/GIR, ABI del
 parser C, fuentes nativas y compilador. El contrato compartido en

@@ -49,6 +49,23 @@ prefix sources; the CL-only shift-count table remains intentionally narrow.
 The two AMD64 image roots now share their declaration load through `profile.rif`;
 only root configuration and the optional data alignment remain layout-specific.
 
+Table declarations now support compile-time joins with
+`%[selector]=table.column%` derived headers and indexed cell references in the
+form `%table.selector[key].column%`. Dependencies are resolved before the
+immutable table context is exposed to MIR, AOT, or precompiled `.pack` files.
+
+The frontend now builds each target through an explicit `CompilationSession`
+and freezes it into an immutable `TargetContext`; loads, libraries, variants,
+table resolution, MIR compilation, and pack precompilation no longer snapshot
+and restore mutable frontend globals. The public CLI is FFI AOT-only, while
+the Python frontend remains an internal parity oracle. The cached shared
+library is rebuilt with GCC or Clang only when invalidated.
+
+Legacy frontend globals are now copied into a short-lived compatibility
+session and published only for old introspection callers. Pending tables,
+source activity, and load tracking are owned exclusively by the session during
+modern processing.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

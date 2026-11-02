@@ -1,14 +1,17 @@
 from gram import combinators as cmb
 from gram import lexer
 
-from .values import VALUE
+from .values import TABLE_OPERATION, VALUE
 
 
 class CELL(cmb.RuleItem):
     nodeable = True
     entrypoint = cmb.Seq(
         cmb.MatchToken("OR"),
-        cmb.Ref(VALUE),
+        cmb.Alt(
+            cmb.Ref(TABLE_OPERATION),
+            cmb.Ref(VALUE),
+        ),
     )
 
 
@@ -21,6 +24,7 @@ class HEADER(cmb.RuleItem):
                 cmb.Alt(
                     cmb.MatchToken("IDENT"),
                     cmb.MatchGroup("keywords"),
+                    cmb.Ref(TABLE_OPERATION),
                 ),
             )
         ),

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from rif_core.limits import resolve_limits
 from .parsing import SourceParser
 
@@ -84,11 +85,19 @@ def load_source(
     project_root: str | Path | None = None,
     backend: str = "aot",
     parser: SourceParser | None = None,
+    session: CompilationSession | None = None,
 ) -> None:
     """Carga y procesa un archivo RIF dentro del alcance solicitado."""
 
     requested = _requested_path(node)
-    provider = source_provider if source_provider is not None else globals.SOURCE_PROVIDER
+    owns_session = session is None
+    state = session or CompilationSession.from_globals(
+        backend=backend,
+        parser=parser,
+        source_provider=source_provider,
+        project_root=project_root,
+    )
+    provider = source_provider if source_provider is not None else state.source_provider
     if provider is not None:
         path_key = provider.resolve_load(source_path, requested)
         path = None
@@ -96,28 +105,32 @@ def load_source(
         path = resolve_source(requested, source_path, project_root)
         path_key = str(path)
 
-    if path_key in globals.ACTIVE_SOURCES:
-        cycle = " -> ".join((*globals.ACTIVE_SOURCES, path_key))
+    if path_key in state.active_sources:
+        cycle = " -> ".join((*state.active_sources, path_key))
         raise RuntimeError(f"Ciclo de @LOAD detectado: {cycle}")
-    if path_key in globals.LOADED_SOURCES:
+    if path_key in state.loaded_sources:
         return
     if path is not None and not path.is_file():
         raise FileNotFoundError(f"No se encontró el archivo solicitado por @LOAD: {path}")
 
     from . import process
 
-    source_parser = parser or SourceParser(backend=backend)
-    globals.ACTIVE_SOURCES.append(path_key)
+    source_parser = parser or state.parser or SourceParser(backend=backend)
+    state.active_sources.append(path_key)
     try:
         if path is not None and path.stat().st_size > resolve_limits().cap(MAX_SOURCE_BYTES):
             raise ValueError(f"La fuente RIF excede el límite de tamaño: {path}")
         if path is None:
             source = provider.source_text(path_key)
+            state.source_texts[path_key] = source
             ast = source_parser.parse_text(source, path_key)
         elif backend == "aot":
             ast = source_parser.parse_file(path)
+            state.source_texts[path_key] = path.read_text(encoding="utf-8")
         else:
-            ast = source_parser.parse_text(path.read_text(encoding="utf-8"), path_key)
+            source = path.read_text(encoding="utf-8")
+            state.source_texts[path_key] = source
+            ast = source_parser.parse_text(source, path_key)
         process(
             ast,
             source_path=path_key,
@@ -127,13 +140,16 @@ def load_source(
             project_root=project_root,
             backend=backend,
             parser=source_parser,
+            session=state,
         )
-        globals.LOADED_SOURCES[path_key] = "load"
+        state.loaded_sources[path_key] = "load"
     finally:
-        if globals.ACTIVE_SOURCES and globals.ACTIVE_SOURCES[-1] == path_key:
-            globals.ACTIVE_SOURCES.pop()
-        elif path_key in globals.ACTIVE_SOURCES:
-            globals.ACTIVE_SOURCES.remove(path_key)
+        if state.active_sources and state.active_sources[-1] == path_key:
+            state.active_sources.pop()
+        elif path_key in state.active_sources:
+            state.active_sources.remove(path_key)
+        if owns_session:
+            state.sync_to_globals()
 
 
 __all__ = ["resolve_source", "load_source", "is_config_load"]

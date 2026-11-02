@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from rif_core.limits import resolve_limits
 
 
@@ -99,10 +100,10 @@ def _entry(entry: globals.BlockEntryData) -> tuple[str, str]:
     return section.value, label.value
 
 
-def visit(block: globals.BlockData) -> None:
+def visit(block: globals.BlockData, session: CompilationSession) -> None:
     """Validate and materialize the canonical generic ``config`` block."""
 
-    if globals.CONFIG is not None:
+    if session.config is not None:
         raise RuntimeError("Solo puede declararse un bloque @block config por programa.")
 
     values: dict[str, Any] = {}
@@ -221,7 +222,7 @@ def visit(block: globals.BlockData) -> None:
     if duplicate_symbols not in {"error", "warn", "ignore"}:
         raise RuntimeError("duplicate_symbols debe ser 'error', 'warn' o 'ignore'.")
 
-    globals.CONFIG = globals.ConfigData(
+    session.config = globals.ConfigData(
         sectiondef=formats.get("section", ".section"),
         sections=tuple(sections),
         sectionend=formats.get("section_end", ":"),

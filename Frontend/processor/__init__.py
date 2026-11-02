@@ -5,10 +5,15 @@ from pathlib import Path
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 from .visitors.define import visit as visit_define
 from .visitors.rule import visit as visit_rule
 from .visitors.stack import visit as visit_stack
-from .visitors.table import visit as visit_table
+from .visitors.table import (
+    clear_pending_tables,
+    resolve_pending_tables,
+    visit as visit_table,
+)
 from .visitors.variant import visit_support, visit_variant
 from .visitors.block import visit as visit_block
 from Frontend.syntax.items.blocks import normalize_block
@@ -28,6 +33,7 @@ def process(
     project_root: str | Path | None = None,
     backend: str = "aot",
     parser: SourceParser | None = None,
+    session: CompilationSession | None = None,
 ) -> None:
     """Recorre y despacha cada nodo producido por el parser."""
     if result is None:
@@ -39,8 +45,24 @@ def process(
             nodes.append(normalize_block(getattr(node, "nodes", ())))
         else:
             nodes.append(node)
-    provider = source_provider if source_provider is not None else globals.SOURCE_PROVIDER
-    source_parser = parser or SourceParser(backend=backend)
+    owns_session = session is None
+    legacy_provider = globals.SOURCE_PROVIDER
+    state = session or CompilationSession.from_globals(
+        backend=backend,
+        parser=parser,
+        source_provider=source_provider,
+        project_root=project_root,
+    )
+    previous_provider = legacy_provider if owns_session else state.source_provider
+    if state.parser is None:
+        state.parser = parser or SourceParser(backend=backend)
+    source_parser = parser or state.parser
+    state.backend = backend
+    if state.project_root is None and project_root is not None:
+        state.project_root = Path(project_root).expanduser().resolve(strict=False)
+    if state.source_provider is None and source_provider is not None:
+        state.source_provider = source_provider
+    provider = source_provider if source_provider is not None else state.source_provider
     raw_source = str(source_path) if source_path is not None else ""
     if raw_source.startswith(("pack://", "riflib://", "packlib://")):
         source_key = raw_source
@@ -59,14 +81,11 @@ def process(
             else None
         )
     )
-    previous_provider = globals.SOURCE_PROVIDER
-    owns_provider = source_provider is not None and previous_provider is not source_provider
-    if owns_provider:
-        globals.SOURCE_PROVIDER = source_provider
-    owns_source = bool(source_key and source_key not in globals.ACTIVE_SOURCES)
+    owns_source = bool(source_key and source_key not in state.active_sources)
     if owns_source:
-        globals.ACTIVE_SOURCES.append(source_key)
+        state.active_sources.append(source_key)
 
+    succeeded = False
     try:
         allowed = {
             "root": {
@@ -112,26 +131,26 @@ def process(
         for node in nodes:
             name = getattr(node, "name", type(node).__name__)
             if name == "DEFINE":
-                visit_define(node)
+                visit_define(node, state)
             elif name == "SUPPORTS":
-                visit_support(node)
+                visit_support(node, state)
             elif name == "BLOCK":
-                visit_block(node, source_path=source_key)
+                visit_block(node, source_path=source_key, session=state)
 
         for node in nodes:
             if getattr(node, "name", type(node).__name__) == "ASMVARIANT":
-                visit_variant(node)
+                visit_variant(node, state)
 
         for node in nodes:
             name = getattr(node, "name", type(node).__name__)
             if name in {"DEFINE", "SUPPORTS", "ASMVARIANT", "BLOCK"}:
                 continue
             if name == "TABLE":
-                visit_table(node)
+                visit_table(node, state)
             elif name == "STACK":
-                visit_stack(node)
+                visit_stack(node, state)
             elif name == "RULE":
-                visit_rule(node, source_path=source_key)
+                visit_rule(node, source_path=source_key, session=state)
             elif name == "LOAD_FILE":
                 load_source(
                     node,
@@ -145,6 +164,7 @@ def process(
                     project_root=resolved_root,
                     backend=backend,
                     parser=source_parser,
+                    session=state,
                 )
             elif name == "LIBRARY":
                 load_library(
@@ -154,6 +174,7 @@ def process(
                     project_root=resolved_root,
                     backend=backend,
                     parser=source_parser,
+                    session=state,
                 )
             else:
                 print("falta por procesar", name)
@@ -165,12 +186,32 @@ def process(
                 project_root=resolved_root,
                 backend=backend,
                 parser=source_parser,
+                session=state,
             )
+        succeeded = True
+    except Exception as exc:
+        # Keep the original source failure attached to this session without
+        # duplicating the same exception as it unwinds nested loaders.
+        if not any(item is exc for item in state.diagnostics):
+            state.diagnostics.append(exc)
+        raise
     finally:
-        if owns_source and source_key in globals.ACTIVE_SOURCES:
-            globals.ACTIVE_SOURCES.remove(source_key)
-        if owns_provider:
-            globals.SOURCE_PROVIDER = previous_provider
+        if owns_source and source_key in state.active_sources:
+            state.active_sources.remove(source_key)
+        if owns_session:
+            try:
+                if succeeded:
+                    resolve_pending_tables(state)
+                else:
+                    clear_pending_tables(state)
+            except Exception:
+                clear_pending_tables(state)
+                raise
+            finally:
+                state.source_provider = previous_provider
+                state.sync_to_globals()
+        elif not succeeded:
+            clear_pending_tables(state)
 
 
 __all__ = [

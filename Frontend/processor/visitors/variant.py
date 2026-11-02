@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Frontend import globals
+from Frontend.session import CompilationSession
 
 
 def _children(node: Any) -> tuple[Any, ...]:
@@ -49,24 +50,24 @@ def _string(node: Any, directive: str) -> str:
     return values[0]
 
 
-def visit_support(node: Any) -> None:
+def visit_support(node: Any, session: CompilationSession) -> None:
     name = _identifier(node)
-    if name in globals.SUPPORTS:
+    if name in session.supports:
         raise RuntimeError(f"La variante '{name}' ya fue declarada con @SUPPORTS.")
-    globals.SUPPORTS[name] = globals.SupportData(name=name, path=f"{name}.rif")
+    session.supports[name] = globals.SupportData(name=name, path=f"{name}.rif")
 
 
-def visit_variant(node: Any) -> None:
+def visit_variant(node: Any, session: CompilationSession) -> None:
     children = _children(node)
     if len(children) < 6 or not isinstance(children[5], list):
         raise RuntimeError("@ASMVARIANT debe contener directivas de variante.")
 
     name = _identifier(children[2])
-    if name not in globals.SUPPORTS:
+    if name not in session.supports:
         raise RuntimeError(
             f"La variante '{name}' debe declararse antes con @SUPPORTS."
         )
-    if name in globals.ASM_VARIANTS:
+    if name in session.asm_variants:
         raise RuntimeError(f"La variante '{name}' ya fue configurada.")
 
     mode: str | None = None
@@ -112,12 +113,12 @@ def visit_variant(node: Any) -> None:
             f"Faltan directivas en @ASMVARIANT {name}: " + ", ".join(missing)
         )
 
-    globals.ASM_VARIANTS[name] = globals.AsmVariantData(
+    session.asm_variants[name] = globals.AsmVariantData(
         name=name,
         mode=mode,
         enter_rule=enter_rule,
         exit_rule=exit_rule,
-        path=globals.SUPPORTS[name].path,
+        path=session.supports[name].path,
     )
 
 

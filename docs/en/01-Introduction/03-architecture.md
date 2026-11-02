@@ -44,8 +44,19 @@ tokens from another compiler through the direct Python API.
 
 ## State Ownership
 
-The root target owns global definitions, tables, configuration, and Rules.
-`RIFMachine` owns execution state such as token position, saved tokens,
-selected rows, datastack values, reservations, and traces. A machine can be
-created for a section of an `AssemblyImage` without changing the target
-definition.
+`CompilationSession` owns the mutable state of one frontend compilation:
+loaded sources, pending tables, Rules, configuration, linker data, blocks,
+variants, and source text needed to preserve lexemes. Loaders and visitors
+receive that session explicitly, so consecutive or concurrent targets do not
+share declarations.
+
+The session is resolved and frozen into an immutable `TargetContext`. MIR
+compilation receives the Rules and context explicitly; it does not need the
+frontend globals. `activate_target_context()` remains only as a transitional
+introspection adapter for older tests.
+
+The public CLI uses the in-memory C/AOT FFI. GCC or Clang runs only when the
+cached shared library must be built or invalidated. Python remains an internal
+parity oracle and diagnostic backend. `RIFMachine` owns execution state such
+as token position, saved tokens, selected rows, datastack values, reservations,
+and traces.

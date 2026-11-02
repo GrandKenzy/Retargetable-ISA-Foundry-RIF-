@@ -37,6 +37,42 @@ class TABLE_ACCESS(cmb.RuleItem):
     )
 
 
+class TABLE_OPERATION(cmb.RuleItem):
+    nodeable = True
+    description = "Operación de materialización o consulta de una tabla."
+    entrypoint = cmb.Alt(
+        cmb.Seq(
+            cmb.MatchToken("PERCENT"),
+            cmb.MatchToken("LBRACKET"),
+            _NAME,
+            cmb.MatchToken("RBRACKET"),
+            cmb.MatchToken("ASSIGN"),
+            _NAME,
+            cmb.MatchToken("DOT"),
+            _NAME,
+            cmb.MatchToken("PERCENT"),
+        ),
+        cmb.Seq(
+            cmb.MatchToken("PERCENT"),
+            _NAME,
+            cmb.MatchToken("DOT"),
+            _NAME,
+            cmb.MatchToken("LBRACKET"),
+            cmb.Alt(
+                cmb.MatchToken("IDENT"),
+                cmb.MatchToken("NUMBER"),
+                cmb.MatchToken("DECIMAL"),
+                cmb.MatchToken("STRING"),
+                cmb.MatchToken("BOOL"),
+            ),
+            cmb.MatchToken("RBRACKET"),
+            cmb.MatchToken("DOT"),
+            _NAME,
+            cmb.MatchToken("PERCENT"),
+        ),
+    )
+
+
 class RESERVATION_ACCESS(cmb.RuleItem):
     nodeable = True
     description = "Acceso sintáctico a una reserva por etiqueta."
@@ -171,6 +207,7 @@ class VALUE(cmb.RuleItem):
 
 __all__ = [
     "TABLE_ACCESS",
+    "TABLE_OPERATION",
     "RESERVATION_ACCESS",
     "CALL_VALUE",
     "SIZE_VALUE",

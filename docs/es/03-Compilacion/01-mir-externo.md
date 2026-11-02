@@ -53,10 +53,13 @@ forma antigua con ruta y los cuatro argumentos numéricos sigue siendo válida.
 ## Línea de comandos
 
 ```powershell
-rif main.rif program.asm
-rif main.pack program.asm
-rif main.rif program.asm -o build/program.bin
+vnma run main.py main.rif program.asm
+vnma run main.py main.pack program.asm
+vnma run main.py main.rif program.asm -o build/program.bin
 ```
+
+`main.py` es la entrada canónica. Si la raíz del repositorio está en `PATH`,
+`rif.cmd` puede usarse como atajo y reenvía la misma operación a VNMA.
 
 La extensión debe coincidir con `extension` en `@block linker`. Sin `-o`, la salida usa la
 misma ruta del MIR con extensión `.bin`.

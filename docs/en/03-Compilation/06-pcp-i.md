@@ -145,7 +145,7 @@ later layout pass.
 
 ## Compiled `.pcic` container
 
-`main.py --comp-pcpi` validates the source and writes a binary `.pcic` file. A
+`vnma run main.py --comp-pcpi` validates the source and writes a binary `.pcic` file. A
 version 1 container has this order:
 
 ```text
@@ -229,8 +229,8 @@ The PCP-I compiler is independent of target compilation. These commands do
 not load a `.rif`, `.pack`, or MIR program:
 
 ```powershell
-main.py --comp-pcpi header.pci -o build/header.pcic
-main.py --doctor-pcpi build/header.pcic
+vnma run main.py --comp-pcpi header.pci -o build/header.pcic
+vnma run main.py --doctor-pcpi build/header.pcic
 ```
 
 ## Filling and rendering from Python

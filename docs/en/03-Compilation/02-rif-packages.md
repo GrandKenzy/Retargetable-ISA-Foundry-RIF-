@@ -7,8 +7,8 @@ database.
 ## Creating a Package
 
 ```powershell
-main.py --pack main.rif
-main.py --pack main.rif -o targets/amd64.pack
+vnma run main.py --pack main.rif
+vnma run main.py --pack main.rif -o targets/amd64.pack
 ```
 
 The package includes:
@@ -17,7 +17,7 @@ The package includes:
 manifest.json
 sources/main.rif
 sources/other.rif
-compiled.sqlite          (when precompiled)
+compiled/program.sqlite3 (when precompiled)
 ```
 
 The actual compiled database path is `compiled/program.sqlite3`.
@@ -31,14 +31,15 @@ processed. External MIR directives
 are not part of the package source graph; `::RIF_INSERT FILE` resolves its path
 relative to the MIR file being compiled.
 
-Reusable libraries can be created with `main.py --library patterns/main.rif -o
-patterns.riflib` and consumed from a target with `@LIBRARY "patterns.riflib"`.
+Reusable libraries can be created with `vnma run main.py --library
+patterns/main.rif -o patterns.riflib` and consumed from a target with
+`@LIBRARY "patterns.riflib"`.
 When creating a `.pack`, RIF embeds and verifies those libraries under
 `libraries/`. A complete `.pack` can also be exported into a declaration-only
 `.riflib`:
 
 ```powershell
-main.py --library base.pack -o reusable-patterns.riflib
+vnma run main.py --library base.pack -o reusable-patterns.riflib
 ```
 
 That export keeps the package's explicitly loaded declaration sources and
@@ -76,9 +77,9 @@ fingerprint, and compiled SQLite database. It does not execute Rules, activate
 frontend globals, load plugins, or extract files:
 
 ```powershell
-main.py --inspect-pack target.pack
-main.py --inspect-pack target.pack --json
-main.py --inspect-pack target.pack --verbose --max-items 200
+vnma run main.py --inspect-pack target.pack
+vnma run main.py --inspect-pack target.pack --json
+vnma run main.py --inspect-pack target.pack --verbose --max-items 200
 ```
 
 The report includes package format and version, contract fingerprint, sources,
@@ -91,7 +92,7 @@ hidden unless `--show-origins` is supplied.
 MIR compilation can also emit an optional map without changing the binary:
 
 ```powershell
-rif target.pack program.mir -o program.bin --map program.map.json
+vnma run main.py target.pack program.mir -o program.bin --map program.map.json
 ```
 
 The map records the contract, binary hash and sizes, sections, symbols,

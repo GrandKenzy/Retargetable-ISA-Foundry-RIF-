@@ -454,7 +454,7 @@ def _encode_value(item: StoreItem) -> bytes:
             raise StoreError(f"{item.label}: los flotantes deben ser finitos.")
         try:
             return struct.pack(FLOAT_TYPES[type_name], numeric)
-        except struct.error as exc:
+        except (OverflowError, struct.error) as exc:
             raise StoreError(
                 f"{item.label}: {type_name} no puede representar {value}."
             ) from exc

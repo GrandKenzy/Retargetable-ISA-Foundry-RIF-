@@ -144,6 +144,10 @@ class StorageBuilder:
             self._labels.add(label)
 
         padding = (-len(self._raw)) % self.alignment
+        if self.version == VERSION and padding > 0xFFFF:
+            raise StorageError(
+                "El padding de storage v2 no puede exceder 65535 bytes."
+            )
         start = len(self._raw) + padding
         total = start + len(data) + len(label_bytes)
         if total > resolve_limits().cap(MAX_STORAGE_BYTES):

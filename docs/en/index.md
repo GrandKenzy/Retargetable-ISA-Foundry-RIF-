@@ -85,15 +85,19 @@ target.rif + program.mir -> program.bin
 Compile directly from a RIF definition:
 
 ```powershell
-rif main.rif program.mir
+vnma run main.py main.rif program.mir
 ```
 
 Create a precompiled package and use it as the target definition:
 
 ```powershell
-main.py --pack main.rif -o target.pack
-rif target.pack program.mir -o program.bin
+vnma run main.py --pack main.rif -o target.pack
+vnma run main.py target.pack program.mir -o program.bin
 ```
 
 The output is a pure binary file. Its default name is derived from the MIR
 input, so `program.mir` produces `program.bin` unless `-o` is supplied.
+
+If the repository root has been added to `PATH`, the optional `rif.cmd`
+launcher accepts the same arguments, for example `rif --help`. The launcher
+forwards to `vnma run main.py`; it is only a convenience wrapper.

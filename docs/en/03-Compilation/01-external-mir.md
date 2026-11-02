@@ -57,13 +57,17 @@ older path form with four numeric arguments remains valid.
 
 ## Command Line
 
-The command-line entrypoint is `main.py`:
+The canonical command-line entrypoint is `main.py`, invoked through VNMA:
 
 ```powershell
-rif main.rif program.mir
-rif target.pack program.mir
-rif main.rif program.mir -o build/program.bin
+vnma run main.py main.rif program.mir
+vnma run main.py target.pack program.mir
+vnma run main.py main.rif program.mir -o build/program.bin
 ```
+
+If the repository root is on `PATH`, the optional `rif.cmd` launcher accepts
+the same arguments. It forwards to `vnma run main.py` and is not a separate
+compiler path.
 
 The MIR extension must match `extension` in the target's linker block. When `-o` is
 omitted, the output path is the MIR path with a `.bin` suffix.

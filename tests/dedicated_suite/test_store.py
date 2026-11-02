@@ -138,6 +138,19 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(storage.payload("etiqueta1"), b"one")
         self.assertEqual(storage.payload("etiqueta2"), b"two")
 
+    def test_store_rejects_float32_overflow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "overflow.store"
+            source.write_text(
+                'MAGIC "store"\n'
+                "VERSION 2\n"
+                "float32 too_big = 1e39\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(StoreError, "float32"):
+                compile_store(source)
+
     def test_store_reqst_uses_the_bounded_binary_fetcher(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "remote.store"

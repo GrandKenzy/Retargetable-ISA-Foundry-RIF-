@@ -40,6 +40,13 @@ class StorageTests(unittest.TestCase):
 
         self.assertEqual(image.value_type("width"), "uint16")
 
+    def test_storage_v2_rejects_padding_that_overlaps_type_metadata(self) -> None:
+        builder = StorageBuilder(alignment=131072, version=2)
+        builder.add(b"first", label="first", value_type="uint8")
+
+        with self.assertRaisesRegex(StorageError, "padding"):
+            builder.add(b"second", label="second", value_type="uint8")
+
     def test_storage_rejects_invalid_magic(self) -> None:
         builder = StorageBuilder()
         blob = bytearray(builder.build())

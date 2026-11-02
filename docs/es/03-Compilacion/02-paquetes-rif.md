@@ -6,8 +6,8 @@ las fuentes RIF y, si se solicita, una base SQLite precompilada.
 ## Crear un paquete
 
 ```powershell
-main.py --pack main.rif
-main.py --pack main.rif -o targets/amd64.pack
+vnma run main.py --pack main.rif
+vnma run main.py --pack main.rif -o targets/amd64.pack
 ```
 
 Puede contener:
@@ -16,7 +16,7 @@ Puede contener:
 manifest.json
 sources/main.rif
 sources/other.rif
-compiled.sqlite          (si se precompila)
+compiled/program.sqlite3 (si se precompila)
 ```
 
 La ruta real de la base precompilada es `compiled/program.sqlite3`.
@@ -26,13 +26,14 @@ de `@LOAD`, orden de dependencias y la base compilada opcional. El contrato
 identifica la combinación compatible de RIF, Gram/GIR, FFI AOT, SQLite y
 runtime; un artefacto de otra combinación se rechaza antes de procesar MIR.
 
-Las librerías reutilizables se crean con `main.py --library patrones/main.rif -o
-patrones.riflib` y se consumen desde un target con `@LIBRARY "patrones.riflib"`.
+Las librerías reutilizables se crean con `vnma run main.py --library
+patrones/main.rif -o patrones.riflib` y se consumen desde un target con
+`@LIBRARY "patrones.riflib"`.
 Al crear un `.pack`, RIF incluye y verifica esas librerías bajo `libraries/`.
 También se puede exportar un `.pack` completo a una librería de declaraciones:
 
 ```powershell
-main.py --library base.pack -o patrones-reutilizables.riflib
+vnma run main.py --library base.pack -o patrones-reutilizables.riflib
 ```
 
 La exportación conserva las fuentes de declaraciones cargadas explícitamente
@@ -68,9 +69,9 @@ de contenido y la base SQLite compilada. No ejecuta Rules, no activa globals del
 frontend, no carga plugins y no extrae archivos:
 
 ```powershell
-main.py --inspect-pack target.pack
-main.py --inspect-pack target.pack --json
-main.py --inspect-pack target.pack --verbose --max-items 200
+vnma run main.py --inspect-pack target.pack
+vnma run main.py --inspect-pack target.pack --json
+vnma run main.py --inspect-pack target.pack --verbose --max-items 200
 ```
 
 La salida muestra el formato y versión del paquete, fingerprint y contrato,
@@ -83,7 +84,7 @@ origen absolutas del creador permanecen ocultas salvo que se indique
 La compilación MIR puede producir un mapa opcional sin cambiar el binario:
 
 ```powershell
-rif target.pack program.mir -o program.bin --map program.map.json
+vnma run main.py target.pack program.mir -o program.bin --map program.map.json
 ```
 
 El mapa registra contrato, hash y tamaños del binario, secciones, símbolos,

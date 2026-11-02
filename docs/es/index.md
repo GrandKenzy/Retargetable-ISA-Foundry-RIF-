@@ -1,6 +1,6 @@
 # Documentación de RIF
 
-> **Versión:** `1.0.0`
+> **Versión:** `1.0.1`
 > **Runtime:** Python 3.10+ con Gram
 
 RIF es un framework retargetable para describir conjuntos de instrucciones,
@@ -53,6 +53,14 @@ Memoria de bits, datastack, variantes, trazas, diagnóstico y pruebas.
 - [04. Diagnóstico y pruebas](./04-Ejecucion/04-diagnostico-y-pruebas.md)
 - [05. Inserts y parches](./04-Ejecucion/05-inserts-y-parches.md)
 
+### 05. Herramientas PCP-I y STORE
+
+Las guías operativas actuales de estas herramientas están disponibles en
+inglés:
+
+- [PCP-I Tools](../en/05-PCPI%20Tools/index.md)
+- [STORE Tools](../en/06-STORE%20Tools/index.md)
+
 ## Inicio rápido
 
 ```text
@@ -60,10 +68,14 @@ main.rif + program.asm -> program.bin
 ```
 
 ```powershell
-rif main.rif program.asm
-main.py --pack main.rif
-rif main.pack program.asm
+vnma run main.py main.rif program.asm
+vnma run main.py --pack main.rif -o main.pack
+vnma run main.py main.pack program.asm
 ```
 
 La salida es un archivo binario puro. Si no se especifica `-o`, el nombre se
 deriva del archivo MIR y usa la extensión `.bin`.
+
+`main.py` es la entrada canónica. `rif.cmd` es únicamente un lanzador opcional
+para usar RIF desde cualquier carpeta cuando la raíz del repositorio está en
+`PATH`.

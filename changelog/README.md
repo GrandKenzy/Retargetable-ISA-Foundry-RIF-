@@ -86,6 +86,15 @@ payload insertions. The path-first form remains accepted. Aliases can also set
 `ORDER` and `ENDIANNESS` once for typed values; opaque payloads remain
 byte-for-byte.
 
+STORE now reports oversized `float32` literals as controlled source errors
+instead of leaking a native packing exception, and VERSION 2 rejects alignment
+padding that would overlap its inline type metadata. The STORE documentation
+also distinguishes payload insertion from future operand-symbol resolution.
+
+The public documentation now uses `vnma run main.py` consistently, documents
+the optional `rif.cmd` wrapper, exposes the PCP-I and STORE tool guides from
+the main indexes, and removes obsolete direct-entry examples.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

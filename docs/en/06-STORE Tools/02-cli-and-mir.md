@@ -139,14 +139,18 @@ vnma run main.py --doctor-storage build/gba.storage.bin
 GBA.ORDER 1
 GBA.ENDIANNESS 1
 
-inicio:
-    mover r0, GBA.MODE_3
-    mover r1, GBA.DIR_VRAM
-    guarda16 [r0], GBA.DISPCNT
+; Actual STORE consumption: emit each selected payload at a byte-aligned
+; position in the MIR output.
+::RIF_STORE GBA MODE_3
+::RIF_STORE GBA DIR_VRAM
+::RIF_STORE GBA DISPCNT
 ```
 
 The MIR output receives the bytes for each selected label at the point of use;
-it does not receive the storage file's metadata.
+it does not receive the storage file's metadata. `RIF_STORE` does not currently
+substitute `GBA.MODE_3` inside a normal instruction operand. If a target wants
+named values such as `GBA.MODE_3` in an instruction, it needs a separate symbol
+or operand-resolution feature.
 
 ## Errors and boundaries
 

@@ -55,6 +55,8 @@ RIF is designed to express the binary representation you want, not to force that
 | **Reusable `.pack` files** | Package rule definitions, included sources, assets, and optionally precompiled SQLite data |
 | **External input processing** | Process a file or consume an existing token stream without repeating the external lexing step |
 | **Native functions** | Closed, deterministic functions designed for Python/C parity |
+| **PCP-I templates** | Compile validated binary envelopes with exact fillable pits |
+| **STORE containers** | Keep typed values and labeled raw/media payloads in versioned storage |
 
 A `.pack` defines how a particular input is interpreted. RIF's core does not ship with an intrinsic knowledge of AMD64, ARM, RISC-V, or any other processor.
 
@@ -119,6 +121,17 @@ To compile a standalone `.store` file into indexed raw storage:
 vnma run main.py --comp-store datos.store -o storage.bin
 ```
 
+`main.py` is the canonical entrypoint. Invoke it through VNMA so the project
+environment and FFI frontend are selected consistently:
+
+```powershell
+vnma run main.py --help
+```
+
+The repository also contains an optional `rif.cmd` convenience launcher. When
+the repository root is on `PATH`, `rif --help` forwards to the same `main.py`;
+it is not a second implementation or a legacy backend.
+
 For a clean clone, copy `vnma.toml.example` to `vnma.toml` before installing.
 The example uses Gram from GitHub; a local checkout may instead use the ignored
 editable `vnma.toml` and `vnma reload` after Gram changes.
@@ -136,6 +149,9 @@ vnma run main.py --pack examples/probe/probe_elf64/main.rif -o target.pack
 
 # Reuse the packaged rules
 vnma run main.py target.pack examples/probe/probe_elf64/main.asm -o exit-from-pack
+
+# Inspect a package without executing its Rules
+vnma run main.py --inspect-pack target.pack
 ```
 
 Resource limits can be selected per invocation, in MiB, for example
@@ -148,7 +164,9 @@ only relative paths inside the project or package, so those origins are never
 used to read files. They can reveal paths from the machine that created the
 package.
 
-See the [examples](examples/README.md) for the expected binary results and how to inspect or run the ELF64 sample.
+See the [examples](examples/README.md) for the expected binary results and how
+to inspect or run the probe targets. PCP-I and STORE have standalone guides in
+the documentation index below.
 
 ### Python API
 
@@ -169,8 +187,8 @@ Here, `tokens` is an existing token stream compatible with the target's rules. U
 
 For direct bit inspection and manipulation, see the [memory and bit-buffer documentation](docs/en/04-Execution/01-bit-memory.md) and the `BitBuffer` API.
 
-> **Security:** RIF no ejecuta código Python proporcionado por un target. Las
-> funciones nativas se registran explícitamente y no cargan módulos externos.
+> **Security:** RIF does not execute Python code supplied by a target. Native
+> functions are registered explicitly and do not load external modules.
 
 ## Documentation
 
@@ -182,6 +200,8 @@ RIF's documentation is available in English and Spanish:
 - [Language and rule definitions](docs/en/02-Language/index.md)
 - [Compilation and packs](docs/en/03-Compilation/index.md)
 - [Execution and binary memory](docs/en/04-Execution/index.md)
+- [PCP-I tools](docs/en/05-PCPI%20Tools/index.md)
+- [STORE tools](docs/en/06-STORE%20Tools/index.md)
 
 **Español**
 - [Introducción](docs/es/index.md)
@@ -189,6 +209,8 @@ RIF's documentation is available in English and Spanish:
 - [02. Lenguaje y reglas](docs/es/02-Lenguaje/index.md)
 - [03. Compilación y paquetes](docs/es/03-Compilacion/index.md)
 - [04. Ejecución y memoria binaria](docs/es/04-Ejecucion/index.md)
+- [05. Herramientas PCP-I](docs/en/05-PCPI%20Tools/index.md)
+- [06. Herramientas STORE](docs/en/06-STORE%20Tools/index.md)
 
 Additional resources:
 - [Architecture and terminology](docs/en/01-Introduction/03-architecture.md)

@@ -11,7 +11,7 @@ pelota blanca redondeada, que rebota contra los bordes de una pantalla
 `build.py` contiene un codificador reducido de instrucciones ARM en Python para
 preparar el MIR.
 
-**Alcance exacto de la prueba:** el MIR externo carga la cabecera GBA con `::RIF_INSERT FILE`, emite palabras ARM little-endian con `fit_exact 32`, codifica `arm_mov_imm` desde una tabla de registros, usa la variante experimental `@ASMVARIANT thumb` para emitir `movs` y `bx lr` Thumb, y emite los **20 bytes de datos** que describen el contorno de la pelota mediante `byte`/`fit_exact 8`. El código realiza un interworking ARM→Thumb→ARM mediante `BX` reales.
+**Alcance exacto de la prueba:** el MIR externo carga la imagen PCP-I GBA compartida con `::RIF_PCPI SET` y rellena sus tres pits, emite palabras ARM little-endian con `fit_exact 32`, codifica `arm_mov_imm` desde una tabla de registros, usa la variante experimental `@ASMVARIANT thumb` para emitir `movs` y `bx lr` Thumb, y emite los **20 bytes de datos** que describen el contorno de la pelota mediante `byte`/`fit_exact 8`. El código realiza un interworking ARM→Thumb→ARM mediante `BX` reales.
 
 Importante: las referencias a etiquetas, la selección de instrucciones y los branch offsets de ARM se calculan actualmente en `build.py` (Python), **no** directamente por RIF ni por el runtime de Variants. Por eso esto NO equivale a un ensamblador ARM7TDMI completo. `ENTER_thumb` y `EXIT_thumb` en el MIR son selectores declarativos; no cambian el estado de la CPU por sí mismos.
 
@@ -30,9 +30,11 @@ Desde la raíz del repositorio:
 vnma run examples/GBA-Bouncing-Ball/build.py main.py
 ```
 
-El script genera `main.asm`, crea `gba.pack` mediante el backend AOT
-predeterminado y produce `rif_ball.gba`. El pack contiene la cabecera GBA, la
-gramática ARM y la variante Thumb.
+El script compila la plantilla PCP-I compartida
+`examples/headers/GBA_ROM_arm7tdmi_little.pcpi` a
+`build/GBA_ROM_arm7tdmi_little.pcic`, genera `main.asm`, crea `gba.pack`
+mediante el backend AOT predeterminado y produce `rif_ball.gba`. El MIR solo
+carga la imagen compilada y rellena sus pits; no recrea la cabecera GBA.
 
 Para verificar la ROM con el intérprete ARM7TDMI reducido:
 
@@ -73,9 +75,10 @@ vnma test tests/test_frontend_benchmark.py
 
 | Archivo | Papel |
 |---|---|
-| `main.rif` | Configuración 32-bit little-endian, tabla de registros ARM, reglas `arm32`, `byte`, `arm_mov_imm`, declaración de variante Thumb e insert del header |
+| `main.rif` | Configuración 32-bit little-endian, tabla de registros ARM, reglas `arm32`, `byte`, `arm_mov_imm` y declaración de variante Thumb |
 | `thumb.rif` | Reglas `thumb_mov_imm`, `thumb_bx_lr`, `ENTER_thumb`, `EXIT_thumb` |
-| `gba_header.bin` | 192 bytes del encabezado cartucho GBA compatible: logo exigido por el BIOS, nombre, código y checksum |
+| `../headers/GBA_ROM_arm7tdmi_little.pcpi` | Plantilla PCP-I canónica del encabezado GBA, con pits para branch, identidad y checksum |
+| `build/GBA_ROM_arm7tdmi_little.pcic` | Imagen PCP-I compilada que `main.asm` carga y rellena |
 | `main.asm` | MIR generado localmente por `build.py`, incluyendo código ARM, Thumb, geometría y valores literales |
 | `build.py` | Codificador ARM mínimo en Python, cálculo de saltos y direcciones, generación de MIR, compilación mediante RIF y verificación |
 | `gba.pack` | Pack generado localmente con fuentes, asset y reglas |

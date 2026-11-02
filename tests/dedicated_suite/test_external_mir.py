@@ -386,6 +386,50 @@ class ExternalMIRTests(unittest.TestCase):
             self.assertEqual(result.binary, b"\xbb\x01")
             self.assertEqual(result.executions[0].position, 1)
 
+    def test_store_alias_reuses_one_storage_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "main.rif"
+            source = root / "program.asm"
+            storage = root / "imagenes.bin"
+            target.write_text(TARGET, encoding="utf-8")
+            source.write_text(
+                '::RIF_STORE "imagenes.bin" AS assets\n'
+                "::RIF_STORE assets payload 1 0\n"
+                "::RIF_STORE assets palette 1 0\n",
+                encoding="utf-8",
+            )
+            builder = StorageBuilder()
+            builder.add(b"RAWIMAGE", label="payload")
+            builder.add(b"PALETTE", label="palette")
+            storage.write_bytes(builder.build())
+
+            result = compile_mir_file(compile_definition(target), source)
+
+        self.assertEqual(result.binary, b"RAWIMAGEPALETTE")
+
+    def test_store_alias_layout_converts_typed_values_once(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "main.rif"
+            source = root / "program.asm"
+            storage = root / "values.bin"
+            target.write_text(TARGET, encoding="utf-8")
+            source.write_text(
+                '::RIF_STORE AS values "values.bin"\n'
+                "values.ORDER 1\n"
+                "values.ENDIANNESS 2\n"
+                "::RIF_STORE values width\n",
+                encoding="utf-8",
+            )
+            builder = StorageBuilder(version=2)
+            builder.add(b"\x02\x01", label="width", value_type="uint16")
+            storage.write_bytes(builder.build())
+
+            result = compile_mir_file(compile_definition(target), source)
+
+        self.assertEqual(result.binary, b"\x01\x02")
+
     def test_pcpi_fill_replaces_declared_pits_transactionally(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

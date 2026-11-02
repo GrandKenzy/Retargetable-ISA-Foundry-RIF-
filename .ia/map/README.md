@@ -160,21 +160,26 @@ Los controles de Rule usan `JUMP`, `JUMPIF`, `BREAK`, `ERROR`, `save`, `load`,
   produce bytes RGBA8888 y `audio.py` produce bytes PCM_S16LE desde WAV, FLAC
   u OGG; ambos rechazan URLs y bytes en memoria. Todo plugin debe devolver
   exclusivamente `bytes`; no se incluye conversión de vídeo.
-- `MIR/storage.py`: contenedor `RIFSTOR` versionado para payloads de plugins;
+- `MIR/storage.py`: contenedor `RIFSTOR` versionado para payloads nombrados;
   guarda el raw y un índice de entradas con dirección relativa `u64`, tamaño
   `u64`, padding `u32` y tamaño de label `u32`; los bytes UTF-8 del label viven
   junto al payload dentro del raw. Se genera
   desde fuentes independientes `.store`, no desde el flujo `.rif`. Su cargador
   seguro alimenta `main.py --doctor-storage`.
 - `rif_tools/store.py`: parser y compilador de fuentes `.store`; valida `MAGIC`,
-  `VERSION`, bloques `@ITEM IMAGE`/`@ITEM AUDIO`, rutas locales y labels.
+  `VERSION`, bloques `@ITEM IMAGE`/`@ITEM AUDIO`/`@ITEM BINARY`, variables
+  tipadas, `@FILE`, `@REQST` y `@CONTAINER`. VERSION 1 conserva el formato
+  simple; VERSION 2 habilita valores tipados y `@REQST`. Las rutas permanecen
+  acotadas al store, los containers importan labels validados y
+  `BINARY`/`@FILE` copian archivos opacos byte por byte sin invocar plugins.
 - `MIR/external.py`: consumo de entradas MIR externas y validación del linker.
 - `MIR/preprocessor.py`: reconoce directivas cerradas de metaprogramación
   (`::RIF_PCPI` y `::RIF_STORE`) antes del despacho de Rules; `RIF_PCPI SET`
   materializa `PADDING + RAW + RPAD` sin el header ni la tabla `.pcic`,
   `RIF_PCPI FILL` resuelve todos los pits y `RIF_PCPI PIT` calcula offsets absolutos,
-  mientras `RIF_STORE` valida `ENDIANNESS`/`BITORDER`, extrae payloads raw
-  etiquetados y los inserta en la sección actual.
+  mientras `RIF_STORE` valida `ENDIANNESS`/`BITORDER`, permite alias locales de
+  contenedores, conserva metadata de valores tipados, transforma solo esos
+  escalares al layout solicitado y mantiene raw etiquetados byte por byte.
 - `foot/`: material temporal resumido y machine-readable usado para alimentar
   y verificar los ejemplos de `examples/`; no es una dependencia del núcleo ni
   un artefacto final. Las fuentes completas de Intel y NASM permanecen
@@ -213,6 +218,9 @@ de `main.rif` y `main_rw.rif`; ambos conservan solo su configuración raíz y el
 alineamiento diferencial de `data`. Los programas MIR del target base Friendly
   Syntax están en `examples/probe/probe_friendlysyntax/`; el target QEMU
   completo y sus probes están en `examples/probe/probe_friendlysyntax_qemu/`.
+  `examples/GBA-Bouncing-Ball/` reutiliza la plantilla PCP-I compartida de
+  `examples/headers/GBA_ROM_arm7tdmi_little.pcpi`; su build compila el `.pcic`
+  y solo rellena sus pits antes de anexar el código ARM/Thumb.
 
 El perfil `AMD64_Baremetal` mantiene sus decisiones de ISA fuera del núcleo:
 `registers.rif` concentra los datos canónicos por familia; `integer.rif` y

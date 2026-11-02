@@ -16,13 +16,25 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 # Override with RIF_PY=/path/to/main.py or pass main.py as the first argument.
-RIF = Path(os.environ.get('RIF_PY', str(ROOT.parent / 'RIF-main' / 'main.py')))
+RIF = Path(os.environ.get('RIF_PY', str(ROOT.parents[1] / 'main.py')))
 if len(sys.argv) > 1 and sys.argv[1].endswith('main.py'):
     RIF = Path(sys.argv[1]).resolve()
 ROM_BASE = 0x08000000
 HEADER_SIZE = 0xC0
+HEADER_TEMPLATE = ROOT.parent / "headers" / "GBA_ROM_arm7tdmi_little.pcpi"
+HEADER_PCIC_NAME = "GBA_ROM_arm7tdmi_little.pcic"
 COND = {'eq':0, 'ne':1, 'cs':2, 'cc':3, 'mi':4,'pl':5, 'vs':6,'vc':7,'hi':8,'ls':9,'ge':10,'lt':11,'gt':12,'le':13,'al':14}
 OP = {'and':0,'eor':1,'sub':2,'rsb':3,'add':4,'adc':5,'sbc':6,'rsc':7,'tst':8,'teq':9,'cmp':10,'cmn':11,'orr':12,'mov':13,'bic':14,'mvn':15}
+
+
+def gba_header_fills() -> tuple[bytes, bytes, bytes]:
+    """Return the three values inserted into the shared GBA PCP-I pits."""
+
+    branch = struct.pack("<I", 0xEA000000 | ((HEADER_SIZE - 8) // 4))
+    title_and_code = b"RIF BALL GBA" + b"RIF1"
+    tail = bytearray(b"01\x96\x00" + b"\0" * 8 + b"\0" + b"\0" + b"\0" * 2)
+    tail[13] = (-0x19 - sum(title_and_code) - sum(tail)) & 0xFF
+    return branch, title_and_code, bytes(tail)
 
 
 def imm12(value: int) -> int:
@@ -280,7 +292,28 @@ def build():
     a.literal_label('span_address', 'span_table')
     a.resolve()
 
-    mir = '::RIF_INSERT FILE "gba_header.bin" SECTION text\n' + a.mir()
+    build_dir = ROOT / "build"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    header_pcic = build_dir / HEADER_PCIC_NAME
+    subprocess.run(
+        [
+            sys.executable,
+            str(RIF),
+            "--comp-pcpi",
+            str(HEADER_TEMPLATE),
+            "-o",
+            str(header_pcic),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+    fills = gba_header_fills()
+    mir_lines = [f'::RIF_PCPI SET "build/{HEADER_PCIC_NAME}"']
+    mir_lines.extend(
+        f'::RIF_PCPI FILL {index} "{value.hex().upper()}"'
+        for index, value in enumerate(fills)
+    )
+    mir = "\n".join(mir_lines) + "\n" + a.mir()
     (ROOT/'main.asm').write_text(mir)
     (ROOT/'labels.json').write_text(json.dumps({name:hex(ROM_BASE+offset) for name,offset in a.labels.items()},indent=2)+'\n')
     return a

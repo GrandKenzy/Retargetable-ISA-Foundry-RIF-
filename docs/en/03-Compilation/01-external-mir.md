@@ -39,9 +39,21 @@ between container and rendered-image addresses, see
 `::RIF_STORE`
 receives `ENDIANNESS` (`1` little, `2` big) and `BITORDER` (`0` LSB, `1` MSB),
 resolves its path relative to the MIR file, opens `storage.bin`, extracts the
-raw payload by label, and inserts it into the current section. The payload must
-start at a byte-aligned position and is copied without reinterpretation; the
-storage has no word size with which to perform a generic endian conversion.
+raw payload by label, and inserts it into the current section. To avoid
+repeating a path, declare a local alias once and use it afterward:
+
+```text
+::RIF_STORE AS gba "build/gba.storage.bin"
+gba.ORDER 1
+gba.ENDIANNESS 1
+::RIF_STORE gba title
+::RIF_STORE gba width
+```
+
+The alias is local to that MIR compilation and must be declared before use.
+`ORDER` (`0` LSB or `1` MSB) and `ENDIANNESS` (`1` little or `2` big) configure
+typed values. Raw payloads, images, audio, and files are copied unchanged. The
+older path form with four numeric arguments remains valid.
 
 ## Command Line
 

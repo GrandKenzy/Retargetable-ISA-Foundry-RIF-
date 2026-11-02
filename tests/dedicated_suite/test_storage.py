@@ -30,6 +30,15 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(image.label(0), "first")
         self.assertEqual(image.payload("first"), b"abc")
         self.assertEqual(len(image.entries), 2)
+        self.assertIsNone(image.value_type("first"))
+
+    def test_storage_preserves_typed_value_metadata(self) -> None:
+        builder = StorageBuilder(version=2)
+        builder.add(b"\x02\x01", label="width", value_type="uint16")
+
+        image = parse_storage(builder.build())
+
+        self.assertEqual(image.value_type("width"), "uint16")
 
     def test_storage_rejects_invalid_magic(self) -> None:
         builder = StorageBuilder()

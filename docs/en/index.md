@@ -60,6 +60,22 @@ variants, and diagnostics.
 - [05. Binary Artifacts](./04-Execution/05-binary-artifacts.md)
 - [06. Rule Operation ABI](./04-Execution/06-rule-operation-abi.md)
 
+### [05. PCP-I Tools](./05-PCPI%20Tools/index.md)
+
+Standalone PCP-I tools for declarative binary templates, fillable pits, and
+external MIR integration.
+
+- [01. Authoring PCP-I Templates](./05-PCPI%20Tools/01-authoring-templates.md)
+- [02. Compiling, Inspecting, and Filling](./05-PCPI%20Tools/02-cli-and-mir.md)
+
+### [06. STORE Tools](./06-STORE%20Tools/index.md)
+
+Standalone `.store` tools for typed values, media, opaque binary payloads,
+local files, bounded GitHub acquisition, and indexed storage containers.
+
+- [01. Authoring STORE Sources](./06-STORE%20Tools/01-authoring-store.md)
+- [02. Compiling and Consuming Storage](./06-STORE%20Tools/02-cli-and-mir.md)
+
 ## Quick Start
 
 ```text

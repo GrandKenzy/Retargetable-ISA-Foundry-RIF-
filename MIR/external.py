@@ -6,7 +6,7 @@ import os
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from gram import lexer
 
@@ -354,25 +354,87 @@ def _resolve_meta_path(requested: str, mir_path: str | Path | None) -> Path:
     return candidate
 
 
+_VALUE_WIDTHS = {
+    "int8": 1,
+    "int16": 2,
+    "int32": 4,
+    "int64": 8,
+    "uint8": 1,
+    "uint16": 2,
+    "uint32": 4,
+    "uint64": 8,
+    "float32": 4,
+    "float64": 8,
+}
+
+
+def _apply_storage_layout(
+    payload: bytes,
+    value_type: str | None,
+    endianness: int,
+) -> bytes:
+    """Convert typed scalar bytes while preserving opaque payloads."""
+
+    if value_type is None or value_type == "str" or endianness == 1:
+        return payload
+    width = _VALUE_WIDTHS.get(value_type)
+    if width is None:
+        raise MIRInputError(
+            f"El tipo tipado de storage no puede convertirse: {value_type}."
+        )
+    if len(payload) % width:
+        raise MIRInputError(
+            f"El payload tipado {value_type} no tiene un tamaño múltiplo de {width}."
+        )
+    return b"".join(
+        payload[offset : offset + width][::-1]
+        for offset in range(0, len(payload), width)
+    )
+
+
 def _apply_meta_directive(
     directive: RIFMetaDirective,
     image: AssemblyImage,
     section: str,
     mir_path: str | Path | None,
+    storage_aliases: Mapping[str, str],
+    storage_layouts: Mapping[str, tuple[int, int]],
+    default_layout: tuple[int, int],
 ) -> None:
     if directive.name != "RIF_STORE":
         raise MIRInputError(f"Directiva de metaprogramación no soportada: {directive.name}.")
-    if directive.path is None or directive.label is None:
-        raise MIRInputError("::RIF_STORE requiere una ruta y un label.")
-    if directive.endianness not in {1, 2} or directive.bitorder not in {0, 1}:
+    if directive.label is None:
+        raise MIRInputError("::RIF_STORE requiere una ruta o alias y un label.")
+    if directive.path_alias is not None:
+        try:
+            requested_path = storage_aliases[directive.path_alias]
+        except KeyError as exc:
+            raise MIRInputError(
+                f"No existe el alias de ::RIF_STORE: {directive.path_alias}."
+            ) from exc
+        configured_layout = storage_layouts.get(directive.path_alias, default_layout)
+    elif directive.path is not None:
+        requested_path = directive.path
+        configured_layout = default_layout
+    else:
+        raise MIRInputError("::RIF_STORE requiere una ruta o alias y un label.")
+    endianness = directive.endianness or configured_layout[0]
+    bitorder = directive.bitorder if directive.bitorder is not None else configured_layout[1]
+    if endianness not in {1, 2} or bitorder not in {0, 1}:
         raise MIRInputError(
             "::RIF_STORE requiere ENDIANNESS 1/2 y BITORDER 0/1."
         )
-    if Path(directive.path).suffix.casefold() != ".bin":
+    if Path(requested_path).suffix.casefold() != ".bin":
         raise MIRInputError("::RIF_STORE solo acepta archivos con extensión .bin.")
-    storage_path = _resolve_meta_path(directive.path, mir_path)
+    storage_path = _resolve_meta_path(requested_path, mir_path)
     try:
-        payload = load_storage_file(storage_path).payload(directive.label)
+        storage = load_storage_file(storage_path)
+        entry = storage.entry(directive.label)
+        payload = _apply_storage_layout(
+            storage.payload(directive.label),
+            entry.value_type,
+            endianness,
+        )
     except (FileNotFoundError, OSError, StorageError) as exc:
         location = f" en línea {directive.line}" if directive.line else ""
         raise MIRInputError(
@@ -636,6 +698,12 @@ def _compile_mir_tokens(
     pcpi_materialized = False
     pcpi_queries: list[RIFMetaDirective] = []
     pcpi_fills: list[RIFMetaDirective] = []
+    storage_aliases: dict[str, str] = {}
+    default_layout = (
+        1 if config.endianness == "little" else 2,
+        0 if config.bitorder == "lsb" else 1,
+    )
+    storage_layouts: dict[str, tuple[int, int]] = {}
     dynamic_patches: list[PatchData] = []
 
     def materialize_pcpi() -> None:
@@ -654,13 +722,52 @@ def _compile_mir_tokens(
 
     def handle_directive(directive: RIFMetaDirective) -> None:
         nonlocal pcpi, pcpi_set_section, pcpi_set_offset
+        if directive.name == "RIF_STORE_CONFIG":
+            if directive.alias is None or directive.index is None:
+                raise MIRInputError(
+                    "La configuración de ::RIF_STORE requiere alias y valor."
+                )
+            if directive.alias not in storage_aliases:
+                raise MIRInputError(
+                    f"No existe el alias de ::RIF_STORE: {directive.alias}."
+                )
+            current = storage_layouts[directive.alias]
+            if directive.operation == "ORDER":
+                storage_layouts[directive.alias] = (current[0], directive.index)
+            elif directive.operation == "ENDIANNESS":
+                storage_layouts[directive.alias] = (directive.index, current[1])
+            else:
+                raise MIRInputError(
+                    "La configuración de ::RIF_STORE solo acepta ORDER o ENDIANNESS."
+                )
+            return
         if directive.name == "RIF_STORE":
+            if directive.operation == "ALIAS":
+                if directive.alias is None or directive.path is None:
+                    raise MIRInputError(
+                        '::RIF_STORE AS requiere una ruta y un alias.'
+                    )
+                if directive.alias in storage_aliases:
+                    raise MIRInputError(
+                        f"El alias de ::RIF_STORE ya existe: {directive.alias}."
+                    )
+                if Path(directive.path).suffix.casefold() != ".bin":
+                    raise MIRInputError(
+                        "::RIF_STORE solo acepta archivos con extensión .bin."
+                    )
+                _resolve_meta_path(directive.path, mir_path)
+                storage_aliases[directive.alias] = directive.path
+                storage_layouts[directive.alias] = default_layout
+                return
             materialize_pcpi()
             _apply_meta_directive(
                 directive,
                 image,
                 machine.section_name or selected_section,
                 mir_path,
+                storage_aliases,
+                storage_layouts,
+                default_layout,
             )
             return
         if directive.name == "RIF_SECTION":

@@ -33,10 +33,22 @@ las muestra.
 `::RIF_STORE`
 recibe `ENDIANNESS` (`1` little, `2` big) y `BITORDER` (`0` LSB, `1` MSB),
 resuelve la ruta relativa al archivo MIR, abre el `storage.bin`, extrae el raw
-por label y lo inserta en la sección actual. El payload debe comenzar en una
-posición alineada a bytes y se copia sin reinterpretar sus bytes; los dos
-argumentos describen el layout solicitado, pero el storage no tiene ancho de
-palabra para permitir una conversión endianess genérica.
+por label y lo inserta en la sección actual. Para no repetir una ruta se puede
+declarar un alias una vez y usarlo después:
+
+```text
+::RIF_STORE AS gba "build/gba.storage.bin"
+gba.ORDER 1
+gba.ENDIANNESS 1
+::RIF_STORE gba titulo
+::RIF_STORE gba ancho
+```
+
+El alias es local a esa compilación MIR y debe declararse antes de usarse. El
+alias configura el orden de bits (`ORDER`, `0` LSB o `1` MSB) y el orden de
+bytes (`ENDIANNESS`, `1` little o `2` big) para los valores tipados. Los
+payloads raw, imágenes, audio y archivos se copian sin transformación. La
+forma antigua con ruta y los cuatro argumentos numéricos sigue siendo válida.
 
 ## Línea de comandos
 

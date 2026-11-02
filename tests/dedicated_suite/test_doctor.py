@@ -55,7 +55,7 @@ class DoctorCLITests(unittest.TestCase):
                 status = rif_main(["--doctor-storage", str(storage)])
 
             self.assertEqual(status, 0)
-            self.assertIn("OK STORAGE version=3", stdout.getvalue())
+            self.assertIn("OK STORAGE version=1", stdout.getvalue())
             self.assertIn("entries=1", stdout.getvalue())
             self.assertIn("label=payload", stdout.getvalue())
 

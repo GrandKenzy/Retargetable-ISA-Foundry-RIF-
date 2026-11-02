@@ -133,9 +133,10 @@ Linux dependency belongs to this example, not to RIF's architecture model.
 ### GBA Bouncing Ball
 
 `GBA-Bouncing-Ball` demonstrates a complete ROM-oriented workflow: an ARM7TDMI
-target, a Thumb variant, a cartridge header asset, generated MIR, ROM padding
-and a reduced verification CPU. `build.py` still calculates labels and ARM
-branch offsets in Python, so this example is not a complete ARM assembler.
+target, a Thumb variant, the shared PCP-I cartridge-header template, generated
+MIR, ROM padding and a reduced verification CPU. `build.py` still calculates
+labels and ARM branch offsets in Python, so this example is not a complete ARM
+assembler.
 That limitation is documented deliberately; the example shows how RIF can be
 embedded in a larger target-generation pipeline.
 

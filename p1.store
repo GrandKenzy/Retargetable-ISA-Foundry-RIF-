@@ -1,0 +1,9 @@
+MAGIC "store"
+VERSION 1
+
+@ITEM AUDIO
+: "p1.wav"
+: "wav"
+: "PCM_S16LE"
+: p1Audio
+@end

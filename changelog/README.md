@@ -66,6 +66,26 @@ session and published only for old introspection callers. Pending tables,
 source activity, and load tracking are owned exclusively by the session during
 modern processing.
 
+`.store` now accepts `@ITEM BINARY` for opaque named payloads. Binary files are
+copied without image/audio plugins and can be consumed by `::RIF_STORE` using
+the same bounded label index.
+
+`.store` VERSION 2 also accepts exact typed byte literals (`str`, fixed-width
+integers, and IEEE-754 floats), bounded `@REQST` downloads, and label-selected
+`@CONTAINER` imports from validated `RIFSTOR` files. VERSION 1 remains the
+simple local/raw format.
+
+The GBA ROM example now consumes the shared PCP-I header template from
+`examples/headers/GBA_ROM_arm7tdmi_little.pcpi`; its build creates the
+compiled `.pcic` image and fills only the declared pits instead of carrying a
+second raw header copy.
+
+`::RIF_STORE` now supports local aliases, so a MIR source can declare
+`::RIF_STORE AS name "path.storage.bin"` once and reuse `name` for subsequent
+payload insertions. The path-first form remains accepted. Aliases can also set
+`ORDER` and `ENDIANNESS` once for typed values; opaque payloads remain
+byte-for-byte.
+
 ### [`1.0.1`](changelog_1.0.1.md) · Security hardening and resource controls
 
 RIF `1.0.1` strengthens path validation, resource controls, package safety,

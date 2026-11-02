@@ -12,6 +12,7 @@ RIF_META_DIRECTIVES = frozenset(
     {
         "RIF_PCPI",
         "RIF_STORE",
+        "RIF_STORE_CONFIG",
         "RIF_REQSTS",
         "RIF_BUFFER",
         "RIF_INSERT",
@@ -28,6 +29,7 @@ RIF_META_OPERATIONS = {
     "RIF_REQSTS": ("REQSTS",),
     "RIF_SECTION": ("SECTION",),
     "RIF_STORE": ("STORE",),
+    "RIF_STORE_CONFIG": ("ORDER", "ENDIANNESS"),
 }
 
 
@@ -38,6 +40,8 @@ class RIFMetaDirective:
     name: str
     operation: str | None = None
     path: str | None = None
+    alias: str | None = None
+    path_alias: str | None = None
     label: str | None = None
     endianness: int | None = None
     bitorder: int | None = None
@@ -57,6 +61,30 @@ def _line_number(line: tuple[lexer.TokenType, ...]) -> int | None:
 def _directive(line: tuple[lexer.TokenType, ...]) -> RIFMetaDirective | None:
     if len(line) < 3:
         return None
+    if (
+        len(line) == 4
+        and line[0].token in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+        and line[1].token == lexer.Token.DOT
+        and line[2].token in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+        and line[3].token == lexer.Token.NUMBER
+    ):
+        option = str(line[2].value).upper()
+        value = int(line[3].value)
+        if option not in {"ORDER", "ENDIANNESS"}:
+            return None
+        if option == "ORDER" and value not in {0, 1}:
+            raise ValueError(f"{line[0].value}.ORDER usa 0 (LSB) o 1 (MSB).")
+        if option == "ENDIANNESS" and value not in {1, 2}:
+            raise ValueError(
+                f"{line[0].value}.ENDIANNESS usa 1 (little) o 2 (big)."
+            )
+        return RIFMetaDirective(
+            "RIF_STORE_CONFIG",
+            operation=option,
+            alias=str(line[0].value),
+            index=value,
+            line=_line_number(line),
+        )
     if (
         line[0].token != lexer.Token.COLON
         or line[1].token != lexer.Token.COLON
@@ -208,26 +236,76 @@ def _directive(line: tuple[lexer.TokenType, ...]) -> RIFMetaDirective | None:
             section=str(line[3].value),
             line=line_number,
         )
-    if (
-        len(line) != 7
-        or line[3].token != lexer.Token.STRING
-        or line[4].token not in {lexer.Token.IDENT, lexer.Token.KEYWORD}
-        or line[5].token != lexer.Token.NUMBER
-        or line[6].token != lexer.Token.NUMBER
-    ):
-        raise ValueError(
-            '::RIF_STORE requiere "ruta.storage.bin", un label, ENDIANNESS y BITORDER.'
+    if name == "RIF_STORE" and len(line) == 6:
+        if (
+            line[3].token in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+            and str(line[3].value).upper() == "AS"
+            and line[4].token in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+            and line[5].token == lexer.Token.STRING
+        ):
+            alias = str(line[4].value)
+            if not alias.isidentifier():
+                raise ValueError("El alias de ::RIF_STORE no es un identificador válido.")
+            return RIFMetaDirective(
+                name,
+                operation="ALIAS",
+                path=str(line[5].value),
+                alias=alias,
+                line=line_number,
+            )
+        if (
+            line[3].token != lexer.Token.STRING
+            or line[4].token not in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+            or str(line[4].value).upper() != "AS"
+            or line[5].token not in {lexer.Token.IDENT, lexer.Token.KEYWORD}
+        ):
+            raise ValueError(
+                '::RIF_STORE acepta AS alias "ruta.storage.bin" o "ruta.storage.bin" AS alias.'
+            )
+        alias = str(line[5].value)
+        if not alias.isidentifier():
+            raise ValueError("El alias de ::RIF_STORE no es un identificador válido.")
+        return RIFMetaDirective(
+            name,
+            operation="ALIAS",
+            path=str(line[3].value),
+            alias=alias,
+            line=line_number,
         )
-    endianness = int(line[5].value)
-    bitorder = int(line[6].value)
-    if endianness not in {1, 2}:
-        raise ValueError("::RIF_STORE usa ENDIANNESS 1 (little) o 2 (big).")
-    if bitorder not in {0, 1}:
-        raise ValueError("::RIF_STORE usa BITORDER 0 (LSB) o 1 (MSB).")
+    if len(line) not in {5, 7} or line[4].token not in {lexer.Token.IDENT, lexer.Token.KEYWORD}:
+        raise ValueError(
+            '::RIF_STORE requiere "ruta.storage.bin" o alias, un label, ENDIANNESS y BITORDER.'
+        )
+    path = None
+    path_alias = None
+    if line[3].token == lexer.Token.STRING:
+        path = str(line[3].value)
+    elif line[3].token in {lexer.Token.IDENT, lexer.Token.KEYWORD}:
+        path_alias = str(line[3].value)
+        if not path_alias.isidentifier():
+            raise ValueError("El alias de ::RIF_STORE no es un identificador válido.")
+    else:
+        raise ValueError(
+            '::RIF_STORE requiere una ruta entre comillas o un alias.'
+        )
+    endianness = None
+    bitorder = None
+    if len(line) == 7:
+        if line[5].token != lexer.Token.NUMBER or line[6].token != lexer.Token.NUMBER:
+            raise ValueError(
+                "::RIF_STORE requiere ENDIANNESS y BITORDER numéricos."
+            )
+        endianness = int(line[5].value)
+        bitorder = int(line[6].value)
+        if endianness not in {1, 2}:
+            raise ValueError("::RIF_STORE usa ENDIANNESS 1 (little) o 2 (big).")
+        if bitorder not in {0, 1}:
+            raise ValueError("::RIF_STORE usa BITORDER 0 (LSB) o 1 (MSB).")
     return RIFMetaDirective(
         name,
         operation="STORE",
-        path=str(line[3].value),
+        path=path,
+        path_alias=path_alias,
         label=str(line[4].value),
         endianness=endianness,
         bitorder=bitorder,
